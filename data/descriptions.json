@@ -1,0 +1,26 @@
+{
+  "functionDescriptions": {
+    "I": "Feels stable and resolved.",
+    "ii": "Often leads onward gently and keeps movement going.",
+    "iii": "Can feel soft, floating, or less direct.",
+    "IV": "Often gives a broader or warmer lift.",
+    "V": "Builds tension and pushes strongly forward.",
+    "vi": "Often feels reflective or more inward.",
+    "vii°": "Feels unstable and wants to resolve.",
+    "i": "Feels grounded, dark, and resolved.",
+    "ii°": "Feels fragile and unstable.",
+    "III": "Can add lift or contrast in a minor key.",
+    "iv": "Often deepens melancholy or introspection.",
+    "v": "Adds motion, but softer than a strong dominant major V.",
+    "VI": "Often feels sombre, broad, or cinematic.",
+    "VII": "Can feel open, suspended, or driving."
+  },
+  "moodReasonText": {
+    "Sad": "This function is often used in more reflective or melancholy movement.",
+    "Somber": "This function often supports a darker or heavier colour.",
+    "Dreamy": "This function often keeps the harmony softer or more floating.",
+    "Tense": "This function helps build instability or pressure.",
+    "Hopeful": "This function often supports lift, openness, or forward motion.",
+    "Happy": "This function often supports brightness, energy, or a more uplifting feel."
+  }
+}

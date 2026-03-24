@@ -1,0 +1,86 @@
+{
+  "C Major": {
+    "chords": ["C", "Dm", "Em", "F", "G", "Am", "Bdim"],
+    "functions": {
+      "C": "I",
+      "Dm": "ii",
+      "Em": "iii",
+      "F": "IV",
+      "G": "V",
+      "Am": "vi",
+      "Bdim": "vii°"
+    },
+    "transitions": {
+      "C": ["F", "G", "Am", "Em"],
+      "Dm": ["G", "Am", "F"],
+      "Em": ["Am", "F", "G"],
+      "F": ["G", "C", "Dm", "Am"],
+      "G": ["C", "Am", "Em"],
+      "Am": ["F", "G", "Dm", "C"],
+      "Bdim": ["C", "Em", "G"]
+    }
+  },
+  "G Major": {
+    "chords": ["G", "Am", "Bm", "C", "D", "Em", "F#dim"],
+    "functions": {
+      "G": "I",
+      "Am": "ii",
+      "Bm": "iii",
+      "C": "IV",
+      "D": "V",
+      "Em": "vi",
+      "F#dim": "vii°"
+    },
+    "transitions": {
+      "G": ["C", "D", "Em", "Bm"],
+      "Am": ["D", "Em", "C"],
+      "Bm": ["Em", "C", "D"],
+      "C": ["D", "G", "Am", "Em"],
+      "D": ["G", "Em", "Bm"],
+      "Em": ["C", "D", "Am", "G"],
+      "F#dim": ["G", "Bm", "D"]
+    }
+  },
+  "A Minor": {
+    "chords": ["Am", "Bdim", "C", "Dm", "Em", "F", "G"],
+    "functions": {
+      "Am": "i",
+      "Bdim": "ii°",
+      "C": "III",
+      "Dm": "iv",
+      "Em": "v",
+      "F": "VI",
+      "G": "VII"
+    },
+    "transitions": {
+      "Am": ["Dm", "F", "G", "C"],
+      "Bdim": ["Am", "Em", "G"],
+      "C": ["F", "G", "Am", "Dm"],
+      "Dm": ["Am", "G", "F"],
+      "Em": ["Am", "F", "G"],
+      "F": ["G", "Am", "Dm", "C"],
+      "G": ["Am", "F", "C"]
+    }
+  },
+  "E Minor": {
+    "chords": ["Em", "F#dim", "G", "Am", "Bm", "C", "D"],
+    "functions": {
+      "Em": "i",
+      "F#dim": "ii°",
+      "G": "III",
+      "Am": "iv",
+      "Bm": "v",
+      "C": "VI",
+      "D": "VII"
+    },
+    "transitions": {
+      "Em": ["Am", "C", "D", "G"],
+      "F#dim": ["Em", "Bm", "D"],
+      "G": ["C", "D", "Em", "Am"],
+      "Am": ["Em", "D", "C"],
+      "Bm": ["Em", "C", "D"],
+      "C": ["D", "Em", "Am", "G"],
+      "D": ["Em", "C", "G"]
+    }
+  }
+}

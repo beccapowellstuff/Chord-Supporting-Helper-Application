@@ -1,0 +1,8 @@
+{
+  "Sad": ["vi", "i", "iv", "ii", "VI"],
+  "Somber": ["i", "iv", "VI", "VII", "ii°"],
+  "Dreamy": ["iii", "IV", "I", "III", "VI"],
+  "Tense": ["V", "vii°", "ii°", "v"],
+  "Hopeful": ["I", "IV", "V", "vi", "III"],
+  "Happy": ["I", "IV", "V", "III", "VI"]
+}
