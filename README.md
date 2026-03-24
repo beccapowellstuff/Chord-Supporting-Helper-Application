@@ -1,2 +1,292 @@
-# MusicSupportingApplication
-This Application is to help support writing by giving Circle of Fifth based on Scale, suggestions (based on Weighting for now, but AI in the future), and allowing you to hear the chord. It is not a replacement for creative process, but a tool to help when needing ideas for next step.
+# Chord Supporting Helper Application
+
+A browser-based music idea tool designed to help musicians find the next part of a chord progression without handing the whole creative process over to AI.
+
+This project focuses on providing harmonic guidance, visual theory support, and musical prompts that can help break creative stalls while still leaving the real writing decisions in the hands of the musician.
+
+---
+
+## Vibe Coding
+
+This project is being built using vibe coding.
+
+I do have programming experience, but my JavaScript and HTML knowledge is limited, and with a full time job I do not always have the time or energy to properly learn everything before building. Because of that, this project is a mix of experimentation, problem solving, and learning as I go.
+
+That means some parts of the code are rough. Some areas are messy, some decisions were made quickly to keep momentum going, and some parts will almost certainly be reworked later.
+
+As I continue working on it, I plan to clean things up, improve the structure, and break larger sections into more sensible modules where they clearly belong.
+
+So yes, this is a vibe coded project. If that alone puts you off, this repository probably will not be for you. But if you are interested in a project that is being built, tested, learned through, and gradually improved in public, then that is exactly what this is.
+
+---
+
+## What it does
+
+Chord Supporting Helper Application is a music theory and progression support tool built around an interactive Circle of Fifths.
+
+At the moment, it allows the user to:
+
+- Select a key from the Circle of Fifths
+- View key information such as relative and parallel keys
+- See the diatonic chords for the selected key
+- View Roman numeral functions for those chords
+- Explore possible next chord ideas based on the current harmonic context
+- Use feeling-based suggestions to guide the next move in a progression
+
+The aim is not to write music for the user. The aim is to support the creative process by offering ideas, structure, and theory-aware prompts when the next step is not obvious.
+
+---
+
+## Why this exists
+
+In my experience, a lot of music tools either do too little or try to do too much.
+
+Some tools are just static theory charts.  
+Some AI tools try to generate everything for you.  
+Some larger applications do far more than I want, when all I really want is help finding the next useful idea to build on.
+
+This project is meant to sit somewhere in the middle.
+
+It is for musicians who want help with direction, transition, colour, and harmonic possibility, while still keeping authorship and musical judgement for themselves.
+
+It is not intended to supply melodies. For me, once I have a chord structure I like, melodies can come on top of that. Other musicians work the other way around and start with melody first. This tool is mainly aimed at the harmony side of writing.
+
+The goal is to help answer questions like:
+
+- What chord could come next here?
+- What would make this feel sadder, stronger, darker, softer, or more unresolved?
+- What are the natural harmonic options in this key?
+- What might be a slightly less obvious move that still makes musical sense?
+
+---
+
+## How it works
+
+The current version is built around a few core ideas.
+
+### 1. Interactive Circle of Fifths
+
+The app displays an interactive Circle of Fifths that lets the user pick a key visually.
+
+This provides a simple and familiar way to move through related keys and understand harmonic relationships.
+
+### 2. Key-aware chord mapping
+
+Once a key is selected, the app loads the diatonic chords for that key and maps them to their harmonic functions, such as:
+
+- I
+- ii
+- iii
+- IV
+- V
+- vi
+- vii°
+
+This gives the user both the chord names and the theory meaning behind them.
+
+### 3. Theory reference panel
+
+The app shows a quick key summary, including:
+
+- The current key
+- Relative key
+- Parallel key
+- Diatonic chord table
+- Roman numeral functions
+- Functional labels such as tonic, dominant, subdominant, and so on
+
+This helps the tool act as both a writing aid and a learning/reference tool.
+
+### 4. Suggestion engine
+
+The current suggestion system uses harmonic transition rules and function-based weighting.
+
+In simple terms, the app:
+
+- Looks at the selected key
+- Looks at the current chord
+- Finds plausible next chords
+- Adjusts suggestions based on the feeling the user wants to aim for
+
+This means the app is not randomly inventing chords. It is using music theory rules and weighted logic to make suggestions that are more musically grounded.
+
+---
+
+## Design philosophy
+
+This project is intentionally not trying to replace composition.
+
+It is built on a few principles:
+
+- Help the musician, do not replace the musician
+- Suggest possibilities, do not force outcomes
+- Use theory to support creativity
+- Keep the process exploratory rather than automated
+- Allow room for surprise, taste, and human choice
+
+The long-term intention is to build something that helps musicians move forward when they are stuck, especially in the awkward space between having a nice idea and not knowing what should follow it.
+
+---
+
+## Current features
+
+- Interactive Circle of Fifths
+- Key selection
+- Relative and parallel key display
+- Diatonic chord table
+- Roman numeral function display
+- Feeling-based next chord suggestions
+- A softer visual design intended for easier exploration and reference
+
+---
+
+## Future ideas
+
+This project is still growing, and there are a number of directions it could go.
+
+### Improved progression support
+
+The current model mainly works from a single chord and a target feeling. A stronger next step is to support short progressions so the tool can make better decisions based on context.
+
+At the moment, you can build around a chord, but the system is not yet truly aware of the progression as a whole or the emotional shape created by that progression.
+
+Planned ideas include:
+
+- Entering multiple chords instead of working from a single current chord
+- Using progression history to improve next-chord suggestions
+- Showing safer options versus more adventurous options
+- Better transition scoring based on cadence, tension, and release
+- Suggesting short progression continuations rather than only a single next chord
+
+### Scale support
+
+Adding scale-aware support would make the tool more useful melodically as well as harmonically.
+
+Possible additions:
+
+- Scales for each key
+- Mode suggestions
+- Relative modal colours
+- Suggested melodic note pools for a given progression
+- Scale overlays tied to the chord currently selected
+
+### Better sound support
+
+The app could become much more practical if the sound side improves.
+
+Possible additions:
+
+- Cleaner playback
+- Better instrument sounds
+- Different sound sets or timbres
+- More realistic chord voicing playback
+- Support for layered sound examples
+- Chord positioning options
+
+### Bass hangs and root movement ideas
+
+A useful direction is to support the lower harmonic structure, not just the upper chord names.
+
+Possible additions:
+
+- Bass hang suggestions
+- Pedal note options
+- Alternate bass notes
+- Root motion guidance
+- Slash chord support
+- Suggestions for holding a bass note while harmony shifts above it
+
+### Alternate roots and reharmonisation
+
+Musicians often want to explore the same emotional idea through a different harmonic route.
+
+Possible additions:
+
+- Alternate root note suggestions
+- Chord substitution ideas
+- Borrowed chord hints
+- Parallel key borrowing
+- Modal interchange
+- Colour chord options
+
+### Smarter suggestion modes
+
+The current feeling system is rule-based. Over time, it may be useful to add more advanced options without giving away full authorship.
+
+Possible additions:
+
+- AI-assisted suggestion ranking rather than AI composition
+- More nuanced emotional categories
+- Style-sensitive suggestions
+- Context-aware progression analysis
+- Suggestions based on user-selected mood and harmonic complexity
+
+The important part is that AI should remain supportive, not dominant. The purpose is to offer possibilities, not to generate finished music on behalf of the user.
+
+### Musician-first workflow
+
+Longer term, this tool could become a more complete idea companion for composition.
+
+Possible additions:
+
+- Save favourite progressions
+- Compare alternate next-chord paths
+- Export progression ideas
+- DAW-friendly formats
+- MIDI output
+- Better visual analysis of harmonic flow
+
+---
+
+## Long-term vision
+
+The long-term goal is to build a musician-first composition support tool.
+
+Not a button that writes songs.
+
+Not a generator that replaces decision-making.
+
+But a tool that helps with:
+
+- the next chord
+- the next transition
+- the next section
+- the next emotional shift
+- the next useful idea
+
+This is meant to support people who want to keep ownership of their music while still having intelligent assistance available when they need it.
+
+---
+
+## Status
+
+This project is currently in active development.
+
+The present focus is on:
+
+- improving theory clarity
+- improving suggestion quality
+- supporting better progression-based input
+- expanding the app into a more useful writing companion for real musicians
+
+---
+
+## Contributing
+
+Suggestions, musical feedback, theory corrections, and feature ideas are welcome.
+
+Especially useful feedback includes:
+
+- harmonic edge cases
+- theory display issues
+- suggestion quality
+- progression logic improvements
+- practical workflow ideas from real musicians
+
+---
+
+## Summary
+
+Chord Supporting Helper Application is an interactive music support tool for musicians who want help finding what comes next, while still writing the music themselves.
+
+It combines visual theory, harmonic structure, and guided suggestion systems to help users move forward creatively without giving up control of the process.
