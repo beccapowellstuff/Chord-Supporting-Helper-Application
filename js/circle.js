@@ -72,7 +72,7 @@ function createBadge(svg, x, y, label) {
   circle.setAttribute("cx", x);
   circle.setAttribute("cy", y);
   circle.setAttribute("r", "18");
-  circle.setAttribute("fill", "#f3c04d");
+  circle.setAttribute("fill", "#a2bbf3");
   circle.setAttribute("stroke", "none");
   svg.appendChild(circle);
 
