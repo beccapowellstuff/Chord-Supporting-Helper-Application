@@ -6,6 +6,71 @@ This project focuses on providing harmonic guidance, visual theory support, and 
 
 ---
 
+## Getting Started
+
+### Try it now
+
+The easiest way to explore the tool is through GitHub Pages. No setup required — just open it and start using it.
+
+**[Live Demo](https://beccapowellstuff.github.io/Chord-Supporting-Helper-Application/)**
+
+### Run it locally
+
+The application loads music theory data from JSON files, so you'll need to run a local server. Everything else is self-contained — no build process or extra dependencies beyond that.
+
+**Option 1: Python (simplest if you have Python installed)**
+
+From the project directory, run:
+
+```bash
+python -m http.server 8000
+```
+
+Then open `http://localhost:8000` in your browser.
+
+**Option 2: Node.js**
+
+```bash
+npx http-server
+```
+
+Then look for the local URL it provides (usually `http://localhost:8080`).
+
+**Option 3: VS Code Live Server extension**
+
+If you have the Live Server extension installed, right-click `index.html` and select "Open with Live Server."
+
+That's really it — pick whichever option works easiest for you and you're all set.
+
+### Browser support
+
+This tool should work on all modern browsers (Chrome, Firefox, Safari, Edge). It uses standard web technologies and doesn't require anything fancy. If you run into issues on a specific browser, let me know.
+
+### Quick workflow
+
+To get a feel for how it works, here's the basic flow:
+
+1. **Pick a key** — Click a key on the Circle of Fifths
+2. **See your options** — The diatonic chords for that key appear in the theory panel
+3. **Select a chord** — This becomes your current harmonic position
+4. **Get ideas** — Use the feeling selector to get next chord suggestions based on the mood you're going for
+5. **Build from there** — Pick the suggestion that feels right and keep building
+
+The tool is built to support exploration, not to force outcomes. Try things, see what works, and use the theory as a guide rather than a rulebook.
+
+### Project structure
+
+The files are organized pretty simply:
+
+- **`index.html`** — The UI and layout
+- **`styles.css`** — Visual design and styling
+- **`js/`** — Application logic (key selection, chord mapping, suggestions, audio, etc.)
+- **`data/`** — Music theory data (key definitions, chords, moods, descriptions)
+
+If you want to understand how something works, the `js/` folder is where the application logic lives, and `data/` is where the music theory information comes from.
+
+---
+
 ## Vibe Coding
 
 This project is being built using vibe coding.
