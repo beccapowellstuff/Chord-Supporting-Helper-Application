@@ -310,6 +310,7 @@ function refreshKeyUI() {
       const clickedChord = getChordForKey(newKey);
       if (clickedChord) {
         try {
+          await ensureAudioReady();
           await playChord(clickedChord, 1.1);
         } catch (error) {
           console.warn("Could not play clicked chord:", error);
@@ -346,6 +347,7 @@ async function handlePlayProgression() {
   if (!chordList.length) return;
 
   try {
+    await ensureAudioReady();
     await playProgression(chordList, 90);
   } catch (error) {
     console.error("Could not play progression:", error);
