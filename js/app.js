@@ -525,14 +525,17 @@ function refreshKeyUI() {
       selectedKey = newKey;
       refreshKeyUI();
 
-      const clickedChord = getChordForKey(newKey);
-      if (clickedChord) {
-        try {
-          await ensureAudioReady();
-          await playChord(clickedChord, 1.1);
-        } catch (error) {
-          console.warn("Could not play clicked chord:", error);
+      try {
+        await ensureAudioReady();
+
+        const rootNote = newKey.split(" ")[0];
+        const midi = noteToMidi(rootNote, 4);
+
+        if (midi != null) {
+          await playMidiNote(midi, 0.8);
         }
+      } catch (error) {
+        console.warn("Could not play clicked root note:", error);
       }
     },
     appData.musicData,
@@ -571,16 +574,41 @@ function refreshKeyUI() {
       try {
         await ensureAudioReady();
 
+        if (!Array.isArray(notesArray) || !notesArray.length) {
+          return;
+        }
+
+        const startOctave = 4;
         const fullScale = [...notesArray, notesArray[0]];
+        const midiNotes = [];
 
-        for (let i = 0; i < fullScale.length; i++) {
-          const octave = i === fullScale.length - 1 ? 5 : 4;
-          const midi = noteToMidi(fullScale[i], octave);
+        const firstMidi = noteToMidi(fullScale[0], startOctave);
+        if (firstMidi == null) {
+          return;
+        }
 
-          if (midi != null) {
-            await playMidiNote(midi, 0.45);
+        midiNotes.push(firstMidi);
+        let previousMidi = firstMidi;
+
+        for (let i = 1; i < fullScale.length; i++) {
+          let octave = startOctave;
+          let midi = noteToMidi(fullScale[i], octave);
+
+          if (midi == null) {
+            continue;
           }
 
+          while (midi <= previousMidi) {
+            octave += 1;
+            midi = noteToMidi(fullScale[i], octave);
+          }
+
+          midiNotes.push(midi);
+          previousMidi = midi;
+        }
+
+        for (const midi of midiNotes) {
+          await playMidiNote(midi, 0.45);
           await new Promise(resolve => setTimeout(resolve, 220));
         }
       } catch (error) {
