@@ -376,7 +376,7 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
           <span class="key-label">Parallel key:</span> ${parallelKey === "—" ? "—" : formatKeyLabel(parallelKey)}
           <span class="key-summary-sep">•</span>
           <span class="key-label">Scale:</span>
-          <span class="key-scale-notes">${keyData.scaleNotes.join(", ")}</span>
+          <span class="key-scale-notes">${[...keyData.scaleNotes, keyData.scaleNotes[0]].join(", ")}</span>
           <span
             class="key-scale-play"
             title="Play scale"

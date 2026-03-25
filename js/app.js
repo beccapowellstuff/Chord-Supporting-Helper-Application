@@ -570,13 +570,21 @@ function refreshKeyUI() {
     async notesArray => {
       try {
         await ensureAudioReady();
-        for (const n of notesArray) {
-          const m = noteToMidi(n, 4);
-          if (m != null) await playMidiNote(m, 0.45);
-          await new Promise(r => setTimeout(r, 220));
+
+        const fullScale = [...notesArray, notesArray[0]];
+
+        for (let i = 0; i < fullScale.length; i++) {
+          const octave = i === fullScale.length - 1 ? 5 : 4;
+          const midi = noteToMidi(fullScale[i], octave);
+
+          if (midi != null) {
+            await playMidiNote(midi, 0.45);
+          }
+
+          await new Promise(resolve => setTimeout(resolve, 220));
         }
       } catch (error) {
-        console.error("✗ Could not play scale:", error);
+        console.error("Could not play scale:", error);
       }
     }
   );
