@@ -223,11 +223,6 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     wrapper.appendChild(feedbackContainer);
   }
 
-  const legend = document.createElement("div");
-  legend.className = "theory-legend";
-  legend.textContent = "Smaller muted labels show the formal spelling when it differs from the friendlier name.";
-  wrapper.appendChild(legend);
-
   if (!suggestions.length) {
     const empty = document.createElement("div");
     empty.className = "suggestions-empty";
@@ -336,9 +331,6 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
       <div class="key-summary-meta">
         Relative key: ${formatKeyLabel(keyData.relativeKey)}.
         Parallel key: ${parallelKey === "—" ? "—" : formatKeyLabel(parallelKey)}.
-      </div>
-      <div class="theory-legend theory-legend-inline">
-        Smaller muted labels show the formal spelling when it differs from the friendlier name.
       </div>
     </div>
 
