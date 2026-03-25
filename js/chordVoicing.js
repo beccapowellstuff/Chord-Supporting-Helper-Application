@@ -6,11 +6,15 @@ const TRIADS = {
 
 const CHROMATIC = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const ENHARMONIC = {
+  "B#": "C",
   Db: "C#",
   Eb: "D#",
+  Fb: "E",
+  "E#": "F",
   Gb: "F#",
   Ab: "G#",
-  Bb: "A#"
+  Bb: "A#",
+  Cb: "B"
 };
 
 function normaliseRoot(root) {

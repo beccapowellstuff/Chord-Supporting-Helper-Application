@@ -6,22 +6,68 @@ function normaliseChordToken(token) {
 }
 
 function getChordQuality(chord) {
+  if (/maj13$/i.test(chord)) return "maj13";
+  if (/maj11$/i.test(chord)) return "maj11";
+  if (/maj9$/i.test(chord)) return "maj9";
+  if (/maj7$/i.test(chord)) return "maj7";
+  if (/m13$/i.test(chord)) return "m13";
+  if (/m11$/i.test(chord)) return "m11";
+  if (/m9$/i.test(chord)) return "m9";
+  if (/m7$/i.test(chord)) return "m7";
   if (/dim$/i.test(chord)) return "dim";
+  if (/aug$/i.test(chord)) return "aug";
+  if (/sus4$/i.test(chord)) return "sus4";
+  if (/sus2$/i.test(chord)) return "sus2";
+  if (/sus$/i.test(chord)) return "sus4";
+  if (/add13$/i.test(chord)) return "add13";
+  if (/add11$/i.test(chord)) return "add11";
+  if (/add9$/i.test(chord)) return "add9";
+  if (/13$/i.test(chord)) return "13";
+  if (/11$/i.test(chord)) return "11";
+  if (/9$/i.test(chord)) return "9";
+  if (/7$/i.test(chord)) return "dominant7";
+  if (/5$/i.test(chord)) return "power";
   if (/m$/i.test(chord)) return "minor";
   return "major";
 }
 
 function getChordRoot(chord) {
-  return chord.replace(/dim$/i, "").replace(/m$/i, "");
+  return chord
+    .replace(/maj13$/i, "")
+    .replace(/maj11$/i, "")
+    .replace(/maj9$/i, "")
+    .replace(/maj7$/i, "")
+    .replace(/m13$/i, "")
+    .replace(/m11$/i, "")
+    .replace(/m9$/i, "")
+    .replace(/m7$/i, "")
+    .replace(/dim$/i, "")
+    .replace(/aug$/i, "")
+    .replace(/sus4$/i, "")
+    .replace(/sus2$/i, "")
+    .replace(/sus$/i, "")
+    .replace(/add13$/i, "")
+    .replace(/add11$/i, "")
+    .replace(/add9$/i, "")
+    .replace(/13$/i, "")
+    .replace(/11$/i, "")
+    .replace(/9$/i, "")
+    .replace(/7$/i, "")
+    .replace(/5$/i, "")
+    .replace(/m$/i, "");
 }
 
 function normaliseRoot(root) {
   const enharmonicMap = {
+    "B#": "C",
     Db: "C#",
     Eb: "D#",
+    Fb: "E",
+    "E#": "F",
     Gb: "F#",
     Ab: "G#",
-    Bb: "A#"
+    Bb: "A#",
+    Cb: "B"
   };
 
   return enharmonicMap[root] || root;
@@ -34,12 +80,73 @@ function canonicaliseTypedChord(token) {
   let quality = "";
   let root = cleaned;
 
-  if (/dim$/i.test(cleaned)) {
+  // Check for chord suffixes (order matters - check longer suffixes first)
+  if (/maj13$/i.test(cleaned)) {
+    quality = "maj13";
+    root = cleaned.replace(/maj13$/i, "");
+  } else if (/maj11$/i.test(cleaned)) {
+    quality = "maj11";
+    root = cleaned.replace(/maj11$/i, "");
+  } else if (/maj9$/i.test(cleaned)) {
+    quality = "maj9";
+    root = cleaned.replace(/maj9$/i, "");
+  } else if (/maj7$/i.test(cleaned)) {
+    quality = "maj7";
+    root = cleaned.replace(/maj7$/i, "");
+  } else if (/m13$/i.test(cleaned)) {
+    quality = "m13";
+    root = cleaned.replace(/m13$/i, "");
+  } else if (/m11$/i.test(cleaned)) {
+    quality = "m11";
+    root = cleaned.replace(/m11$/i, "");
+  } else if (/m9$/i.test(cleaned)) {
+    quality = "m9";
+    root = cleaned.replace(/m9$/i, "");
+  } else if (/m7$/i.test(cleaned)) {
+    quality = "m7";
+    root = cleaned.replace(/m7$/i, "");
+  } else if (/dim$/i.test(cleaned)) {
     quality = "dim";
     root = cleaned.replace(/dim$/i, "");
   } else if (/m$/i.test(cleaned)) {
     quality = "m";
     root = cleaned.replace(/m$/i, "");
+  } else if (/aug$/i.test(cleaned)) {
+    quality = "aug";
+    root = cleaned.replace(/aug$/i, "");
+  } else if (/sus4$/i.test(cleaned)) {
+    quality = "sus4";
+    root = cleaned.replace(/sus4$/i, "");
+  } else if (/sus2$/i.test(cleaned)) {
+    quality = "sus2";
+    root = cleaned.replace(/sus2$/i, "");
+  } else if (/sus$/i.test(cleaned)) {
+    quality = "sus4";  // Default sus to sus4
+    root = cleaned.replace(/sus$/i, "");
+  } else if (/add13$/i.test(cleaned)) {
+    quality = "add13";
+    root = cleaned.replace(/add13$/i, "");
+  } else if (/add11$/i.test(cleaned)) {
+    quality = "add11";
+    root = cleaned.replace(/add11$/i, "");
+  } else if (/add9$/i.test(cleaned)) {
+    quality = "add9";
+    root = cleaned.replace(/add9$/i, "");
+  } else if (/13$/i.test(cleaned)) {
+    quality = "13";
+    root = cleaned.replace(/13$/i, "");
+  } else if (/11$/i.test(cleaned)) {
+    quality = "11";
+    root = cleaned.replace(/11$/i, "");
+  } else if (/9$/i.test(cleaned)) {
+    quality = "9";
+    root = cleaned.replace(/9$/i, "");
+  } else if (/7$/i.test(cleaned)) {
+    quality = "7";
+    root = cleaned.replace(/7$/i, "");
+  } else if (/5$/i.test(cleaned)) {
+    quality = "5";
+    root = cleaned.replace(/5$/i, "");
   }
 
   const rootMatch = /^([A-G](?:#|b)?)$/i.exec(root);

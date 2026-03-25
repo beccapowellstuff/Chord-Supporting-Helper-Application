@@ -82,6 +82,78 @@ function createBadge(svg, x, y, label) {
   });
 }
 
+function createAddButton(svg, x, y, onClick, alwaysVisible = false, tooltip = null) {
+  const group = document.createElementNS(SVG_NS, "g");
+  group.setAttribute("class", "circle-add-btn");
+  group.style.transition = "opacity 0.16s ease";
+  group.style.opacity = alwaysVisible ? "0.9" : "0";
+  group.style.pointerEvents = alwaysVisible ? "auto" : "none";
+
+  const buttonCircle = document.createElementNS(SVG_NS, "circle");
+  buttonCircle.setAttribute("cx", x);
+  buttonCircle.setAttribute("cy", y);
+  buttonCircle.setAttribute("r", "9");
+  buttonCircle.setAttribute("fill", "#b9e8bf");
+  buttonCircle.setAttribute("stroke", "#ffffff");
+  buttonCircle.setAttribute("stroke-width", "1.8");
+  buttonCircle.style.cursor = "pointer";
+  if (tooltip) buttonCircle.setAttribute("data-tooltip", tooltip);
+  buttonCircle.addEventListener("click", event => {
+    event.stopPropagation();
+    onClick();
+  });
+
+  const plus = document.createElementNS(SVG_NS, "text");
+  plus.setAttribute("x", x);
+  plus.setAttribute("y", y + 1);
+  plus.setAttribute("text-anchor", "middle");
+  plus.setAttribute("dominant-baseline", "middle");
+  plus.setAttribute("font-size", "13");
+  plus.setAttribute("font-weight", "bold");
+  plus.setAttribute("fill", "#1f5a2c");
+  plus.style.pointerEvents = "none";
+  plus.textContent = "+";
+
+  group.appendChild(buttonCircle);
+  group.appendChild(plus);
+  svg.appendChild(group);
+
+  let hideTimer = null;
+
+  const show = () => {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+    }
+    group.style.opacity = "0.95";
+    group.style.pointerEvents = "auto";
+  };
+
+  const hide = (delayMs = 0) => {
+    if (alwaysVisible) return;
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+    }
+
+    const applyHide = () => {
+      group.style.opacity = "0";
+      group.style.pointerEvents = "none";
+    };
+
+    if (delayMs > 0) {
+      hideTimer = setTimeout(applyHide, delayMs);
+    } else {
+      applyHide();
+    }
+  };
+
+  group.addEventListener("mouseenter", show);
+  group.addEventListener("mouseleave", () => hide(120));
+
+  return { show, hide };
+}
+
 function getMajorNeighbours(index) {
   return [(index + 11) % 12, (index + 1) % 12];
 }
@@ -213,8 +285,13 @@ function findCircleIndexForNote(rootNote) {
   return -1;
 }
 
-export function renderCircleOfFifths(container, selectedKey, onSelectKey, musicData) {
+export function renderCircleOfFifths(container, selectedKey, onSelectKey, musicData, onAddChord) {
   container.innerHTML = "";
+
+  const alwaysShowAddButtons =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(hover: none)").matches;
 
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", "0 0 600 600");
@@ -261,6 +338,9 @@ export function renderCircleOfFifths(container, selectedKey, onSelectKey, musicD
       selectedMinorIndex !== -1 && getMajorNeighbours(selectedMinorIndex).includes(i);
     const minorIsInKey = isChordInSelectedKey(diatonicLookup, minorLabel, "minor");
 
+    let majorAddButton = null;
+    let minorAddButton = null;
+
     const majorPath = document.createElementNS(SVG_NS, "path");
     majorPath.setAttribute(
       "d",
@@ -273,10 +353,17 @@ export function renderCircleOfFifths(container, selectedKey, onSelectKey, musicD
     majorPath.setAttribute("stroke", "#ffffff");
     majorPath.setAttribute("stroke-width", "2");
     majorPath.style.cursor = "pointer";
+    majorPath.setAttribute("data-tooltip", `Select ${majorLabel} major`);
     majorPath.addEventListener("click", () => {
       const aliases = parseAliases(majorLabel);
       const selected = aliases.find(alias => musicData[`${alias} Major`]) || aliases[0];
       onSelectKey(`${selected} Major`);
+    });
+    majorPath.addEventListener("mouseenter", () => {
+      if (majorAddButton) majorAddButton.show();
+    });
+    majorPath.addEventListener("mouseleave", () => {
+      if (majorAddButton) majorAddButton.hide(220);
     });
     svg.appendChild(majorPath);
 
@@ -292,10 +379,17 @@ export function renderCircleOfFifths(container, selectedKey, onSelectKey, musicD
     minorPath.setAttribute("stroke", "#ffffff");
     minorPath.setAttribute("stroke-width", "2");
     minorPath.style.cursor = "pointer";
+    minorPath.setAttribute("data-tooltip", `Select ${minorLabel} minor`);
     minorPath.addEventListener("click", () => {
       const aliases = parseAliases(minorLabel);
       const selected = aliases.find(alias => musicData[`${stripChordQuality(alias)} Minor`]) || aliases[0];
       onSelectKey(`${stripChordQuality(selected)} Minor`);
+    });
+    minorPath.addEventListener("mouseenter", () => {
+      if (minorAddButton) minorAddButton.show();
+    });
+    minorPath.addEventListener("mouseleave", () => {
+      if (minorAddButton) minorAddButton.hide(220);
     });
     svg.appendChild(minorPath);
 
@@ -322,6 +416,39 @@ export function renderCircleOfFifths(container, selectedKey, onSelectKey, musicD
     if (minorFn) {
       const badgePos = polarToCartesian(cx, cy, 100, midAngle);
       createBadge(svg, badgePos.x, badgePos.y, minorFn);
+    }
+
+    if (onAddChord) {
+      // Place add button near the top-left side of each segment.
+      const addAngle = startAngle + 6;
+
+      const majorAddPos = polarToCartesian(cx, cy, 242, addAngle);
+      majorAddButton = createAddButton(
+        svg,
+        majorAddPos.x,
+        majorAddPos.y,
+        () => {
+          const aliases = parseAliases(majorLabel);
+          const selected = aliases.find(alias => musicData[`${alias} Major`]) || aliases[0];
+          onAddChord(selected);
+        },
+        alwaysShowAddButtons,
+        `Add ${majorLabel} to progression`
+      );
+
+      const minorAddPos = polarToCartesian(cx, cy, 158, addAngle);
+      minorAddButton = createAddButton(
+        svg,
+        minorAddPos.x,
+        minorAddPos.y,
+        () => {
+          const aliases = parseAliases(minorLabel);
+          const selected = aliases.find(alias => musicData[`${stripChordQuality(alias)} Minor`]) || aliases[0];
+          onAddChord(selected);
+        },
+        alwaysShowAddButtons,
+        `Add ${minorLabel} to progression`
+      );
     }
   }
 

@@ -19,6 +19,12 @@
     </div>
 
     <div class="panel">
+      <h2>Load Chord</h2>
+      <div id="chordLoader" class="chord-loader">
+        <p>Select a chord to load and play:</p>
+        <div id="chordButtons" class="chord-buttons"></div>
+      </div>
+
       <label for="progression">Progression so far</label>
 		<textarea id="progression" rows="3" placeholder="Example: C | Am | F"></textarea>
 		<div class="input-help">Use chords from the selected key. Separate them with commas, pipes, or new lines.</div>
@@ -28,11 +34,17 @@
 		<label for="feeling">Feeling</label>
 		<select id="feeling"></select>
 
-		<button id="suggestBtn">Suggest next chords</button>
+    <div class="suggest-actions">
+      <button id="suggestBtn" type="button">Suggest next chords</button>
+      <label class="suggest-toggle" for="autoSuggestToggle">
+        <input id="autoSuggestToggle" type="checkbox">
+        <span>Auto-refresh suggestions when adding chords</span>
+      </label>
+    </div>
     </div>
 
     <div class="panel">
-      <h2>Suggested next chords</h2>
+      <h2>Suggest New Ideas</h2>
       <ul id="results">
         <li>No suggestions yet.</li>
       </ul>

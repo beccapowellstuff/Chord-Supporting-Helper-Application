@@ -25,10 +25,12 @@ if (typeof Tone !== "undefined") {
 const progressionInput = document.getElementById("progression");
 const feelingSelect = document.getElementById("feeling");
 const suggestBtn = document.getElementById("suggestBtn");
+const autoSuggestToggle = document.getElementById("autoSuggestToggle");
 const playProgressionBtn = document.getElementById("playProgressionBtn");
 const results = document.getElementById("results");
 const circleContainer = document.getElementById("circleContainer");
 const keyInfo = document.getElementById("keyInfo");
+const chordButtons = document.getElementById("chordButtons");
 
 let appData = null;
 let selectedKey = "C Major";
@@ -36,13 +38,16 @@ let audioContext = null;
 
 const NOTE_TO_PC = {
   C: 0,
+  "B#": 0,
   "C#": 1,
   Db: 1,
   D: 2,
   "D#": 3,
   Eb: 3,
   E: 4,
+  Fb: 4,
   F: 5,
+  "E#": 5,
   "F#": 6,
   Gb: 6,
   G: 7,
@@ -57,11 +62,22 @@ const NOTE_TO_PC = {
 const CHROMATIC = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 const ENHARMONIC_TO_SHARP = {
+  "B#": "C",
   Db: "C#",
   Eb: "D#",
+  Fb: "E",
+  "E#": "F",
   Gb: "F#",
   Ab: "G#",
-  Bb: "A#"
+  Bb: "A#",
+  Cb: "B"
+};
+
+const FRIENDLY_ROOT_MAP = {
+  "B#": "C",
+  Cb: "B",
+  "E#": "F",
+  Fb: "E"
 };
 
 function getAudioContext() {
@@ -81,6 +97,14 @@ async function ensureAudioReady() {
 
 function normaliseRoot(root) {
   return ENHARMONIC_TO_SHARP[root] || root;
+}
+
+function getFriendlyChordName(chordName) {
+  const match = /^([A-G](?:#|b)?)(.*)$/.exec(String(chordName || ""));
+  if (!match) return chordName;
+
+  const [, root, suffix] = match;
+  return `${FRIENDLY_ROOT_MAP[root] || root}${suffix}`;
 }
 
 function transpose(root, semitones) {
@@ -131,48 +155,229 @@ function getAscendingRootVoicing(chordName) {
 
 function getChordNotes(chordName) {
   let root = String(chordName || "").trim();
-  let intervals = [0, 4, 7];
+  let intervals = [0, 4, 7]; // Default: major triad
 
   if (!root) return null;
 
-  if (root.endsWith("dim")) {
+  // Check for chord suffixes (order matters - check longer suffixes first)
+  // Extended chords (7th extensions + 9th/11th/13th)
+  if (root.endsWith("maj13")) {
+    root = root.slice(0, -5);
+    intervals = [0, 4, 7, 11, 14, 17, 21];  // maj triad + maj7 + 9 + 11 + 13
+  } else if (root.endsWith("maj11")) {
+    root = root.slice(0, -5);
+    intervals = [0, 4, 7, 11, 14, 17];      // maj triad + maj7 + 9 + 11
+  } else if (root.endsWith("maj9")) {
+    root = root.slice(0, -4);
+    intervals = [0, 4, 7, 11, 14];          // maj triad + maj7 + 9
+  } else if (root.endsWith("maj7")) {
+    root = root.slice(0, -4);
+    intervals = [0, 4, 7, 11];              // Major seventh
+  } else if (root.endsWith("m13")) {
     root = root.slice(0, -3);
-    intervals = [0, 3, 6];
+    intervals = [0, 3, 7, 10, 14, 17, 21]; // min triad + min7 + 9 + 11 + 13
+  } else if (root.endsWith("m11")) {
+    root = root.slice(0, -3);
+    intervals = [0, 3, 7, 10, 14, 17];     // min triad + min7 + 9 + 11
+  } else if (root.endsWith("m9")) {
+    root = root.slice(0, -2);
+    intervals = [0, 3, 7, 10, 14];         // min triad + min7 + 9
+  } else if (root.endsWith("m7")) {
+    root = root.slice(0, -2);
+    intervals = [0, 3, 7, 10];             // Minor seventh
+  } else if (root.endsWith("dim")) {
+    root = root.slice(0, -3);
+    intervals = [0, 3, 6];                 // Diminished triad
   } else if (root.endsWith("m")) {
     root = root.slice(0, -1);
-    intervals = [0, 3, 7];
+    intervals = [0, 3, 7];                 // Minor triad
+  } else if (root.endsWith("aug")) {
+    root = root.slice(0, -3);
+    intervals = [0, 4, 8];                 // Augmented
+  } else if (root.endsWith("sus4")) {
+    root = root.slice(0, -4);
+    intervals = [0, 5, 7];                 // Sus4
+  } else if (root.endsWith("sus2")) {
+    root = root.slice(0, -4);
+    intervals = [0, 2, 7];                 // Sus2
+  } else if (root.endsWith("sus")) {
+    root = root.slice(0, -3);
+    intervals = [0, 5, 7];                 // Sus defaults to sus4
+  } else if (root.endsWith("add13")) {
+    root = root.slice(0, -5);
+    intervals = [0, 4, 7, 21];             // Major triad + 13th
+  } else if (root.endsWith("add11")) {
+    root = root.slice(0, -5);
+    intervals = [0, 4, 7, 17];             // Major triad + 11th
+  } else if (root.endsWith("add9")) {
+    root = root.slice(0, -4);
+    intervals = [0, 4, 7, 14];             // Major triad + 9th
+  } else if (root.endsWith("13")) {
+    root = root.slice(0, -2);
+    intervals = [0, 4, 7, 10, 14, 17, 21]; // Dominant 13: triad + min7 + 9 + 11 + 13
+  } else if (root.endsWith("11")) {
+    root = root.slice(0, -2);
+    intervals = [0, 4, 7, 10, 14, 17];     // Dominant 11: triad + min7 + 9 + 11
+  } else if (root.endsWith("9")) {
+    root = root.slice(0, -1);
+    intervals = [0, 4, 7, 10, 14];         // Dominant 9: triad + min7 + 9
+  } else if (root.endsWith("7")) {
+    root = root.slice(0, -1);
+    intervals = [0, 4, 7, 10];             // Dominant seventh
+  } else if (root.endsWith("5")) {
+    root = root.slice(0, -1);
+    intervals = [0, 7];                    // Power chord (root + fifth only)
   }
 
   root = normaliseRoot(root);
 
-  const third = transpose(root, intervals[1]);
-  const fifth = transpose(root, intervals[2]);
+  // Build chord notes from intervals
+  const chordNotes = [root];
+  for (let i = 1; i < intervals.length; i++) {
+    const note = transpose(root, intervals[i]);
+    if (!note) return null;
+    chordNotes.push(note);
+  }
 
-  if (!root || !third || !fifth) return null;
+  if (chordNotes.some(n => !n)) return null;
 
-  return [root, third, fifth];
+  return chordNotes;
+}
+
+// Chord variations available for playback
+const CHORD_VARIATIONS = [
+  "",           // Major (root only)
+  "m",          // Minor
+  "m7",         // Minor 7
+  "7",          // Dominant 7
+  "maj7",       // Major 7
+  "sus2",       // Suspended 2
+  "sus4",       // Suspended 4
+  "5",          // Power chord
+  "dim",        // Diminished
+  "aug",        // Augmented
+  "add9",       // Add 9
+  "add11",      // Add 11
+  "add13",      // Add 13
+  "9",          // Dominant 9
+  "11",         // Dominant 11
+  "13",         // Dominant 13
+  "maj9",       // Major 9
+  "maj11",      // Major 11
+  "maj13",      // Major 13
+  "m9",         // Minor 9
+  "m11",        // Minor 11
+  "m13"         // Minor 13
+];
+
+function detectSeparator(text) {
+  // Detect which separator is being used in the progression
+  if (!text) return ","; // Default
+  
+  if (text.includes("|")) return "|";
+  if (text.includes("\n")) return "\n";
+  if (text.includes(",")) return ",";
+  
+  return ","; // Default to comma
+}
+
+function appendChordToProgression(chordName) {
+  const friendlyChordName = getFriendlyChordName(chordName);
+  const currentValue = progressionInput.value.trim();
+  const separator = detectSeparator(currentValue);
+  
+  if (currentValue) {
+    progressionInput.value = currentValue + " " + separator + " " + friendlyChordName;
+  } else {
+    progressionInput.value = friendlyChordName;
+  }
+
+  if (autoSuggestToggle?.checked && appData) {
+    runSuggestions();
+  }
+}
+
+function renderChordLoader(rootNote) {
+  // Clear existing buttons
+  chordButtons.innerHTML = "";
+  
+  if (!rootNote) {
+    chordButtons.innerHTML = "<p style='color: var(--muted); margin: 0;'>Select a key to view chord options</p>";
+    return;
+  }
+
+  // Create buttons for each chord variation
+  CHORD_VARIATIONS.forEach(suffix => {
+    const chordName = rootNote + suffix;
+    
+    // Create wrapper div for button + add button
+    const wrapper = document.createElement("div");
+    wrapper.className = "chord-button-wrapper";
+    
+    // Main chord button (for playing)
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chord-btn";
+    button.textContent = chordName;
+    
+    button.addEventListener("click", async () => {
+      try {
+        // Just play the chord, don't replace progression
+        await ensureAudioReady();
+        await playChord(chordName, 1.0);
+        
+        // Visual feedback - highlight this chord
+        document.querySelectorAll(".chord-btn").forEach(btn => btn.classList.remove("active"));
+        button.classList.add("active");
+      } catch (error) {
+        console.error("✗ Could not play chord:", error);
+      }
+    });
+    button.dataset.tooltip = `Play ${chordName}`;
+    
+    // Add button (for appending to progression)
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "chord-add-btn";
+    addBtn.textContent = "+";
+    addBtn.dataset.tooltip = `Add ${chordName} to progression`;
+    
+    addBtn.addEventListener("click", async (e) => {
+      e.stopPropagation(); // Prevent triggering the play button
+      appendChordToProgression(chordName);
+    });
+    
+    wrapper.appendChild(button);
+    wrapper.appendChild(addBtn);
+    chordButtons.appendChild(wrapper);
+  });
 }
 
 function buildVoicings(chordName) {
   const notes = getChordNotes(chordName);
   if (!notes) return [];
 
-  const rootPosition = [
-    noteToMidi(notes[0], 4),
-    noteToMidi(notes[1], 4),
-    noteToMidi(notes[2], 4)
-  ].sort((a, b) => a - b);
+  // Get the root note to use as bass
+  const root = notes[0];
+  const rootMidi = noteToMidi(root, 3);  // Bass octave
+
+  // Build MIDI notes for all chord tones (including 7th, 9th, etc.)
+  const chordMidis = notes.map((note, idx) => {
+    const octave = idx === 0 ? 4 : (idx === notes.length - 1 && notes.length > 3 ? 4 : 4);
+    return noteToMidi(note, octave);
+  });
+
+  // Build three voicings with bass note + all chord tones in different inversions
+  const rootPosition = [rootMidi, ...chordMidis].sort((a, b) => a - b);
 
   const firstInversion = [
-    noteToMidi(notes[0], 5),
-    noteToMidi(notes[1], 4),
-    noteToMidi(notes[2], 4)
+    rootMidi,
+    ...chordMidis.map((midi, idx) => idx === 0 ? midi + 12 : midi)
   ].sort((a, b) => a - b);
 
   const secondInversion = [
-    noteToMidi(notes[0], 5),
-    noteToMidi(notes[1], 5),
-    noteToMidi(notes[2], 4)
+    rootMidi,
+    ...chordMidis.map((midi, idx) => idx <= 1 ? midi + 12 : midi)
   ].sort((a, b) => a - b);
 
   return [rootPosition, firstInversion, secondInversion];
@@ -227,58 +432,59 @@ async function playChordVoicing(midiNotes, duration = 1.0) {
   }
 }
 
-async function playChord(chordName, duration = 1.0) {
-  let root = String(chordName || "").trim();
-  let intervals = [0, 4, 7];
+async function playSoundChord(chordName, duration = 1.0, useSmoothing = false, previousVoicing = null) {
+  // === UNIFIED CHORD PLAYBACK ENGINE ===
+  // All chord playback goes through here: Circle clicks, Chord table clicks, Progression
+  if (!chordName) return { voicing: [] };
 
-  console.log("▶ playChord called with:", chordName);
-
-  if (!root) {
-    console.warn("⚠ Empty chord name");
-    return;
+  try {
+    await ensureAudioContext();
+    
+    let voicing;
+    if (useSmoothing && previousVoicing) {
+      // Use voicing optimization for smooth progressions
+      const options = buildVoicings(chordName);
+      if (!options.length) return { voicing: [] };
+      
+      voicing = options[0];
+      let bestScore = distance(previousVoicing, options[0]);
+      
+      for (const option of options.slice(1)) {
+        const optionScore = distance(previousVoicing, option);
+        if (optionScore < bestScore) {
+          voicing = option;
+          bestScore = optionScore;
+        }
+      }
+    } else {
+      // Simple voicing for single chord clicks
+      const notes = getChordNotes(chordName);
+      if (!notes) return { voicing: [] };
+      
+      voicing = [];
+      notes.forEach((note, idx) => {
+        voicing.push(noteToMidi(note, idx === 0 ? 3 : 4)); // Bass + chord tones
+      });
+      voicing = voicing.sort((a, b) => a - b);
+    }
+    
+    if (voicing.length) {
+      await playMidiNotes(voicing, duration);
+    }
+    
+    return { voicing };
+  } catch (error) {
+    console.error("✗ Could not play chord:", error);
+    return { voicing: [] };
   }
-
-  if (root.endsWith("dim")) {
-    root = root.slice(0, -3);
-    intervals = [0, 3, 6];
-  } else if (root.endsWith("m")) {
-    root = root.slice(0, -1);
-    intervals = [0, 3, 7];
-  }
-
-  root = normaliseRoot(root);
-
-  const rootMidiMap = {
-    C: 60,
-    "C#": 61,
-    D: 62,
-    "D#": 63,
-    E: 64,
-    F: 65,
-    "F#": 66,
-    G: 67,
-    "G#": 68,
-    A: 69,
-    "A#": 70,
-    B: 71
-  };
-
-  const baseMidi = rootMidiMap[root];
-  if (baseMidi == null) {
-    console.warn("⚠ Could not map root to MIDI:", root);
-    return;
-  }
-
-  const voicing = [
-    baseMidi,
-    baseMidi + intervals[1],
-    baseMidi + intervals[2]
-  ];
-
-  console.log("▶ Calling playChordVoicing with voicing:", voicing);
-  await playChordVoicing(voicing, duration);
 }
 
+async function playChord(chordName, duration = 1.0) {
+  // For direct chord clicks (Circle, chord table cells) - no voicing optimization
+  await playSoundChord(chordName, duration, false, null);
+}
+
+// Previous old playChord kept for reference (now calls unified engine above):
 async function playProgression(chords, tempo = 90) {
   if (!chords.length) return;
 
@@ -286,8 +492,8 @@ async function playProgression(chords, tempo = 90) {
   let previousVoicing = null;
 
   for (const chord of chords) {
-    const voicing = chooseVoicing(chord, previousVoicing);
-    await playChordVoicing(voicing, (msPerChord / 1000) * 0.9);
+    // Use unified engine with voicing smoothing
+    const { voicing } = await playSoundChord(chord, (msPerChord / 1000) * 0.9, true, previousVoicing);
     previousVoicing = voicing;
     await new Promise(resolve => setTimeout(resolve, msPerChord));
   }
@@ -329,19 +535,34 @@ function refreshKeyUI() {
         }
       }
     },
-    appData.musicData
+    appData.musicData,
+    chordName => {
+      appendChordToProgression(chordName);
+    }
   );
 
-  renderKeyInfo(keyInfo, appData.musicData, selectedKey, async (chord) => {
-    console.log("⭕ Chord cell callback triggered for:", chord);
-    try {
-      await ensureAudioReady();
-      console.log("▶ Audio ready, calling playChord");
-      await playChord(chord, 1.0);
-    } catch (error) {
-      console.error("✗ Could not play chord:", error);
+  renderKeyInfo(
+    keyInfo,
+    appData.musicData,
+    selectedKey,
+    async chord => {
+      console.log("⭕ Chord cell callback triggered for:", chord);
+      try {
+        await ensureAudioReady();
+        console.log("▶ Audio ready, calling playChord");
+        await playChord(chord, 1.0);
+      } catch (error) {
+        console.error("✗ Could not play chord:", error);
+      }
+    },
+    chord => {
+      appendChordToProgression(chord);
     }
-  });
+  );
+
+  // Extract root note from selected key and render chord loader
+  const rootNote = selectedKey.split(" ")[0]; // Get first word (e.g., "C" from "C Major")
+  renderChordLoader(rootNote);
 }
 
 function runSuggestions() {
@@ -355,7 +576,22 @@ function runSuggestions() {
     feeling: feelingSelect.value
   });
 
-  renderSuggestions(results, suggestionPayload, appData.musicData, selectedKey);
+  // Callback to play suggested chord
+  const onSuggestedChordClick = async (chordName) => {
+    try {
+      await ensureAudioReady();
+      await playChord(chordName, 1.0);
+    } catch (error) {
+      console.error("✗ Could not play suggested chord:", error);
+    }
+  };
+
+  // Callback to add suggested chord to progression
+  const onSuggestedChordAdd = (chordName) => {
+    appendChordToProgression(chordName);
+  };
+
+  renderSuggestions(results, suggestionPayload, appData.musicData, selectedKey, onSuggestedChordClick, onSuggestedChordAdd);
 }
 
 async function handlePlayProgression() {
@@ -375,6 +611,41 @@ async function handlePlayProgression() {
   }
 }
 
+function initTooltips() {
+  const tip = document.createElement("div");
+  tip.className = "app-tooltip";
+  tip.setAttribute("aria-hidden", "true");
+  document.body.appendChild(tip);
+
+  function position(e) {
+    const margin = 12;
+    let x = e.clientX + margin;
+    let y = e.clientY - 34;
+    if (x + tip.offsetWidth > window.innerWidth - 8) x = e.clientX - tip.offsetWidth - margin;
+    if (y < 8) y = e.clientY + margin;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  }
+
+  document.addEventListener("mouseover", e => {
+    const el = e.target.closest("[data-tooltip]");
+    if (!el) { tip.style.display = "none"; return; }
+    tip.textContent = el.dataset.tooltip;
+    tip.style.display = "block";
+    position(e);
+  });
+
+  document.addEventListener("mousemove", e => {
+    if (tip.style.display === "block") position(e);
+  });
+
+  document.addEventListener("mouseout", e => {
+    if (!e.relatedTarget || !e.relatedTarget.closest("[data-tooltip]")) {
+      tip.style.display = "none";
+    }
+  });
+}
+
 async function init() {
   try {
     console.log("🚀 App initializing...");
@@ -383,6 +654,13 @@ async function init() {
 
     populateFeelings(feelingSelect, appData.moodBoosts);
     refreshKeyUI();
+
+    suggestBtn.dataset.tooltip = "Suggest the next best chords based on your progression and mood";
+    if (playProgressionBtn) playProgressionBtn.dataset.tooltip = "Play all chords in the progression";
+    feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
+    if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
+
+    initTooltips();
 
     suggestBtn.addEventListener("click", runSuggestions);
 
