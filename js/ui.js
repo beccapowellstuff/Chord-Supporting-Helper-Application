@@ -314,7 +314,7 @@ export function renderError(resultsElement, message) {
   resultsElement.innerHTML = `<li>${message}</li>`;
 }
 
-export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onChordAdd) {
+export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onChordAdd, onPlayNote, onPlayScale) {
   const keyData = musicData[selectedKey];
   if (!keyData) {
     element.textContent = "No key selected.";
@@ -375,8 +375,17 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
           <span class="key-summary-sep">•</span>
           <span class="key-label">Parallel key:</span> ${parallelKey === "—" ? "—" : formatKeyLabel(parallelKey)}
           <span class="key-summary-sep">•</span>
-          <span class="key-label">Scale:</span> ${keyData.scaleNotes.join(", ")}
-        </div>
+          <span class="key-label">Scale:</span>
+          <span class="key-scale-notes">${keyData.scaleNotes.join(", ")}</span>
+          <span
+            class="key-scale-play"
+            title="Play scale"
+            aria-label="Play scale"
+            role="button"
+            tabindex="0"
+          >
+            🎶
+          </span>
     </div>
 
     <div class="key-chords-card">
@@ -409,6 +418,24 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
         const chord = button.getAttribute("data-chord");
         if (chord) onChordAdd(chord);
       });
+    });
+  }
+
+  const scalePlay = element.querySelector(".key-scale-play");
+
+  if (scalePlay && onPlayScale) {
+    const triggerScalePlay = event => {
+      event.preventDefault();
+      event.stopPropagation();
+      onPlayScale(keyData.scaleNotes);
+    };
+
+    scalePlay.addEventListener("click", triggerScalePlay);
+
+    scalePlay.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        triggerScalePlay(event);
+      }
     });
   }
 }

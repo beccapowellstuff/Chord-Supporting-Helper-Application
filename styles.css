@@ -265,6 +265,24 @@ p {
   background: #f8e6ef;
 }
 
+.key-scale-play {
+  display: inline-block;
+  margin-left: 0.35rem;
+  cursor: pointer;
+  user-select: none;
+  vertical-align: middle;
+}
+
+.key-scale-play:hover {
+  transform: scale(1.08);
+}
+
+.key-scale-play:focus-visible {
+  outline: 2px solid #8b3a62;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .key-label {
   font-weight: 600;
   color: var(--text);
