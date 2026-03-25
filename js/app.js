@@ -48,6 +48,7 @@ const results = document.getElementById("results");
 const rootContainer = document.getElementById("rootContainer");
 const keyInfo = document.getElementById("keyInfo");
 const chordButtons = document.getElementById("chordButtons");
+const appVersion = document.getElementById("appVersion");
 
 let appData = null;
 let selectedKey = "C Major";
@@ -86,6 +87,24 @@ function extractChordList(parsedProgression) {
       return null;
     })
     .filter(Boolean);
+}
+
+async function loadVersionLabel() {
+  if (!appVersion) return;
+
+  try {
+    const versionUrl = new URL("../package.json", import.meta.url);
+    const response = await fetch(versionUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to load version: ${response.status}`);
+    }
+
+    const packageData = await response.json();
+    appVersion.textContent = packageData.version || "unknown";
+  } catch (error) {
+    console.warn("Could not load app version:", error);
+    appVersion.textContent = "unknown";
+  }
 }
 
 function refreshKeyUI() {
@@ -246,6 +265,7 @@ async function handlePlayProgression() {
 async function init() {
   try {
     console.log("🚀 App initializing...");
+    await loadVersionLabel();
     appData = await loadAllData();
     console.log("✓ Data loaded");
 
