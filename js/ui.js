@@ -123,7 +123,7 @@ export function renderError(resultsElement, message) {
   resultsElement.innerHTML = `<li>${message}</li>`;
 }
 
-export function renderKeyInfo(element, musicData, selectedKey) {
+export function renderKeyInfo(element, musicData, selectedKey, onChordClick) {
   const keyData = musicData[selectedKey];
   if (!keyData) {
     element.textContent = "No key selected.";
@@ -142,7 +142,7 @@ export function renderKeyInfo(element, musicData, selectedKey) {
     .join("");
 
   const chordRow = keyData.chords
-    .map(chord => `<td>${formatChordLabel(chord)}</td>`)
+    .map(chord => `<td class="chord-cell" data-chord="${chord}">${formatChordLabel(chord)}</td>`)
     .join("");
 
   element.innerHTML = `
@@ -169,4 +169,17 @@ export function renderKeyInfo(element, musicData, selectedKey) {
       </div>
     </div>
   `;
+
+  // Add click handlers to chord cells
+  if (onChordClick) {
+    element.querySelectorAll(".chord-cell").forEach(cell => {
+      cell.style.cursor = "pointer";
+      cell.addEventListener("click", () => {
+        const chord = cell.getAttribute("data-chord");
+        if (chord) {
+          onChordClick(chord);
+        }
+      });
+    });
+  }
 }

@@ -12,6 +12,6 @@ const browserType = process.argv[2] || 'chromium';
   const browser = await browserLauncher.launch({ headless: false });
   const page = await browser.newPage();
 
-  await page.goto('https://beccapowellstuff.github.io/Chord-Supporting-Helper-Application/');
+  await page.goto('http://127.0.0.1:5500/index.html');
 
 })();

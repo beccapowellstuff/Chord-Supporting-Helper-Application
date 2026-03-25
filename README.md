@@ -44,7 +44,11 @@ That's really it — pick whichever option works easiest for you and you're all 
 
 ### Browser support
 
-This tool should work on all modern browsers (Chrome, Firefox, Safari, Edge). It uses standard web technologies and doesn't require anything fancy. If you run into issues on a specific browser, let me know.
+This tool is built with standard web technologies and should work on all modern browsers (Chrome, Firefox, Safari, Edge).
+
+I'm using Playwright for browser testing during development to help catch issues early.
+
+**Known issue:** Audio doesn't play in Safari when running through Playwright (browser automation). I've tested this with isolated audio code and confirmed it's a Playwright/WebKit limitation, not an issue with the application itself. The app should work fine in real Safari on a Mac — I just don't have one to verify it. If you test it on real Safari or hit any other browser issues, let me know.
 
 ### Quick workflow
 

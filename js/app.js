@@ -7,6 +7,20 @@ import {
   renderKeyInfo
 } from "./ui.js";
 import { renderCircleOfFifths } from "./circle.js";
+import {
+  initSoundFont,
+  playMidiNote,
+  playMidiNotes,
+  ensureAudioContext
+} from "./synth.js";
+
+// Verify Tone.js loaded
+console.log("🔍 Checking Tone.js...");
+if (typeof Tone !== "undefined") {
+  console.log("✓ Tone.js loaded, version:", Tone.version || "unknown");
+} else {
+  console.error("✗ Tone.js NOT loaded!");
+}
 
 const progressionInput = document.getElementById("progression");
 const feelingSelect = document.getElementById("feeling");
@@ -197,38 +211,32 @@ function chooseVoicing(chordName, previousVoicing) {
 }
 
 async function playChordVoicing(midiNotes, duration = 1.0) {
-  if (!midiNotes.length) return;
+  if (!midiNotes.length) {
+    console.warn("⚠ No MIDI notes provided");
+    return;
+  }
 
-  const ctx = await ensureAudioReady();
-  const now = ctx.currentTime;
-
-  midiNotes.forEach((midi, index) => {
-    const frequency = midiToFrequency(midi);
-    if (!frequency) return;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(frequency, now);
-
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.05 + index * 0.01, now + 0.03);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + duration);
-  });
+  try {
+    console.log("▶ playChordVoicing called with notes:", midiNotes);
+    await ensureAudioContext();
+    console.log("▶ Audio context ready");
+    await playMidiNotes(midiNotes, duration);
+    console.log("✓ playMidiNotes completed");
+  } catch (error) {
+    console.error("✗ Could not play chord voicing:", error);
+  }
 }
 
 async function playChord(chordName, duration = 1.0) {
   let root = String(chordName || "").trim();
   let intervals = [0, 4, 7];
 
-  if (!root) return;
+  console.log("▶ playChord called with:", chordName);
+
+  if (!root) {
+    console.warn("⚠ Empty chord name");
+    return;
+  }
 
   if (root.endsWith("dim")) {
     root = root.slice(0, -3);
@@ -256,7 +264,10 @@ async function playChord(chordName, duration = 1.0) {
   };
 
   const baseMidi = rootMidiMap[root];
-  if (baseMidi == null) return;
+  if (baseMidi == null) {
+    console.warn("⚠ Could not map root to MIDI:", root);
+    return;
+  }
 
   const voicing = [
     baseMidi,
@@ -264,6 +275,7 @@ async function playChord(chordName, duration = 1.0) {
     baseMidi + intervals[2]
   ];
 
+  console.log("▶ Calling playChordVoicing with voicing:", voicing);
   await playChordVoicing(voicing, duration);
 }
 
@@ -320,7 +332,16 @@ function refreshKeyUI() {
     appData.musicData
   );
 
-  renderKeyInfo(keyInfo, appData.musicData, selectedKey);
+  renderKeyInfo(keyInfo, appData.musicData, selectedKey, async (chord) => {
+    console.log("⭕ Chord cell callback triggered for:", chord);
+    try {
+      await ensureAudioReady();
+      console.log("▶ Audio ready, calling playChord");
+      await playChord(chord, 1.0);
+    } catch (error) {
+      console.error("✗ Could not play chord:", error);
+    }
+  });
 }
 
 function runSuggestions() {
@@ -356,7 +377,9 @@ async function handlePlayProgression() {
 
 async function init() {
   try {
+    console.log("🚀 App initializing...");
     appData = await loadAllData();
+    console.log("✓ Data loaded");
 
     populateFeelings(feelingSelect, appData.moodBoosts);
     refreshKeyUI();
@@ -367,19 +390,26 @@ async function init() {
       playProgressionBtn.addEventListener("click", handlePlayProgression);
     }
 
+    // Initialize SoundFont on first user interaction
+    console.log("📍 Setting up first-click listener...");
     document.addEventListener(
       "click",
       async () => {
+        console.log("🖱️ Document click detected - initializing audio...");
         try {
-          await ensureAudioReady();
+          await ensureAudioContext();
+          console.log("▶ Calling initSoundFont...");
+          await initSoundFont();
+          console.log("✓ SoundFont initialized");
         } catch (error) {
-          console.warn("Audio initialisation failed:", error);
+          console.error("✗ Audio/SoundFont initialisation failed:", error);
         }
       },
       { once: true }
     );
+    console.log("✓ App initialized successfully");
   } catch (error) {
-    console.error(error);
+    console.error("✗ Initialization failed:", error);
     renderError(results, "Failed to load app data.");
   }
 }

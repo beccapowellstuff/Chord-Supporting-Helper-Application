@@ -147,6 +147,16 @@ p {
   font-size: 14px;
 }
 
+.chord-cell {
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.chord-cell:hover {
+  background-color: var(--accent-soft);
+  color: var(--accent-dark);
+}
+
 .circle-container {
   display: flex;
   justify-content: center;

@@ -4,6 +4,12 @@ function getAudioContext() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
+  
+  // Resume audio context if suspended (needed for Safari and browser autoplay policy)
+  if (audioContext.state === "suspended") {
+    audioContext.resume().catch(err => console.error("Could not resume audio context:", err));
+  }
+  
   return audioContext;
 }
 
