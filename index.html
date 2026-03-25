@@ -13,34 +13,56 @@
     <p>Pick a key from the circle, enter your progression so far, then choose the mood you want the next move to lean towards.</p>
 
     <div class="panel">
-      <h2>Circle of Fifths</h2>
-      <div id="circleContainer" class="circle-container"></div>
+      <h2>Key Explorer</h2>
+        <table class="select-root-style-table">
+          <thead>
+            <tr>
+              <th class="select-root-style-title">Select Root</th>
+              <th class="select-root-style-title">Select Style</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="root-cell">
+                <div id="circleContainer" class="circle-container"></div>
+              </td>
+              <td class="style-cell">
+                <div class="style-container">
+                  <select id="styleSelect">
+                    <option value="Major">Major</option>
+                    <option value="Minor">Minor</option>
+                  </select>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       <div id="keyInfo" class="key-info">No key selected.</div>
     </div>
 
     <div class="panel">
-      <h2>Load Chord</h2>
+      <h2>Chord Experiment</h2>
       <div id="chordLoader" class="chord-loader">
         <p>Select a chord to load and play:</p>
         <div id="chordButtons" class="chord-buttons"></div>
       </div>
 
       <label for="progression">Progression so far</label>
-		<textarea id="progression" rows="3" placeholder="Example: C | Am | F"></textarea>
-		<div class="input-help">Use chords from the selected key. Separate them with commas, pipes, or new lines.</div>
+      <textarea id="progression" rows="3" placeholder="Example: C | Am | F"></textarea>
+      <div class="input-help">Use chords from the selected key. Separate them with commas, pipes, or new lines.</div>
 
-		<button id="playProgressionBtn" type="button">Play progression</button>
+      <button id="playProgressionBtn" type="button">Play progression</button>
 
-		<label for="feeling">Feeling</label>
-		<select id="feeling"></select>
+      <label for="feeling">Feeling</label>
+      <select id="feeling"></select>
 
-    <div class="suggest-actions">
-      <button id="suggestBtn" type="button">Suggest next chords</button>
-      <label class="suggest-toggle" for="autoSuggestToggle">
-        <input id="autoSuggestToggle" type="checkbox">
-        <span>Auto-refresh suggestions when adding chords</span>
-      </label>
-    </div>
+      <div class="suggest-actions">
+        <button id="suggestBtn" type="button">Suggest next chords</button>
+        <label class="suggest-toggle" for="autoSuggestToggle">
+          <input id="autoSuggestToggle" type="checkbox">
+          <span>Auto-refresh suggestions when adding chords</span>
+        </label>
+      </div>
     </div>
 
     <div class="panel">
@@ -52,13 +74,10 @@
   
     <p style="text-align:center; font-size: 12px; margin-top: 20px;">
       Created by Becci Powell - with support from AI - Project:
-      <a href="https://github.com/beccapowellstuff/Chord-Supporting-Helper-Application" target="_blank">GitHub Repo
-      </a>
+      <a href="https://github.com/beccapowellstuff/Chord-Supporting-Helper-Application" target="_blank">GitHub Repo</a>
     </p>
 
   </div>
-
-
 
   <script type="module" src="./js/app.js"></script>
 </body>

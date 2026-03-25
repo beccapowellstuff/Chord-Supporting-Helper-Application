@@ -653,6 +653,34 @@ async function init() {
     console.log("✓ Data loaded");
 
     populateFeelings(feelingSelect, appData.moodBoosts);
+    // Wire styleSelect so changing the style updates the displayed key
+    const styleSelect = document.getElementById("styleSelect");
+    if (styleSelect) {
+      styleSelect.addEventListener("change", () => {
+        const style = styleSelect.value;
+        const root = selectedKey.split(" ")[0];
+        const candidate = `${root} ${style}`;
+
+        if (appData.musicData && appData.musicData[candidate]) {
+          selectedKey = candidate;
+        } else {
+          const normalizedRoot = normaliseRoot(root);
+          const pc = NOTE_TO_PC[normalizedRoot];
+          if (pc != null) {
+            const match = Object.keys(appData.musicData).find(k => {
+              const parts = k.split(" ");
+              const kRoot = normaliseRoot(parts[0]);
+              const kMode = parts.slice(1).join(" ");
+              return NOTE_TO_PC[kRoot] === pc && kMode.toLowerCase() === style.toLowerCase();
+            });
+            if (match) selectedKey = match;
+          }
+        }
+
+        refreshKeyUI();
+      });
+    }
+
     refreshKeyUI();
 
     suggestBtn.dataset.tooltip = "Suggest the next best chords based on your progression and mood";

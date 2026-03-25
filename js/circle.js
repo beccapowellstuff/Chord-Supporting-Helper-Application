@@ -1,7 +1,6 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 const CIRCLE_MAJOR_ORDER = ["C", "G", "D", "A", "E", "B", "F#/Gb", "Db/C#", "Ab", "Eb", "Bb", "F"];
-const RELATIVE_MINORS = ["Am", "Em", "Bm", "F#m", "C#m", "G#m", "D#m/Ebm", "A#m/Bbm", "Fm", "Cm", "Gm", "Dm"];
 
 const NOTE_TO_PC = {
   "C": 0,
@@ -273,192 +272,75 @@ function findCircleIndexForNote(rootNote) {
         return i;
       }
     }
-
-    const minorAliases = parseAliases(RELATIVE_MINORS[i]).map(stripChordQuality);
-    for (const alias of minorAliases) {
-      if (noteToPitchClass(alias) === rootPc) {
-        return i;
-      }
-    }
   }
 
   return -1;
 }
 
 export function renderCircleOfFifths(container, selectedKey, onSelectKey, musicData, onAddChord) {
+  // Render a simple chromatic grid of root buttons (replaces the SVG circle)
   container.innerHTML = "";
 
-  const alwaysShowAddButtons =
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(hover: none)").matches;
+  const CHROMATIC = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"];
 
-  const svg = document.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("viewBox", "0 0 600 600");
-  svg.setAttribute("class", "circle-svg");
+  // No chord-relationship lookup here — root view shows only root buttons
 
-  const cx = 300;
-  const cy = 300;
+  // Helper to find a matching key name in musicData for a given root label
+  function findKeyForRootLabel(label, style = "Major") {
+    if (!musicData) return null;
+    const desired = `${label} ${style}`;
+    if (musicData[desired]) return desired;
 
-  const majorOuterR = 250;
-  const majorInnerR = 165;
-  const minorOuterR = 165;
-  const minorInnerR = 95;
+    const styleLower = String(style || "").toLowerCase();
+    const targetPc = noteToPitchClass(label);
+    if (targetPc == null) return null;
 
-  const diatonicLookup = getDiatonicLookup(musicData, selectedKey);
-  const floatingDiminished = getFloatingDiminishedBadgeInfo(musicData, selectedKey);
-
-  let selectedMajorIndex = -1;
-  let selectedMinorIndex = -1;
-
-  for (let i = 0; i < 12; i++) {
-    if (keyMatchesLabel(selectedKey, CIRCLE_MAJOR_ORDER[i], "Major")) {
-      selectedMajorIndex = i;
+    // Prefer keys with matching mode (major/minor)
+    for (const keyName of Object.keys(musicData)) {
+      const parts = keyName.split(" ");
+      const root = parts[0];
+      const keyData = musicData[keyName];
+      if (noteToPitchClass(root) === targetPc) {
+        if (keyData && keyData.mode === styleLower) return keyName;
+      }
     }
-    if (keyMatchesLabel(selectedKey, RELATIVE_MINORS[i], "Minor")) {
-      selectedMinorIndex = i;
+
+    // Fallback to any key with the same root
+    for (const keyName of Object.keys(musicData)) {
+      const root = keyName.split(" ")[0];
+      if (noteToPitchClass(root) === targetPc) return keyName;
     }
+
+    return null;
   }
 
-  for (let i = 0; i < 12; i++) {
-    const midAngle = i * 30;
-    const startAngle = midAngle - 15;
-    const endAngle = midAngle + 15;
+  // Render as a table to give a neat, compact root-selection layout
+  const table = document.createElement("table");
+  table.className = "root-table";
+  const tbody = document.createElement("tbody");
+  const row = document.createElement("tr");
 
-    const majorLabel = CIRCLE_MAJOR_ORDER[i];
-    const minorLabel = RELATIVE_MINORS[i];
+  CHROMATIC.forEach(label => {
+    const td = document.createElement("td");
 
-    const majorIsSelected = keyMatchesLabel(selectedKey, majorLabel, "Major");
-    const majorIsNeighbour =
-      selectedMajorIndex !== -1 && getMajorNeighbours(selectedMajorIndex).includes(i);
-    const majorIsInKey = isChordInSelectedKey(diatonicLookup, majorLabel, "major");
+    const mainBtn = document.createElement("button");
+    mainBtn.type = "button";
+    mainBtn.className = "key-chord-main circle-root-btn";
+    mainBtn.textContent = label;
+    mainBtn.dataset.root = label;
 
-    const minorIsSelected = keyMatchesLabel(selectedKey, minorLabel, "Minor");
-    const minorIsNeighbour =
-      selectedMinorIndex !== -1 && getMajorNeighbours(selectedMinorIndex).includes(i);
-    const minorIsInKey = isChordInSelectedKey(diatonicLookup, minorLabel, "minor");
-
-    let majorAddButton = null;
-    let minorAddButton = null;
-
-    const majorPath = document.createElementNS(SVG_NS, "path");
-    majorPath.setAttribute(
-      "d",
-      createRingSegmentPath(cx, cy, majorInnerR, majorOuterR, startAngle, endAngle)
-    );
-    majorPath.setAttribute(
-      "fill",
-      getSegmentFill("major", majorIsSelected, majorIsNeighbour, majorIsInKey)
-    );
-    majorPath.setAttribute("stroke", "#ffffff");
-    majorPath.setAttribute("stroke-width", "2");
-    majorPath.style.cursor = "pointer";
-    majorPath.setAttribute("data-tooltip", `Select ${majorLabel} major`);
-    majorPath.addEventListener("click", () => {
-      const aliases = parseAliases(majorLabel);
-      const selected = aliases.find(alias => musicData[`${alias} Major`]) || aliases[0];
-      onSelectKey(`${selected} Major`);
-    });
-    majorPath.addEventListener("mouseenter", () => {
-      if (majorAddButton) majorAddButton.show();
-    });
-    majorPath.addEventListener("mouseleave", () => {
-      if (majorAddButton) majorAddButton.hide(220);
-    });
-    svg.appendChild(majorPath);
-
-    const minorPath = document.createElementNS(SVG_NS, "path");
-    minorPath.setAttribute(
-      "d",
-      createRingSegmentPath(cx, cy, minorInnerR, minorOuterR, startAngle, endAngle)
-    );
-    minorPath.setAttribute(
-      "fill",
-      getSegmentFill("minor", minorIsSelected, minorIsNeighbour, minorIsInKey)
-    );
-    minorPath.setAttribute("stroke", "#ffffff");
-    minorPath.setAttribute("stroke-width", "2");
-    minorPath.style.cursor = "pointer";
-    minorPath.setAttribute("data-tooltip", `Select ${minorLabel} minor`);
-    minorPath.addEventListener("click", () => {
-      const aliases = parseAliases(minorLabel);
-      const selected = aliases.find(alias => musicData[`${stripChordQuality(alias)} Minor`]) || aliases[0];
-      onSelectKey(`${stripChordQuality(selected)} Minor`);
-    });
-    minorPath.addEventListener("mouseenter", () => {
-      if (minorAddButton) minorAddButton.show();
-    });
-    minorPath.addEventListener("mouseleave", () => {
-      if (minorAddButton) minorAddButton.hide(220);
-    });
-    svg.appendChild(minorPath);
-
-    const majorLabelPos = polarToCartesian(cx, cy, 207, midAngle);
-    createText(svg, majorLabelPos.x, majorLabelPos.y, majorLabel, {
-      fontSize: "15",
-      fontWeight: "bold",
-      fill: "#ffffff"
+    mainBtn.addEventListener("click", () => {
+      const styleEl = document.getElementById("styleSelect");
+      const style = styleEl ? styleEl.value : "Major";
+      const keyName = findKeyForRootLabel(label, style) || `${label} ${style}`;
+      if (onSelectKey) onSelectKey(keyName);
     });
 
-    const minorLabelPos = polarToCartesian(cx, cy, 130, midAngle);
-    createText(svg, minorLabelPos.x, minorLabelPos.y, minorLabel, {
-      fontSize: "13",
-      fill: minorIsSelected ? "#ffffff" : "#37474f"
-    });
+    td.appendChild(mainBtn);
+    row.appendChild(td);
+  });
 
-    const majorFn = getMatchingFunction(diatonicLookup, majorLabel, "major");
-    if (majorFn) {
-      const badgePos = polarToCartesian(cx, cy, 255, midAngle);
-      createBadge(svg, badgePos.x, badgePos.y, majorFn);
-    }
-
-    const minorFn = getMatchingFunction(diatonicLookup, minorLabel, "minor");
-    if (minorFn) {
-      const badgePos = polarToCartesian(cx, cy, 100, midAngle);
-      createBadge(svg, badgePos.x, badgePos.y, minorFn);
-    }
-
-    if (onAddChord) {
-      // Place add button near the top-left side of each segment.
-      const addAngle = startAngle + 6;
-
-      const majorAddPos = polarToCartesian(cx, cy, 242, addAngle);
-      majorAddButton = createAddButton(
-        svg,
-        majorAddPos.x,
-        majorAddPos.y,
-        () => {
-          const aliases = parseAliases(majorLabel);
-          const selected = aliases.find(alias => musicData[`${alias} Major`]) || aliases[0];
-          onAddChord(selected);
-        },
-        alwaysShowAddButtons,
-        `Add ${majorLabel} to progression`
-      );
-
-      const minorAddPos = polarToCartesian(cx, cy, 158, addAngle);
-      minorAddButton = createAddButton(
-        svg,
-        minorAddPos.x,
-        minorAddPos.y,
-        () => {
-          const aliases = parseAliases(minorLabel);
-          const selected = aliases.find(alias => musicData[`${stripChordQuality(alias)} Minor`]) || aliases[0];
-          onAddChord(selected);
-        },
-        alwaysShowAddButtons,
-        `Add ${minorLabel} to progression`
-      );
-    }
-  }
-
-  if (floatingDiminished) {
-    const badgeIndex = findCircleIndexForNote(floatingDiminished.rootNote);
-    if (badgeIndex !== -1) {
-      const badgePos = polarToCartesian(cx, cy, 165, badgeIndex * 30);
-      createBadge(svg, badgePos.x, badgePos.y, floatingDiminished.label);
-    }
-  }
-
-  container.appendChild(svg);
+  tbody.appendChild(row);
+  table.appendChild(tbody);
+  container.appendChild(table);
 }

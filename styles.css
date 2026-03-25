@@ -408,6 +408,106 @@ p {
   justify-content: center;
   align-items: center;
   overflow: auto;
+  flex: 1 1 auto;
+}
+
+.root-style-row {
+  display: flex;
+  align-items: center; /* center vertically with style select */
+  gap: 12px;
+}
+
+.style-container {
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* center the label/select vertically */
+  align-items: flex-start;
+}
+
+.root-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* equal-width cells */
+}
+
+.root-table td {
+  padding: 6px;
+  text-align: center;
+  vertical-align: middle;
+  width: calc(100% / 12);
+}
+
+.root-table .key-chord-main {
+  padding: 6px 8px;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 13px; /* slightly smaller to keep equal widths */
+}
+
+.select-root-style-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+
+/* Match the visual style of other info tables/cards */
+.select-root-style-table {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  /* remove this */
+  /* padding: 8px; */
+  overflow: hidden; /* keeps rounded corners clean */
+}
+
+.select-root-style-title {
+  text-align: left;
+  font-weight: 700;
+  color: var(--text);
+  background: #f8e6ef;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.select-root-style-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.select-root-style-table td {
+  padding: 8px;
+}
+
+.select-root-style-table .style-container label {
+  margin-bottom: 6px;
+}
+
+.select-root-style-table .style-container select {
+  width: 100%;
+}
+
+.select-root-style-table td.root-cell {
+  width: 100%;
+  vertical-align: middle;
+  padding: 8px 6px; /* reduce inner padding so buttons align nicely */
+}
+
+.select-root-style-table td.style-cell {
+  width: 220px;
+  padding: 10px 12px;
+  vertical-align: top; /* this is key */
+}
+
+.select-root-style-table .circle-container {
+  justify-content: center; /* center buttons horizontally */
+  align-items: center; /* center vertically */
 }
 
 .circle-svg {
