@@ -993,3 +993,49 @@ textarea {
 .suggestion-detail-add-btn:hover {
   background: var(--add-btn-hover);
 }
+
+@media (max-width: 768px) {
+  body {
+    padding: 0.75rem;
+  }
+
+  .app-shell,
+  .main-content,
+  .content-grid,
+  .top-section {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .circle-container,
+  .circle-wrapper,
+  svg {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .key-summary-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.5rem;
+    line-height: 1.4;
+  }
+
+  .key-summary-sep {
+    display: none;
+  }
+
+  .chord-list,
+  .suggestion-list,
+  .progression-list {
+    overflow-x: auto;
+  }
+
+  button,
+  select,
+  input {
+    min-height: 44px;
+  }
+}
