@@ -23,6 +23,21 @@ function getParallelKeyName(keyData, musicData) {
   return fallbackParallelNames[keyData.name] || "—";
 }
 
+const FRIENDLY_KEY_DISPLAY = {
+  "C# Major": "C# Major",
+  "Db Major": "Db Major",
+  "G# Major": "Ab Major",
+  "Ab Major": "Ab Major",
+  "C# Minor": "C# Minor",
+  "Db Minor": "C# Minor",
+  "G# Minor": "Ab Minor",
+  "Ab Minor": "Ab Minor",
+};
+
+function formatDisplayKeyName(name) {
+  return FRIENDLY_KEY_DISPLAY[name] || formatKeyLabel(name);
+}
+
 function getDegreeLabels(mode) {
   if (mode === "major") {
     return [
@@ -299,7 +314,7 @@ export function renderError(resultsElement, message) {
   resultsElement.innerHTML = `<li>${message}</li>`;
 }
 
-export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onChordAdd, onPlayNote) {
+export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onChordAdd) {
   const keyData = musicData[selectedKey];
   if (!keyData) {
     element.textContent = "No key selected.";
@@ -310,7 +325,7 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
   const degreeLabels = getDegreeLabels(keyData.mode);
 
   const headingRow = degreeLabels
-    .map(([roman]) => `<th scope="col">${roman}</th>`)
+    .map(([roman]) => `<td>${roman}</td>`)
     .join("");
 
   const functionRow = degreeLabels
@@ -318,31 +333,58 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
     .join("");
 
   const chordRow = keyData.chords
-    .map(chord => {
+    .map((chord) => {
       const { theoryLabel, friendlyLabel, hasTheoryVariant } = getChordDisplayInfo(chord);
-      const playTitle = hasTheoryVariant ? `Play ${friendlyLabel} (formal: ${theoryLabel})` : `Play ${friendlyLabel}`;
-      const addTitle = hasTheoryVariant ? `Add ${friendlyLabel} (formal: ${theoryLabel}) to progression` : `Add ${friendlyLabel} to progression`;
-      return `<td class="chord-cell"><div class="key-chord-item"><button type="button" class="key-chord-main" data-chord="${chord}" data-tooltip="${playTitle}">${getChordLabelHtml(chord)}</button><button type="button" class="key-chord-add-btn" data-chord="${chord}" data-tooltip="${addTitle}">+</button></div></td>`;
+      const playTitle = hasTheoryVariant
+        ? `Play ${friendlyLabel} (formal: ${theoryLabel})`
+        : `Play ${friendlyLabel}`;
+      const addTitle = hasTheoryVariant
+        ? `Add ${friendlyLabel} (formal: ${theoryLabel}) to progression`
+        : `Add ${friendlyLabel} to progression`;
+
+      return `
+        <td class="chord-cell">
+          <div class="key-chord-item">
+            <button
+              class="key-chord-main"
+              type="button"
+              data-chord="${chord}"
+              title="${playTitle}">
+              ${getChordLabelHtml(chord)}
+            </button>
+            <button
+              class="key-chord-add-btn"
+              type="button"
+              data-chord="${chord}"
+              title="${addTitle}">
+              +
+            </button>
+          </div>
+        </td>
+      `;
     })
     .join("");
 
   element.innerHTML = `
     <div class="key-summary-card">
-      <div class="key-summary-title">Key: <span class="key-title-text">${formatKeyLabel(keyData.name)}</span></div>
-      <div class="key-summary-meta">
-        Relative key: ${formatKeyLabel(keyData.relativeKey)}.
-        Parallel key: ${parallelKey === "—" ? "—" : formatKeyLabel(parallelKey)}.
-      </div>
+      <div class="key-summary-title">Key Details</div>
+        <div class="key-summary-meta">
+          <strong>${formatKeyLabel(keyData.name)}</strong>
+          <span class="key-summary-sep">•</span>
+          <span class="key-label">Relative key:</span> ${formatKeyLabel(keyData.relativeKey)}
+          <span class="key-summary-sep">•</span>
+          <span class="key-label">Parallel key:</span> ${parallelKey === "—" ? "—" : formatKeyLabel(parallelKey)}
+          <span class="key-summary-sep">•</span>
+          <span class="key-label">Scale:</span> ${keyData.scaleNotes.join(", ")}
+        </div>
     </div>
 
     <div class="key-chords-card">
       <div class="key-chords-title">Chords in ${formatKeyLabel(keyData.name)}</div>
       <div class="table-wrap">
         <table class="key-chords-table">
-          <thead>
-            <tr>${headingRow}</tr>
-          </thead>
           <tbody>
+            <tr>${headingRow}</tr>
             <tr>${functionRow}</tr>
             <tr>${chordRow}</tr>
           </tbody>
@@ -351,70 +393,21 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
     </div>
   `;
 
-    // Render scale inline inside the key summary meta (e.g. "Scale: C, D, E")
-    const metaHost = element.querySelector(".key-summary-meta");
-    if (metaHost) {
-      const scaleText = keyData.scaleNotes.join(", ");
-      const textEl = document.createElement("span");
-      textEl.className = "scale-text";
-      textEl.textContent = `Scale: ${scaleText}`;
-
-      const playAll = document.createElement("button");
-      playAll.type = "button";
-      playAll.className = "scale-play-all";
-      playAll.textContent = "🎵";
-      playAll.title = `Play scale: ${scaleText}`;
-      playAll.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (onPlayScale) {
-          onPlayScale(keyData.scaleNotes.slice());
-        } else if (onPlayNote) {
-          (async () => {
-            for (const n of keyData.scaleNotes) {
-              await onPlayNote(n);
-              await new Promise(r => setTimeout(r, 180));
-            }
-          })();
-        }
-      });
-
-      // spacer + append
-      const spacer = document.createElement("div");
-      spacer.style.height = "8px";
-      spacer.style.width = "100%";
-
-      // Append on new line visually but keep inline content grouped
-      const inlineWrap = document.createElement("div");
-      inlineWrap.style.display = "flex";
-      inlineWrap.style.alignItems = "center";
-      inlineWrap.style.gap = "8px";
-      inlineWrap.appendChild(textEl);
-      inlineWrap.appendChild(playAll);
-
-      metaHost.appendChild(inlineWrap);
-    }
-
   if (onChordClick) {
-    element.querySelectorAll(".key-chord-main").forEach(button => {
+    element.querySelectorAll(".key-chord-main").forEach((button) => {
       button.addEventListener("click", () => {
         const chord = button.getAttribute("data-chord");
-        if (chord) {
-          onChordClick(chord);
-        }
+        if (chord) onChordClick(chord);
       });
     });
   }
 
-  // key title is plain text (no button)
-
   if (onChordAdd) {
-    element.querySelectorAll(".key-chord-add-btn").forEach(button => {
-      button.addEventListener("click", event => {
+    element.querySelectorAll(".key-chord-add-btn").forEach((button) => {
+      button.addEventListener("click", (event) => {
         event.stopPropagation();
         const chord = button.getAttribute("data-chord");
-        if (chord) {
-          onChordAdd(chord);
-        }
+        if (chord) onChordAdd(chord);
       });
     });
   }

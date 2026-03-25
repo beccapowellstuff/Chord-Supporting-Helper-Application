@@ -241,6 +241,12 @@ p {
   margin-top: 14px;
 }
 
+.scale-note-item {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .key-summary-card,
 .key-chords-card {
   background: var(--panel-soft);
@@ -250,72 +256,38 @@ p {
   margin-top: 12px;
 }
 
-.key-scale-card {
-  background: var(--panel-soft);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  margin-top: 12px;
-  padding: 8px 12px;
+.key-summary-title,
+.key-chords-title {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: bold;
+  background: #f8e6ef;
 }
 
-.key-scale-title {
-  font-weight: 700;
-  margin-bottom: 8px;
+.key-label {
+  font-weight: 600;
   color: var(--text);
 }
 
-.key-summary-title {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
+.key-summary-meta strong {
+  color: var(--accent-dark);
 }
 
-.key-title-text {
-  display: inline-block;
-  background: transparent;
-  padding: 0 6px;
-  border-radius: 4px;
-  color: var(--accent-dark);
-  font-weight: 700;
-  font-size: 14px;
+.key-summary-meta {
+  padding: 12px 14px;
+  color: var(--text);
+  line-height: 1.5;
 }
 
-.key-title-btn {
-  /* match chord button sizing and appearance exactly */
-  padding: 8px 10px;
-  background: linear-gradient(to bottom, var(--accent-soft), #f9d0e0);
-  color: var(--accent-dark);
-  border: 1.5px solid var(--accent);
-  border-radius: 6px;
+.key-summary-meta strong {
   font-weight: 600;
-  cursor: pointer;
-  font-size: 13px;
-  min-height: 36px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 120px; /* fixed width to match chord boxes */
+  color: var(--accent-dark);
 }
 
-.key-title-btn:hover {
-  background: linear-gradient(to bottom, var(--accent), #c85f8f);
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(90, 35, 60, 0.2);
-}
-
-.key-scale-notes {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.scale-note-item {
-  display: flex;
-  gap: 6px;
-  align-items: center;
+.key-summary-sep {
+  color: var(--muted);
+  margin: 0 20px;
 }
 
 .note-play-icon {
