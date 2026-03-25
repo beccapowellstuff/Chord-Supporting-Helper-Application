@@ -6,7 +6,7 @@ import {
   renderError,
   renderKeyInfo
 } from "./ui.js";
-import { renderCircleOfFifths } from "./circle.js";
+import { renderRootSelector } from "./rootSelector.js";
 import {
   initSoundFont,
   playMidiNote,
@@ -28,7 +28,7 @@ const suggestBtn = document.getElementById("suggestBtn");
 const autoSuggestToggle = document.getElementById("autoSuggestToggle");
 const playProgressionBtn = document.getElementById("playProgressionBtn");
 const results = document.getElementById("results");
-const circleContainer = document.getElementById("circleContainer");
+const rootContainer = document.getElementById("rootContainer");
 const keyInfo = document.getElementById("keyInfo");
 const chordButtons = document.getElementById("chordButtons");
 
@@ -518,8 +518,8 @@ function extractChordList(parsedProgression) {
 }
 
 function refreshKeyUI() {
-  renderCircleOfFifths(
-    circleContainer,
+  renderRootSelector(
+    rootContainer,
     selectedKey,
     async newKey => {
       selectedKey = newKey;
@@ -538,10 +538,7 @@ function refreshKeyUI() {
         console.warn("Could not play clicked root note:", error);
       }
     },
-    appData.musicData,
-    chordName => {
-      appendChordToProgression(chordName);
-    }
+    appData.musicData
   );
 
   renderKeyInfo(
