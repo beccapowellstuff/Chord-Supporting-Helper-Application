@@ -1,3 +1,21 @@
+/**
+ * engine.js — Chord suggestion and progression parsing engine
+ *
+ * Responsibilities:
+ *   - parseProgression: tokenises a user-typed chord string, canonicalises
+ *     each chord, and maps it to a diatonic function if it is in the key
+ *   - getSuggestions: scores every candidate chord against the current
+ *     progression using cadence patterns, mood boosts, repetition penalties,
+ *     and borrowed-chord resolution bonuses; returns the top 6 with reasons
+ *   - All scoring helpers (getCadenceBonus, getPatternBonus,
+ *     getRepetitionPenalty, getBorrowedResolutionBonus, buildReasonParts)
+ *     are internal to this module
+ *
+ * Exports: parseProgression, getSuggestions
+ * Depends on: chordNotes (normaliseRoot)
+ */
+import { normaliseRoot } from "./chordNotes.js";
+
 function normaliseChordToken(token) {
   return String(token || "")
     .trim()
@@ -57,21 +75,6 @@ function getChordRoot(chord) {
     .replace(/m$/i, "");
 }
 
-function normaliseRoot(root) {
-  const enharmonicMap = {
-    "B#": "C",
-    Db: "C#",
-    Eb: "D#",
-    Fb: "E",
-    "E#": "F",
-    Gb: "F#",
-    Ab: "G#",
-    Bb: "A#",
-    Cb: "B"
-  };
-
-  return enharmonicMap[root] || root;
-}
 
 function canonicaliseTypedChord(token) {
   const cleaned = normaliseChordToken(token);

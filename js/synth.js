@@ -1,3 +1,17 @@
+/**
+ * synth.js — Tone.js synthesiser wrapper
+ *
+ * Responsibilities:
+ *   - initSoundFont: builds the Tone.js signal chain (PolySynth → Filter →
+ *     Reverb → Destination) on the first user interaction and caches it
+ *   - playMidiNote: plays a single MIDI note number for a given duration
+ *   - playMidiNotes: plays multiple MIDI note numbers simultaneously (chord)
+ *   - ensureAudioContext: resumes the Tone.js audio context (needed before
+ *     any playback call; satisfies browser autoplay policy)
+ *
+ * Exports: initSoundFont, playMidiNote, playMidiNotes, ensureAudioContext
+ * Depends on: Tone.js (loaded globally via <script> in index.html)
+ */
 let synth = null;
 let isInitialized = false;
 

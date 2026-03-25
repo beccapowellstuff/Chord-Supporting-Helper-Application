@@ -1,3 +1,23 @@
+/**
+ * ui.js — All DOM rendering and UI helpers
+ *
+ * Responsibilities:
+ *   - populateFeelings: fills the mood/feeling <select> from data
+ *   - renderSuggestions: builds the suggestion card grid with detail panel
+ *   - renderError: shows an error message in the results area
+ *   - renderKeyInfo: renders the full key summary card (name, relative/parallel
+ *     keys, scale notes with play button, diatonic chord table with
+ *     play + add buttons)
+ *   - renderChordLoader: renders the chord variation buttons for the selected
+ *     root note (play and add-to-progression actions injected as callbacks)
+ *   - initTooltips: attaches the floating tooltip to the document
+ *   - getFriendlyChordName: converts theoretical root names (e.g. B#, Cb) to
+ *     their common equivalents for display
+ *
+ * Exports: populateFeelings, renderSuggestions, renderError, renderKeyInfo,
+ *          renderChordLoader, initTooltips, getFriendlyChordName
+ * Depends on: nothing (pure DOM, receives all data and callbacks as arguments)
+ */
 function getParallelKeyName(keyData, musicData) {
   if (!keyData) return "—";
 
@@ -80,7 +100,7 @@ function formatChordLabel(chord) {
   return chord.replace(/dim$/, "°");
 }
 
-function getFriendlyChordName(chord) {
+export function getFriendlyChordName(chord) {
   const match = /^([A-G](?:#|b)?)(.*)$/.exec(chord);
   if (!match) return chord;
 
@@ -438,4 +458,107 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
       }
     });
   }
+}
+
+const CHORD_VARIATIONS = [
+  "",           // Major (root only)
+  "m",          // Minor
+  "m7",         // Minor 7
+  "7",          // Dominant 7
+  "maj7",       // Major 7
+  "sus2",       // Suspended 2
+  "sus4",       // Suspended 4
+  "5",          // Power chord
+  "dim",        // Diminished
+  "aug",        // Augmented
+  "add9",       // Add 9
+  "add11",      // Add 11
+  "add13",      // Add 13
+  "9",          // Dominant 9
+  "11",         // Dominant 11
+  "13",         // Dominant 13
+  "maj9",       // Major 9
+  "maj11",      // Major 11
+  "maj13",      // Major 13
+  "m9",         // Minor 9
+  "m11",        // Minor 11
+  "m13"         // Minor 13
+];
+
+export function renderChordLoader(element, rootNote, onPlay, onAdd) {
+  element.innerHTML = "";
+
+  if (!rootNote) {
+    element.innerHTML = "<p style='color: var(--muted); margin: 0;'>Select a key to view chord options</p>";
+    return;
+  }
+
+  CHORD_VARIATIONS.forEach(suffix => {
+    const chordName = rootNote + suffix;
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "chord-button-wrapper";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chord-btn";
+    button.textContent = chordName;
+
+    button.addEventListener("click", async () => {
+      document.querySelectorAll(".chord-btn").forEach(btn => btn.classList.remove("active"));
+      button.classList.add("active");
+      if (onPlay) await onPlay(chordName);
+    });
+    button.dataset.tooltip = `Play ${chordName}`;
+
+    const addBtn = document.createElement("button");
+    addBtn.type = "button";
+    addBtn.className = "chord-add-btn";
+    addBtn.textContent = "+";
+    addBtn.dataset.tooltip = `Add ${chordName} to progression`;
+
+    addBtn.addEventListener("click", e => {
+      e.stopPropagation();
+      if (onAdd) onAdd(chordName);
+    });
+
+    wrapper.appendChild(button);
+    wrapper.appendChild(addBtn);
+    element.appendChild(wrapper);
+  });
+}
+
+export function initTooltips() {
+  const tip = document.createElement("div");
+  tip.className = "app-tooltip";
+  tip.setAttribute("aria-hidden", "true");
+  document.body.appendChild(tip);
+
+  function position(e) {
+    const margin = 12;
+    let x = e.clientX + margin;
+    let y = e.clientY - 34;
+    if (x + tip.offsetWidth > window.innerWidth - 8) x = e.clientX - tip.offsetWidth - margin;
+    if (y < 8) y = e.clientY + margin;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+  }
+
+  document.addEventListener("mouseover", e => {
+    const el = e.target.closest("[data-tooltip]");
+    if (!el) { tip.style.display = "none"; return; }
+    tip.textContent = el.dataset.tooltip;
+    tip.style.display = "block";
+    position(e);
+  });
+
+  document.addEventListener("mousemove", e => {
+    if (tip.style.display === "block") position(e);
+  });
+
+  document.addEventListener("mouseout", e => {
+    if (!e.relatedTarget || !e.relatedTarget.closest("[data-tooltip]")) {
+      tip.style.display = "none";
+    }
+  });
 }
