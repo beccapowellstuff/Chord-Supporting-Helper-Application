@@ -48,9 +48,10 @@ function getDegreeLabels(mode) {
 }
 
 function formatKeyLabel(name) {
-  return name
-    .replace(" Major", " major")
-    .replace(" Minor", " minor");
+  // Ensure the style word is capitalised (e.g. "C Major", "A Minor")
+  return String(name)
+    .replace(/\bmajor\b/i, "Major")
+    .replace(/\bminor\b/i, "Minor");
 }
 
 const FRIENDLY_ROOT_MAP = {
@@ -298,7 +299,7 @@ export function renderError(resultsElement, message) {
   resultsElement.innerHTML = `<li>${message}</li>`;
 }
 
-export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onChordAdd) {
+export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onChordAdd, onPlayNote) {
   const keyData = musicData[selectedKey];
   if (!keyData) {
     element.textContent = "No key selected.";
@@ -327,10 +328,15 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
 
   element.innerHTML = `
     <div class="key-summary-card">
-      <div class="key-summary-title">Key: ${formatKeyLabel(keyData.name)}</div>
+      <div class="key-summary-title">Key: <button type="button" class="key-title-btn">${formatKeyLabel(keyData.name)}</button></div>
       <div class="key-summary-meta">
         Relative key: ${formatKeyLabel(keyData.relativeKey)}.
         Parallel key: ${parallelKey === "—" ? "—" : formatKeyLabel(parallelKey)}.
+      </div>
+
+      <div class="key-scale-inline">
+        <div class="key-scale-title">Scale</div>
+        <div class="key-scale-notes"></div>
       </div>
     </div>
 
@@ -350,6 +356,38 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
     </div>
   `;
 
+    // Render scale as comma-separated text with a single small play icon
+    const scaleHost = element.querySelector(".key-scale-notes");
+    if (scaleHost) {
+      const scaleText = keyData.scaleNotes.join(", ");
+      const textEl = document.createElement("span");
+      textEl.className = "scale-text";
+      textEl.textContent = `Scale: ${scaleText}`;
+
+      const playAll = document.createElement("button");
+      playAll.type = "button";
+      playAll.className = "scale-play-all";
+      playAll.textContent = "🎵";
+      playAll.title = `Play scale: ${scaleText}`;
+      playAll.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (onPlayScale) {
+          onPlayScale(keyData.scaleNotes.slice());
+        } else if (onPlayNote) {
+          // fallback: play notes sequentially via onPlayNote
+          (async () => {
+            for (const n of keyData.scaleNotes) {
+              await onPlayNote(n);
+              await new Promise(r => setTimeout(r, 180));
+            }
+          })();
+        }
+      });
+
+      scaleHost.appendChild(textEl);
+      scaleHost.appendChild(playAll);
+    }
+
   if (onChordClick) {
     element.querySelectorAll(".key-chord-main").forEach(button => {
       button.addEventListener("click", () => {
@@ -358,6 +396,15 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
           onChordClick(chord);
         }
       });
+    });
+  }
+
+  // Key title button plays the tonic chord when clicked
+  const keyTitleBtn = element.querySelector(".key-title-btn");
+  if (keyTitleBtn && onChordClick) {
+    keyTitleBtn.addEventListener("click", () => {
+      const tonic = keyData.chords && keyData.chords[0];
+      if (tonic) onChordClick(tonic);
     });
   }
 

@@ -541,15 +541,16 @@ function refreshKeyUI() {
     }
   );
 
+  // renderKeyInfo is called below with an additional note-play callback
+  
+  // Provide a note play callback to renderKeyInfo so the UI can play individual scale notes
   renderKeyInfo(
     keyInfo,
     appData.musicData,
     selectedKey,
     async chord => {
-      console.log("⭕ Chord cell callback triggered for:", chord);
       try {
         await ensureAudioReady();
-        console.log("▶ Audio ready, calling playChord");
         await playChord(chord, 1.0);
       } catch (error) {
         console.error("✗ Could not play chord:", error);
@@ -557,6 +558,59 @@ function refreshKeyUI() {
     },
     chord => {
       appendChordToProgression(chord);
+    },
+    async (note) => {
+      try {
+        await ensureAudioReady();
+        const midi = noteToMidi(note, 4);
+        if (midi != null) {
+          await playMidiNote(midi, 0.6);
+        }
+      } catch (error) {
+        console.error("✗ Could not play note:", error);
+      }
+    }
+  );
+  
+  // Provide an onPlayScale callback so the UI can play the whole scale sequentially
+  // (uses the note names to play each note in order)
+  renderKeyInfo(
+    keyInfo,
+    appData.musicData,
+    selectedKey,
+    async chord => {
+      try {
+        await ensureAudioReady();
+        await playChord(chord, 1.0);
+      } catch (error) {
+        console.error("✗ Could not play chord:", error);
+      }
+    },
+    chord => {
+      appendChordToProgression(chord);
+    },
+    async (note) => {
+      try {
+        await ensureAudioReady();
+        const midi = noteToMidi(note, 4);
+        if (midi != null) {
+          await playMidiNote(midi, 0.6);
+        }
+      } catch (error) {
+        console.error("✗ Could not play note:", error);
+      }
+    },
+    async (notesArray) => {
+      try {
+        await ensureAudioReady();
+        for (const n of notesArray) {
+          const m = noteToMidi(n, 4);
+          if (m != null) await playMidiNote(m, 0.45);
+          await new Promise(r => setTimeout(r, 220));
+        }
+      } catch (error) {
+        console.error("✗ Could not play scale:", error);
+      }
     }
   );
 
