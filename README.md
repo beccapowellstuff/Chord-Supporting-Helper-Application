@@ -48,6 +48,8 @@ This tool is built with standard web technologies and should work on all modern 
 
 I'm using Playwright for browser testing during development to help catch issues early.
 
+Mobile phone doesn't work right now - I am focusing on getting the functionality working to start with and then will rework the UI for mobile version.
+
 **Known issue:** Audio doesn't play in Safari when running through Playwright (browser automation). I've tested this with isolated audio code and confirmed it's a Playwright/WebKit limitation, not an issue with the application itself. The app should work fine in real Safari on a Mac — I just don't have one to verify it. If you test it on real Safari or hit any other browser issues, let me know.
 
 ### Quick workflow
