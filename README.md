@@ -75,6 +75,40 @@ The files are organized pretty simply:
 
 If you want to understand how something works, the `js/` folder is where the application logic lives, and `data/` is where the music theory information comes from.
 
+### Module reference
+
+Each JavaScript file has a single clear responsibility. Here is what each one does and how they relate to each other.
+
+```
+index.html
+    └── app.js               ← entry point, state, event wiring
+         ├── dataLoader.js   ← loads JSON data + generates key data
+         │    └── theory.js  ← derives all 24 keys, chords, transitions
+         ├── engine.js       ← suggestion scoring, progression parsing
+         ├── ui.js           ← all DOM building and rendering
+         ├── rootSelector.js ← chromatic root buttons UI
+         ├── playback.js     ← audio playback (single chords + progressions)
+         │    ├── synth.js   ← Tone.js wrapper (PolySynth, notes, audio context)
+         │    └── chordVoicing.js  ← builds/selects MIDI voicings
+         └── chordNotes.js   ← shared note math (the source of truth for
+                               pitch classes, intervals, MIDI conversion)
+```
+
+| File | Purpose | Key exports |
+|---|---|---|
+| `app.js` | Entry point. Holds `selectedKey` state, wires all events, delegates everything else. | — |
+| `chordNotes.js` | Shared note and chord math. Single source of truth used by all other modules. | `NOTE_TO_PC`, `CHROMATIC`, `normaliseRoot`, `transpose`, `noteToMidi`, `getChordNotes` |
+| `chordVoicing.js` | Builds root/first/second inversion MIDI voicings; picks the smoothest voicing given the previous chord. | `buildVoicings`, `chooseVoicing`, `distance` |
+| `playback.js` | Audio playback engine. Handles single chords and full progressions with voice-leading smoothing. | `ensureAudioReady`, `playChord`, `playProgression` |
+| `synth.js` | Tone.js wrapper. Builds the synth signal chain once, plays MIDI note numbers. | `initSoundFont`, `playMidiNote`, `playMidiNotes`, `ensureAudioContext` |
+| `engine.js` | Suggestion and progression parsing. Scores candidate chords using cadence rules, mood boosts, and repetition penalties. | `getSuggestions`, `parseProgression` |
+| `ui.js` | All DOM rendering. Receives data and callbacks — no audio logic, no state. | `renderKeyInfo`, `renderSuggestions`, `renderChordLoader`, `populateFeelings`, `initTooltips`, `getFriendlyChordName` |
+| `rootSelector.js` | Renders the 12 chromatic root buttons and resolves a root + style to a key name. | `renderRootSelector` |
+| `theory.js` | Defines all 24 key scales and derives chords, Roman numerals, and transition tables from them. | `generateAllKeys` |
+| `dataLoader.js` | Fetches JSON data files and assembles the single `appData` object the app uses. | `loadAllData` |
+
+**Rule of thumb for future changes:** if you are touching note or interval logic, it belongs in `chordNotes.js`. If it is about what the DOM looks like, it belongs in `ui.js`. If it is about what chord comes next, it belongs in `engine.js`. `app.js` should only wire things together.
+
 ---
 
 ## Vibe Coding

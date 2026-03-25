@@ -1,4 +1,18 @@
-// Shared note and chord math utilities used across modules.
+/**
+ * chordNotes.js — Shared note and chord mathematics
+ *
+ * Responsibilities:
+ *   - Defines the canonical pitch-class lookup table (NOTE_TO_PC) and
+ *     chromatic scale array (CHROMATIC) used by all other modules
+ *   - Provides low-level helpers: normaliseRoot (enharmonic → sharp),
+ *     transpose, noteToMidi, midiToFrequency
+ *   - Provides getChordNotes: resolves any chord name string to an array
+ *     of note names using interval patterns (triads through maj13/m13)
+ *
+ * Exports: NOTE_TO_PC, CHROMATIC, normaliseRoot, transpose,
+ *          noteToMidi, midiToFrequency, getChordNotes
+ * Depends on: nothing
+ */
 
 export const NOTE_TO_PC = {
   C: 0,

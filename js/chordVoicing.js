@@ -1,3 +1,19 @@
+/**
+ * chordVoicing.js — Chord voicing and voice-leading smoothing
+ *
+ * Responsibilities:
+ *   - Builds root-position, first-inversion, and second-inversion MIDI
+ *     voicings for any chord name via buildVoicings
+ *   - Selects the voicing closest to the previous chord (chooseVoicing)
+ *     so progressions are played with minimal hand movement
+ *   - Provides a simple ascending root voicing (getAscendingRootVoicing)
+ *     for preview/reference use
+ *   - distance helper: sums absolute semitone distance between two
+ *     MIDI note arrays (used by chooseVoicing and playback)
+ *
+ * Exports: getAscendingRootVoicing, distance, buildVoicings, chooseVoicing
+ * Depends on: chordNotes
+ */
 import { NOTE_TO_PC, normaliseRoot, noteToMidi, getChordNotes } from "./chordNotes.js";
 
 export function getAscendingRootVoicing(chordName) {

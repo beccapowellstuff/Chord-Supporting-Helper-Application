@@ -1,6 +1,17 @@
-// rootSelector.js
-// Renders the chromatic root-selection table and resolves a root + style to a key name.
-
+/**
+ * rootSelector.js — Chromatic root selector UI
+ *
+ * Responsibilities:
+ *   - Renders a one-row table of 12 chromatic root buttons (C through B)
+ *   - Highlights the button whose pitch class matches the currently selected key
+ *   - On click, reads the current style from #styleSelect, resolves the
+ *     root + style to a key name, and fires onSelectKey
+ *   - findKeyForRoot: resolution logic that prefers an exact name match,
+ *     falls back to mode match by pitch class, then any pitch-class match
+ *
+ * Exports: renderRootSelector
+ * Depends on: chordNotes (NOTE_TO_PC)
+ */
 import { NOTE_TO_PC } from "./chordNotes.js";
 
 const CHROMATIC = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"];

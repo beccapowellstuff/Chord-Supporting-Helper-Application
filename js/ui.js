@@ -1,3 +1,23 @@
+/**
+ * ui.js — All DOM rendering and UI helpers
+ *
+ * Responsibilities:
+ *   - populateFeelings: fills the mood/feeling <select> from data
+ *   - renderSuggestions: builds the suggestion card grid with detail panel
+ *   - renderError: shows an error message in the results area
+ *   - renderKeyInfo: renders the full key summary card (name, relative/parallel
+ *     keys, scale notes with play button, diatonic chord table with
+ *     play + add buttons)
+ *   - renderChordLoader: renders the chord variation buttons for the selected
+ *     root note (play and add-to-progression actions injected as callbacks)
+ *   - initTooltips: attaches the floating tooltip to the document
+ *   - getFriendlyChordName: converts theoretical root names (e.g. B#, Cb) to
+ *     their common equivalents for display
+ *
+ * Exports: populateFeelings, renderSuggestions, renderError, renderKeyInfo,
+ *          renderChordLoader, initTooltips, getFriendlyChordName
+ * Depends on: nothing (pure DOM, receives all data and callbacks as arguments)
+ */
 function getParallelKeyName(keyData, musicData) {
   if (!keyData) return "—";
 

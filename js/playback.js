@@ -1,3 +1,18 @@
+/**
+ * playback.js — Audio playback engine
+ *
+ * Responsibilities:
+ *   - Owns the Web Audio context and ensures it is resumed before use
+ *   - playSoundChord: unified chord playback; supports optional voice-leading
+ *     smoothing (useSmoothing=true) for progressions, or plain voicing for
+ *     single clicks
+ *   - playChord: convenience wrapper for one-shot chord playback (no smoothing)
+ *   - playProgression: steps through a chord array at a given tempo, passing
+ *     each successive voicing to the next call for smooth voice leading
+ *
+ * Exports: ensureAudioReady, playSoundChord, playChord, playProgression
+ * Depends on: chordNotes, chordVoicing, synth
+ */
 import { noteToMidi, getChordNotes } from "./chordNotes.js";
 import { buildVoicings, distance } from "./chordVoicing.js";
 import { ensureAudioContext, playMidiNotes } from "./synth.js";

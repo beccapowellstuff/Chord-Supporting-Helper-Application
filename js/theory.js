@@ -1,3 +1,17 @@
+/**
+ * theory.js — Music theory data and key generation
+ *
+ * Responsibilities:
+ *   - Defines KEY_SCALES: the complete set of 24 keys (12 major + 12 minor)
+ *     with root, mode, scale notes, and relative key for each
+ *   - buildKeyData: derives the full key object (chords, functions map,
+ *     transition table) from a KEY_SCALES entry — no hardcoded chord lists
+ *   - generateAllKeys: builds and exports the complete musicData object
+ *     keyed by key name (e.g. "C Major", "A Minor")
+ *
+ * Exports: generateAllKeys
+ * Depends on: nothing
+ */
 const MAJOR_TRIAD_QUALITIES = ["", "m", "m", "", "", "m", "dim"];
 const MINOR_TRIAD_QUALITIES = ["m", "dim", "", "m", "m", "", ""];
 

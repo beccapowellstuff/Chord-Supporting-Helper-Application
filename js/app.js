@@ -1,4 +1,17 @@
-﻿import { loadAllData } from "./dataLoader.js";
+﻿/**
+ * app.js — Application entry point and orchestration
+ *
+ * Responsibilities:
+ *   - Initialises the app and loads all data via dataLoader
+ *   - Holds the single piece of shared state: selectedKey
+ *   - Wires all UI events (root selector, style select, suggest button,
+ *     play button, auto-suggest toggle, chord loader add/play actions)
+ *   - Delegates every concern to the appropriate module — no note math,
+ *     no audio logic, and no DOM building lives here
+ *
+ * Depends on: dataLoader, engine, ui, rootSelector, synth, chordNotes, playback
+ */
+import { loadAllData } from "./dataLoader.js";
 import { getSuggestions, parseProgression } from "./engine.js";
 import {
   populateFeelings,
