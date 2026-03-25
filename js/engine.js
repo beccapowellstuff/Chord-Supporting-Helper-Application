@@ -1,3 +1,5 @@
+import { normaliseRoot } from "./chordNotes.js";
+
 function normaliseChordToken(token) {
   return String(token || "")
     .trim()
@@ -57,21 +59,6 @@ function getChordRoot(chord) {
     .replace(/m$/i, "");
 }
 
-function normaliseRoot(root) {
-  const enharmonicMap = {
-    "B#": "C",
-    Db: "C#",
-    Eb: "D#",
-    Fb: "E",
-    "E#": "F",
-    Gb: "F#",
-    Ab: "G#",
-    Bb: "A#",
-    Cb: "B"
-  };
-
-  return enharmonicMap[root] || root;
-}
 
 function canonicaliseTypedChord(token) {
   const cleaned = normaliseChordToken(token);

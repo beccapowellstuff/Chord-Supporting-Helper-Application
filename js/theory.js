@@ -224,7 +224,3 @@ export function generateAllKeys() {
 
   return musicData;
 }
-
-export function getCircleOfFifthsMajor() {
-  return CIRCLE_OF_FIFTHS_MAJOR;
-}
