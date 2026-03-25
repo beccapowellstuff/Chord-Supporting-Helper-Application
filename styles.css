@@ -265,21 +265,44 @@ p {
   color: var(--text);
 }
 
+.key-summary-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.key-title-text {
+  display: inline-block;
+  background: transparent;
+  padding: 0 6px;
+  border-radius: 4px;
+  color: var(--accent-dark);
+  font-weight: 700;
+  font-size: 14px;
+}
+
 .key-title-btn {
+  /* match chord button sizing and appearance exactly */
+  padding: 8px 10px;
   background: linear-gradient(to bottom, var(--accent-soft), #f9d0e0);
   color: var(--accent-dark);
   border: 1.5px solid var(--accent);
   border-radius: 6px;
-  padding: 6px 10px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
-  display: inline-block;
-  min-width: unset;
+  font-size: 13px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px; /* fixed width to match chord boxes */
 }
 
 .key-title-btn:hover {
   background: linear-gradient(to bottom, var(--accent), #c85f8f);
   color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(90, 35, 60, 0.2);
 }
 
 .key-scale-notes {
@@ -336,6 +359,11 @@ p {
 
 .key-summary-meta {
   padding: 12px 14px;
+}
+
+/* ensure inline scale appears on its own line but visually connected to meta */
+.key-summary-meta > div {
+  margin-top: 8px;
 }
 
 .theory-legend {

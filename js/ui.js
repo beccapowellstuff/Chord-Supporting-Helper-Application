@@ -328,15 +328,10 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
 
   element.innerHTML = `
     <div class="key-summary-card">
-      <div class="key-summary-title">Key: <button type="button" class="key-title-btn">${formatKeyLabel(keyData.name)}</button></div>
+      <div class="key-summary-title">Key: <span class="key-title-text">${formatKeyLabel(keyData.name)}</span></div>
       <div class="key-summary-meta">
         Relative key: ${formatKeyLabel(keyData.relativeKey)}.
         Parallel key: ${parallelKey === "—" ? "—" : formatKeyLabel(parallelKey)}.
-      </div>
-
-      <div class="key-scale-inline">
-        <div class="key-scale-title">Scale</div>
-        <div class="key-scale-notes"></div>
       </div>
     </div>
 
@@ -356,9 +351,9 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
     </div>
   `;
 
-    // Render scale as comma-separated text with a single small play icon
-    const scaleHost = element.querySelector(".key-scale-notes");
-    if (scaleHost) {
+    // Render scale inline inside the key summary meta (e.g. "Scale: C, D, E")
+    const metaHost = element.querySelector(".key-summary-meta");
+    if (metaHost) {
       const scaleText = keyData.scaleNotes.join(", ");
       const textEl = document.createElement("span");
       textEl.className = "scale-text";
@@ -374,7 +369,6 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
         if (onPlayScale) {
           onPlayScale(keyData.scaleNotes.slice());
         } else if (onPlayNote) {
-          // fallback: play notes sequentially via onPlayNote
           (async () => {
             for (const n of keyData.scaleNotes) {
               await onPlayNote(n);
@@ -384,8 +378,20 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
         }
       });
 
-      scaleHost.appendChild(textEl);
-      scaleHost.appendChild(playAll);
+      // spacer + append
+      const spacer = document.createElement("div");
+      spacer.style.height = "8px";
+      spacer.style.width = "100%";
+
+      // Append on new line visually but keep inline content grouped
+      const inlineWrap = document.createElement("div");
+      inlineWrap.style.display = "flex";
+      inlineWrap.style.alignItems = "center";
+      inlineWrap.style.gap = "8px";
+      inlineWrap.appendChild(textEl);
+      inlineWrap.appendChild(playAll);
+
+      metaHost.appendChild(inlineWrap);
     }
 
   if (onChordClick) {
@@ -399,14 +405,7 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
     });
   }
 
-  // Key title button plays the tonic chord when clicked
-  const keyTitleBtn = element.querySelector(".key-title-btn");
-  if (keyTitleBtn && onChordClick) {
-    keyTitleBtn.addEventListener("click", () => {
-      const tonic = keyData.chords && keyData.chords[0];
-      if (tonic) onChordClick(tonic);
-    });
-  }
+  // key title is plain text (no button)
 
   if (onChordAdd) {
     element.querySelectorAll(".key-chord-add-btn").forEach(button => {
