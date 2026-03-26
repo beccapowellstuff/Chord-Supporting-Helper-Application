@@ -21,24 +21,21 @@ function noteToPitchClass(note) {
 }
 
 /**
- * Given a root label (e.g. "C#") and a style (e.g. "Major"), find the best
+ * Given a root label (e.g. "C#") and a mode id (e.g. "ionian"), find the best
  * matching key name in musicData.
  */
-function findKeyForRoot(label, style, musicData) {
+function findKeyForRoot(label, modeId, musicData) {
   if (!musicData) return null;
 
-  const direct = `${label} ${style}`;
-  if (musicData[direct]) return direct;
-
-  const styleLower = String(style || "").toLowerCase();
+  const targetModeId = String(modeId || "").trim();
   const targetPc = noteToPitchClass(label);
   if (targetPc == null) return null;
 
-  // Prefer keys whose mode matches exactly
+  // Prefer keys whose mode id matches exactly
   for (const keyName of Object.keys(musicData)) {
     const root = keyName.split(" ")[0];
     const keyData = musicData[keyName];
-    if (noteToPitchClass(root) === targetPc && keyData?.mode === styleLower) {
+    if (noteToPitchClass(root) === targetPc && keyData?.modeId === targetModeId) {
       return keyName;
     }
   }
@@ -55,7 +52,7 @@ function findKeyForRoot(label, style, musicData) {
  * Render a one-row table of chromatic root buttons into `container`.
  *
  * @param {HTMLElement} container   Target element (id="rootContainer")
- * @param {string}      selectedKey Currently active key name (e.g. "C Major")
+ * @param {string}      selectedKey Currently active key name (e.g. "C Ionian")
  * @param {Function}    onSelectKey Called with the new key name when a root is clicked
  * @param {Object}      musicData   Full music data keyed by key name
  */
@@ -85,9 +82,9 @@ export function renderRootSelector(container, selectedKey, onSelectKey, musicDat
 
     btn.addEventListener("click", () => {
       const styleEl = document.getElementById("styleSelect");
-      const style = styleEl ? styleEl.value : "Major";
-      const keyName = findKeyForRoot(label, style, musicData) || `${label} ${style}`;
-      if (onSelectKey) onSelectKey(keyName);
+      const modeId = styleEl ? styleEl.value : "ionian";
+      const keyName = findKeyForRoot(label, modeId, musicData);
+      if (keyName && onSelectKey) onSelectKey(keyName);
     });
 
     td.appendChild(btn);

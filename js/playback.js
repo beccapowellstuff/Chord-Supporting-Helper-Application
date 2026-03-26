@@ -1,14 +1,12 @@
 /**
- * playback.js — Audio playback engine
+ * playback.js - Audio playback engine
  *
  * Responsibilities:
- *   - Owns the Web Audio context and ensures it is resumed before use
- *   - playSoundChord: unified chord playback; supports optional voice-leading
- *     smoothing (useSmoothing=true) for progressions, or plain voicing for
- *     single clicks
- *   - playChord: convenience wrapper for one-shot chord playback (no smoothing)
- *   - playProgression: steps through a chord array at a given tempo, passing
- *     each successive voicing to the next call for smooth voice leading
+ *   - Ensures the Tone.js audio context is active before playback
+ *   - playSoundChord: unified chord playback with optional voice-leading
+ *     smoothing for progressions
+ *   - playChord: convenience wrapper for one-shot chord playback
+ *   - playProgression: steps through a chord array at a given tempo
  *
  * Exports: ensureAudioReady, playSoundChord, playChord, playProgression
  * Depends on: chordNotes, chordVoicing, synth
@@ -17,28 +15,15 @@ import { noteToMidi, getChordNotes } from "./chordNotes.js";
 import { buildVoicings, distance } from "./chordVoicing.js";
 import { ensureAudioContext, playMidiNotes } from "./synth.js";
 
-let audioContext = null;
-
-function getAudioContext() {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  return audioContext;
-}
-
 export async function ensureAudioReady() {
-  const ctx = getAudioContext();
-  if (ctx.state === "suspended") {
-    await ctx.resume();
-  }
-  return ctx;
+  await ensureAudioContext();
 }
 
 export async function playSoundChord(chordName, duration = 1.0, useSmoothing = false, previousVoicing = null) {
   if (!chordName) return { voicing: [] };
 
   try {
-    await ensureAudioContext();
+    await ensureAudioReady();
 
     let voicing;
     if (useSmoothing && previousVoicing) {
@@ -60,8 +45,8 @@ export async function playSoundChord(chordName, duration = 1.0, useSmoothing = f
       if (!notes) return { voicing: [] };
 
       voicing = [];
-      notes.forEach((note, idx) => {
-        voicing.push(noteToMidi(note, idx === 0 ? 3 : 4));
+      notes.forEach((note, index) => {
+        voicing.push(noteToMidi(note, index === 0 ? 3 : 4));
       });
       voicing = voicing.sort((a, b) => a - b);
     }
@@ -72,7 +57,7 @@ export async function playSoundChord(chordName, duration = 1.0, useSmoothing = f
 
     return { voicing };
   } catch (error) {
-    console.error("✗ Could not play chord:", error);
+    console.error("Could not play chord:", error);
     return { voicing: [] };
   }
 }

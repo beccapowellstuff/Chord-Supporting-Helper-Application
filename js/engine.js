@@ -12,9 +12,9 @@
  *     are internal to this module
  *
  * Exports: parseProgression, getSuggestions
- * Depends on: chordNotes (normaliseRoot)
+ * Depends on: chordNotes (normaliseRoot, parseChordName)
  */
-import { normaliseRoot } from "./chordNotes.js";
+import { normaliseRoot, parseChordName } from "./chordNotes.js";
 
 function normaliseChordToken(token) {
   return String(token || "")
@@ -24,55 +24,13 @@ function normaliseChordToken(token) {
 }
 
 function getChordQuality(chord) {
-  if (/maj13$/i.test(chord)) return "maj13";
-  if (/maj11$/i.test(chord)) return "maj11";
-  if (/maj9$/i.test(chord)) return "maj9";
-  if (/maj7$/i.test(chord)) return "maj7";
-  if (/m13$/i.test(chord)) return "m13";
-  if (/m11$/i.test(chord)) return "m11";
-  if (/m9$/i.test(chord)) return "m9";
-  if (/m7$/i.test(chord)) return "m7";
-  if (/dim$/i.test(chord)) return "dim";
-  if (/aug$/i.test(chord)) return "aug";
-  if (/sus4$/i.test(chord)) return "sus4";
-  if (/sus2$/i.test(chord)) return "sus2";
-  if (/sus$/i.test(chord)) return "sus4";
-  if (/add13$/i.test(chord)) return "add13";
-  if (/add11$/i.test(chord)) return "add11";
-  if (/add9$/i.test(chord)) return "add9";
-  if (/13$/i.test(chord)) return "13";
-  if (/11$/i.test(chord)) return "11";
-  if (/9$/i.test(chord)) return "9";
-  if (/7$/i.test(chord)) return "dominant7";
-  if (/5$/i.test(chord)) return "power";
-  if (/m$/i.test(chord)) return "minor";
-  return "major";
+  const parsed = parseChordName(chord);
+  return parsed ? parsed.suffix || "major" : "major";
 }
 
 function getChordRoot(chord) {
-  return chord
-    .replace(/maj13$/i, "")
-    .replace(/maj11$/i, "")
-    .replace(/maj9$/i, "")
-    .replace(/maj7$/i, "")
-    .replace(/m13$/i, "")
-    .replace(/m11$/i, "")
-    .replace(/m9$/i, "")
-    .replace(/m7$/i, "")
-    .replace(/dim$/i, "")
-    .replace(/aug$/i, "")
-    .replace(/sus4$/i, "")
-    .replace(/sus2$/i, "")
-    .replace(/sus$/i, "")
-    .replace(/add13$/i, "")
-    .replace(/add11$/i, "")
-    .replace(/add9$/i, "")
-    .replace(/13$/i, "")
-    .replace(/11$/i, "")
-    .replace(/9$/i, "")
-    .replace(/7$/i, "")
-    .replace(/5$/i, "")
-    .replace(/m$/i, "");
+  const parsed = parseChordName(chord);
+  return parsed ? parsed.root : chord;
 }
 
 
@@ -80,83 +38,8 @@ function canonicaliseTypedChord(token) {
   const cleaned = normaliseChordToken(token);
   if (!cleaned) return null;
 
-  let quality = "";
-  let root = cleaned;
-
-  // Check for chord suffixes (order matters - check longer suffixes first)
-  if (/maj13$/i.test(cleaned)) {
-    quality = "maj13";
-    root = cleaned.replace(/maj13$/i, "");
-  } else if (/maj11$/i.test(cleaned)) {
-    quality = "maj11";
-    root = cleaned.replace(/maj11$/i, "");
-  } else if (/maj9$/i.test(cleaned)) {
-    quality = "maj9";
-    root = cleaned.replace(/maj9$/i, "");
-  } else if (/maj7$/i.test(cleaned)) {
-    quality = "maj7";
-    root = cleaned.replace(/maj7$/i, "");
-  } else if (/m13$/i.test(cleaned)) {
-    quality = "m13";
-    root = cleaned.replace(/m13$/i, "");
-  } else if (/m11$/i.test(cleaned)) {
-    quality = "m11";
-    root = cleaned.replace(/m11$/i, "");
-  } else if (/m9$/i.test(cleaned)) {
-    quality = "m9";
-    root = cleaned.replace(/m9$/i, "");
-  } else if (/m7$/i.test(cleaned)) {
-    quality = "m7";
-    root = cleaned.replace(/m7$/i, "");
-  } else if (/dim$/i.test(cleaned)) {
-    quality = "dim";
-    root = cleaned.replace(/dim$/i, "");
-  } else if (/m$/i.test(cleaned)) {
-    quality = "m";
-    root = cleaned.replace(/m$/i, "");
-  } else if (/aug$/i.test(cleaned)) {
-    quality = "aug";
-    root = cleaned.replace(/aug$/i, "");
-  } else if (/sus4$/i.test(cleaned)) {
-    quality = "sus4";
-    root = cleaned.replace(/sus4$/i, "");
-  } else if (/sus2$/i.test(cleaned)) {
-    quality = "sus2";
-    root = cleaned.replace(/sus2$/i, "");
-  } else if (/sus$/i.test(cleaned)) {
-    quality = "sus4";  // Default sus to sus4
-    root = cleaned.replace(/sus$/i, "");
-  } else if (/add13$/i.test(cleaned)) {
-    quality = "add13";
-    root = cleaned.replace(/add13$/i, "");
-  } else if (/add11$/i.test(cleaned)) {
-    quality = "add11";
-    root = cleaned.replace(/add11$/i, "");
-  } else if (/add9$/i.test(cleaned)) {
-    quality = "add9";
-    root = cleaned.replace(/add9$/i, "");
-  } else if (/13$/i.test(cleaned)) {
-    quality = "13";
-    root = cleaned.replace(/13$/i, "");
-  } else if (/11$/i.test(cleaned)) {
-    quality = "11";
-    root = cleaned.replace(/11$/i, "");
-  } else if (/9$/i.test(cleaned)) {
-    quality = "9";
-    root = cleaned.replace(/9$/i, "");
-  } else if (/7$/i.test(cleaned)) {
-    quality = "7";
-    root = cleaned.replace(/7$/i, "");
-  } else if (/5$/i.test(cleaned)) {
-    quality = "5";
-    root = cleaned.replace(/5$/i, "");
-  }
-
-  const rootMatch = /^([A-G](?:#|b)?)$/i.exec(root);
-  if (!rootMatch) return null;
-
-  const fixedRoot = rootMatch[1].charAt(0).toUpperCase() + rootMatch[1].slice(1);
-  return `${fixedRoot}${quality}`;
+  const parsed = parseChordName(cleaned);
+  return parsed ? parsed.canonicalName : null;
 }
 
 function chordsEquivalent(chordA, chordB) {
@@ -168,8 +51,74 @@ function chordsEquivalent(chordA, chordB) {
   return normaliseRoot(getChordRoot(chordA)) === normaliseRoot(getChordRoot(chordB));
 }
 
+function getQualityFamily(quality) {
+  const majorLike = new Set([
+    "major",
+    "Maj7",
+    "Maj9",
+    "Maj11",
+    "Maj13",
+    "Maj13#11",
+    "Maj13#5#11",
+    "add9",
+    "add11",
+    "add13",
+    "7",
+    "9",
+    "11",
+    "13",
+    "13#11",
+    "11b13",
+    "7#5b9#11b13",
+    "7b5b9#9b13"
+  ]);
+  const minorLike = new Set([
+    "m",
+    "m7",
+    "m9",
+    "m11",
+    "m13",
+    "mMaj7",
+    "mMaj7b13",
+    "m11b13",
+    "m13b9"
+  ]);
+  const diminishedLike = new Set(["dim", "m7b5b13", "m7b5b9b13"]);
+  const augmentedLike = new Set(["aug"]);
+
+  if (majorLike.has(quality)) return "major";
+  if (minorLike.has(quality)) return "minor";
+  if (diminishedLike.has(quality)) return "dim";
+  if (augmentedLike.has(quality)) return "aug";
+  return quality;
+}
+
 function findMatchingDiatonicChord(inputChord, keyData) {
-  return keyData.chords.find(diatonicChord => chordsEquivalent(diatonicChord, inputChord)) || null;
+  const exactMatch = keyData.chords.find(diatonicChord => chordsEquivalent(diatonicChord, inputChord));
+  if (exactMatch) {
+    return {
+      diatonicChord: exactMatch,
+      function: keyData.functions[exactMatch]
+    };
+  }
+
+  const inputRoot = normaliseRoot(getChordRoot(inputChord));
+  const inputFamily = getQualityFamily(getChordQuality(inputChord));
+
+  const compatibleMatch = keyData.chords.find(diatonicChord => {
+    const diatonicRoot = normaliseRoot(getChordRoot(diatonicChord));
+    const diatonicFamily = getQualityFamily(getChordQuality(diatonicChord));
+    return diatonicRoot === inputRoot && diatonicFamily === inputFamily;
+  });
+
+  if (!compatibleMatch) {
+    return null;
+  }
+
+  return {
+    diatonicChord: compatibleMatch,
+    function: keyData.functions[compatibleMatch]
+  };
 }
 
 function buildChromaticCandidatePool(keyData) {
@@ -395,9 +344,10 @@ export function parseProgression(input, keyData) {
 
     parsed.push({
       typed: token,
-      original: diatonicMatch || canonical,
+      original: canonical,
+      diatonicChord: diatonicMatch?.diatonicChord || null,
       inKey: Boolean(diatonicMatch),
-      function: diatonicMatch ? keyData.functions[diatonicMatch] : null
+      function: diatonicMatch ? diatonicMatch.function : null
     });
   });
 
@@ -426,7 +376,8 @@ export function getSuggestions({
   const { parsed, invalid } = parseProgression(progression, keyData);
   const boostedFunctions = moodBoosts[feeling] || [];
   const lastParsedChord = parsed.at(-1);
-  const lastChord = lastParsedChord?.original || keyData.chords[0];
+  const lastDisplayChord = lastParsedChord?.original || keyData.chords[0];
+  const lastChord = lastParsedChord?.diatonicChord || lastParsedChord?.original || keyData.chords[0];
 
   const romanHistory = parsed
     .map(item => item.function)
@@ -491,7 +442,7 @@ export function getSuggestions({
         score,
         inKey: !isOutsideKeyCandidate,
         reason: buildReasonParts({
-          lastChord,
+          lastChord: lastDisplayChord,
           candidate: candidateDisplay,
           candidateFn,
           cadenceBonus,

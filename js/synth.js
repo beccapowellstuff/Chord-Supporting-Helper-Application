@@ -1,62 +1,81 @@
 /**
- * synth.js — Tone.js synthesiser wrapper
+ * synth.js - Tone.js synthesiser wrapper
  *
  * Responsibilities:
- *   - initSoundFont: builds the Tone.js signal chain (PolySynth → Filter →
- *     Reverb → Destination) on the first user interaction and caches it
+ *   - initSoundFont: builds the Tone.js signal chain on the first user
+ *     interaction and caches it
  *   - playMidiNote: plays a single MIDI note number for a given duration
  *   - playMidiNotes: plays multiple MIDI note numbers simultaneously (chord)
- *   - ensureAudioContext: resumes the Tone.js audio context (needed before
- *     any playback call; satisfies browser autoplay policy)
+ *   - ensureAudioContext: resumes the Tone.js audio context before playback
  *
  * Exports: initSoundFont, playMidiNote, playMidiNotes, ensureAudioContext
  * Depends on: Tone.js (loaded globally via <script> in index.html)
  */
 let synth = null;
 let isInitialized = false;
+let limiter = null;
+let compressor = null;
+let filter = null;
+let reverb = null;
+let outputGain = null;
 
 export async function initSoundFont() {
   if (isInitialized && synth) {
-    console.log("✓ Synth already initialized");
+    console.log("Synth already initialized");
     return synth;
   }
 
   try {
-    // Start audio context
     console.log("Starting Tone.js audio context...");
     await Tone.start();
-    console.log("✓ Audio context started");
+    console.log("Audio context started");
 
-    // Create output chain - synth -> filter -> reverb -> destination
-    const reverb = new Tone.Reverb({
-      decay: 2.5,
-      wet: 0.35
-    }).toDestination();
+    // Add headroom and dynamics control so stacked chords stop clipping.
+    limiter = new Tone.Limiter(-2).toDestination();
 
-    const filter = new Tone.Filter({
-      frequency: 3200,
+    compressor = new Tone.Compressor({
+      threshold: -24,
+      ratio: 3,
+      attack: 0.01,
+      release: 0.25
+    }).connect(limiter);
+
+    reverb = new Tone.Reverb({
+      decay: 1.4,
+      preDelay: 0.01,
+      wet: 0.08
+    }).connect(compressor);
+
+    filter = new Tone.Filter({
+      frequency: 2600,
       type: "lowpass",
       rolloff: -24
-    }).connect(reverb);
+    }).connect(compressor);
 
-    // Create polyphonic synth
+    filter.connect(reverb);
+
+    outputGain = new Tone.Gain(0.5).connect(filter);
+
+    // A softer, shorter envelope feels less like a retro synth lead.
     synth = new Tone.PolySynth(Tone.Synth, {
+      maxPolyphony: 8,
+      volume: -10,
       oscillator: {
-        type: "triangle"
+        type: "sine"
       },
       envelope: {
-        attack: 0.005,
-        decay: 0.2,
-        sustain: 0.35,
-        release: 1.8
+        attack: 0.01,
+        decay: 0.28,
+        sustain: 0.08,
+        release: 0.9
       }
-    }).connect(filter);
+    }).connect(outputGain);
 
     isInitialized = true;
-    console.log("✓ Piano synth initialized successfully");
+    console.log("Audio chain initialized");
     return synth;
   } catch (error) {
-    console.error("✗ Failed to initialize piano synth:", error);
+    console.error("Failed to initialize synth:", error);
     isInitialized = true;
     return null;
   }
@@ -68,16 +87,16 @@ export async function playMidiNote(midiNumber, duration = 1.0) {
   }
 
   if (!synth) {
-    console.error("✗ Synth still not available");
+    console.error("Synth still not available");
     return;
   }
 
   try {
     const noteName = midiToNoteName(midiNumber);
-    console.log("🎹 Playing:", noteName);
-    synth.triggerAttackRelease(noteName, duration, Tone.now());
+    console.log("Playing:", noteName);
+    synth.triggerAttackRelease(noteName, duration, Tone.now() + 0.01);
   } catch (error) {
-    console.error("✗ Failed to play note:", error);
+    console.error("Failed to play note:", error);
   }
 }
 
@@ -87,16 +106,16 @@ export async function playMidiNotes(midiNumbers, duration = 1.0) {
   }
 
   if (!synth) {
-    console.error("✗ Synth still not available");
+    console.error("Synth still not available");
     return;
   }
 
   try {
     const noteNames = midiNumbers.map(midi => midiToNoteName(midi));
-    console.log("🎹 Playing chord:", noteNames.join(" "));
-    synth.triggerAttackRelease(noteNames, duration, Tone.now());
+    console.log("Playing chord:", noteNames.join(" "));
+    synth.triggerAttackRelease(noteNames, duration, Tone.now() + 0.01);
   } catch (error) {
-    console.error("✗ Failed to play notes:", error);
+    console.error("Failed to play notes:", error);
   }
 }
 
@@ -104,7 +123,7 @@ export async function ensureAudioContext() {
   try {
     await Tone.start();
   } catch (error) {
-    console.error("✗ Failed to start audio context:", error);
+    console.error("Failed to start audio context:", error);
   }
 }
 

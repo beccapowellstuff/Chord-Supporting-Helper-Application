@@ -1,94 +1,23 @@
 /**
- * ui.js — All DOM rendering and UI helpers
+ * ui.js - All DOM rendering and UI helpers
  *
  * Responsibilities:
  *   - populateFeelings: fills the mood/feeling <select> from data
+ *   - populateModeSelect: fills the style/mode <select> with grouped options
  *   - renderSuggestions: builds the suggestion card grid with detail panel
  *   - renderError: shows an error message in the results area
- *   - renderKeyInfo: renders the full key summary card (name, relative/parallel
- *     keys, scale notes with play button, diatonic chord table with
- *     play + add buttons)
+ *   - renderKeyInfo: renders the key summary card for the selected mode/key
  *   - renderChordLoader: renders the chord variation buttons for the selected
  *     root note (play and add-to-progression actions injected as callbacks)
  *   - initTooltips: attaches the floating tooltip to the document
- *   - getFriendlyChordName: converts theoretical root names (e.g. B#, Cb) to
- *     their common equivalents for display
+ *   - getFriendlyChordName: converts theoretical root names to common display
+ *     equivalents where useful
  *
- * Exports: populateFeelings, renderSuggestions, renderError, renderKeyInfo,
- *          renderChordLoader, initTooltips, getFriendlyChordName
+ * Exports: populateFeelings, populateModeSelect, renderSuggestions,
+ *          renderError, renderKeyInfo, renderChordLoader, initTooltips,
+ *          getFriendlyChordName
  * Depends on: nothing (pure DOM, receives all data and callbacks as arguments)
  */
-function getParallelKeyName(keyData, musicData) {
-  if (!keyData) return "—";
-
-  const targetMode = keyData.mode === "major" ? "Minor" : "Major";
-  const directCandidate = `${keyData.root} ${targetMode}`;
-
-  if (musicData[directCandidate]) {
-    return directCandidate;
-  }
-
-  const fallbackParallelNames = {
-    "Eb Major": "Eb Minor",
-    "Ab Major": "Ab Minor",
-    "Db Major": "C# Major",
-    "C# Minor": "C# Major",
-    "D# Minor": "D# Major",
-    "G# Minor": "G# Major",
-    "C# Major": "C# Minor",
-    "Eb Minor": "Eb Major",
-    "Ab Minor": "Ab Major"
-  };
-
-  return fallbackParallelNames[keyData.name] || "—";
-}
-
-const FRIENDLY_KEY_DISPLAY = {
-  "C# Major": "C# Major",
-  "Db Major": "Db Major",
-  "G# Major": "Ab Major",
-  "Ab Major": "Ab Major",
-  "C# Minor": "C# Minor",
-  "Db Minor": "C# Minor",
-  "G# Minor": "Ab Minor",
-  "Ab Minor": "Ab Minor",
-};
-
-function formatDisplayKeyName(name) {
-  return FRIENDLY_KEY_DISPLAY[name] || formatKeyLabel(name);
-}
-
-function getDegreeLabels(mode) {
-  if (mode === "major") {
-    return [
-      ["I", "tonic"],
-      ["ii", "supertonic"],
-      ["iii", "mediant"],
-      ["IV", "subdominant"],
-      ["V", "dominant"],
-      ["vi", "submediant"],
-      ["vii°", "leading tone"]
-    ];
-  }
-
-  return [
-    ["i", "tonic"],
-    ["ii°", "supertonic"],
-    ["III", "mediant"],
-    ["iv", "subdominant"],
-    ["v", "dominant"],
-    ["VI", "submediant"],
-    ["VII", "subtonic"]
-  ];
-}
-
-function formatKeyLabel(name) {
-  // Ensure the style word is capitalised (e.g. "C Major", "A Minor")
-  return String(name)
-    .replace(/\bmajor\b/i, "Major")
-    .replace(/\bminor\b/i, "Minor");
-}
-
 const FRIENDLY_ROOT_MAP = {
   "B#": "C",
   Cb: "B",
@@ -96,12 +25,24 @@ const FRIENDLY_ROOT_MAP = {
   Fb: "E"
 };
 
+function formatKeyLabel(name) {
+  return String(name || "").trim();
+}
+
 function formatChordLabel(chord) {
-  return chord.replace(/dim$/, "°");
+  return String(chord || "").replace(/dim$/, "°");
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export function getFriendlyChordName(chord) {
-  const match = /^([A-G](?:#|b)?)(.*)$/.exec(chord);
+  const match = /^([A-G](?:#{1,2}|b{1,2})?)(.*)$/.exec(chord);
   if (!match) return chord;
 
   const [, root, suffix] = match;
@@ -206,6 +147,26 @@ export function populateFeelings(feelingSelect, moodBoosts) {
   });
 }
 
+export function populateModeSelect(styleSelect, modeGroups) {
+  if (!styleSelect) return;
+
+  styleSelect.innerHTML = "";
+
+  modeGroups.forEach(group => {
+    const optgroup = document.createElement("optgroup");
+    optgroup.label = group.label || group.category;
+
+    group.modes.forEach(mode => {
+      const option = document.createElement("option");
+      option.value = mode.value;
+      option.textContent = mode.label;
+      optgroup.appendChild(option);
+    });
+
+    styleSelect.appendChild(optgroup);
+  });
+}
+
 export function renderSuggestions(resultsElement, payload, musicData, selectedKey, onChordClick, onChordAdd) {
   const { suggestions, parsedProgression = [], invalidChords = [] } = payload;
 
@@ -235,7 +196,7 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
         }
         return labelText;
       })
-      .join(" → ");
+      .join(" -> ");
     progressionDiv.appendChild(text);
     feedbackContainer.appendChild(progressionDiv);
   }
@@ -341,8 +302,10 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
     return;
   }
 
-  const parallelKey = getParallelKeyName(keyData, musicData);
-  const degreeLabels = getDegreeLabels(keyData.mode);
+  const degreeLabels = (keyData.degreeLabels || []).map((roman, index) => [
+    roman,
+    keyData.degreeDescriptions?.[index] || ""
+  ]);
 
   const headingRow = degreeLabels
     .map(([roman]) => `<td>${roman}</td>`)
@@ -353,7 +316,7 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
     .join("");
 
   const chordRow = keyData.chords
-    .map((chord) => {
+    .map(chord => {
       const { theoryLabel, friendlyLabel, hasTheoryVariant } = getChordDisplayInfo(chord);
       const playTitle = hasTheoryVariant
         ? `Play ${friendlyLabel} (formal: ${theoryLabel})`
@@ -388,24 +351,50 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
   element.innerHTML = `
     <div class="key-summary-card">
       <div class="key-summary-title">Key Details</div>
-        <div class="key-summary-meta">
-          <strong>${formatKeyLabel(keyData.name)}</strong>
-          <span class="key-summary-sep">•</span>
-          <span class="key-label">Relative key:</span> ${formatKeyLabel(keyData.relativeKey)}
-          <span class="key-summary-sep">•</span>
-          <span class="key-label">Parallel key:</span> ${parallelKey === "—" ? "—" : formatKeyLabel(parallelKey)}
-          <span class="key-summary-sep">•</span>
-          <span class="key-label">Scale:</span>
-          <span class="key-scale-notes">${[...keyData.scaleNotes, keyData.scaleNotes[0]].join(", ")}</span>
-          <span
-            class="key-scale-play"
-            title="Play scale"
-            aria-label="Play scale"
-            role="button"
-            tabindex="0"
-          >
-            🎶
-          </span>
+      <div class="key-summary-overview">
+        <div class="key-summary-line">
+          <strong class="key-summary-name">${formatKeyLabel(keyData.name)}</strong>
+          <span class="key-summary-sep">|</span>
+          <div class="key-summary-chord">
+            <span class="key-summary-chord-name">${escapeHtml(formatChordLabel(keyData.equivalentChord))}</span>
+            <button
+              class="key-summary-play-btn"
+              type="button"
+              data-chord="${keyData.equivalentChord}"
+              title="Play ${keyData.equivalentChord}">
+              Play
+            </button>
+          </div>
+          <span class="key-summary-sep">|</span>
+          <div class="key-summary-scale">
+            <span class="key-label">Scale:</span>
+            <span class="key-scale-notes">${[...keyData.scaleNotes].join(", ")}</span>
+            <span
+              class="key-scale-play"
+              title="Play scale"
+              aria-label="Play scale"
+              role="button"
+              tabindex="0"
+            >
+              🎶
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="key-mode-details">
+        <div class="key-mode-detail">
+          <span class="key-label">Group:</span> ${escapeHtml(keyData.categoryLabel || keyData.category)}
+        </div>
+        <div class="key-mode-detail">
+          <span class="key-label">Character:</span> ${escapeHtml(keyData.character)}
+        </div>
+        <div class="key-mode-detail">
+          <span class="key-label">Parent family:</span> ${escapeHtml(keyData.parentFamilyLabel || keyData.parentFamily)}
+        </div>
+        <div class="key-mode-detail">
+          <span class="key-label">Derived from:</span> ${escapeHtml(keyData.derivedFrom || keyData.parentScaleExample)}
+        </div>
+      </div>
     </div>
 
     <div class="key-chords-card">
@@ -423,7 +412,7 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
   `;
 
   if (onChordClick) {
-    element.querySelectorAll(".key-chord-main").forEach((button) => {
+    element.querySelectorAll(".key-chord-main, .key-summary-play-btn").forEach(button => {
       button.addEventListener("click", () => {
         const chord = button.getAttribute("data-chord");
         if (chord) onChordClick(chord);
@@ -432,8 +421,8 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
   }
 
   if (onChordAdd) {
-    element.querySelectorAll(".key-chord-add-btn").forEach((button) => {
-      button.addEventListener("click", (event) => {
+    element.querySelectorAll(".key-chord-add-btn").forEach(button => {
+      button.addEventListener("click", event => {
         event.stopPropagation();
         const chord = button.getAttribute("data-chord");
         if (chord) onChordAdd(chord);
@@ -461,28 +450,40 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
 }
 
 const CHORD_VARIATIONS = [
-  "",           // Major (root only)
-  "m",          // Minor
-  "m7",         // Minor 7
-  "7",          // Dominant 7
-  "maj7",       // Major 7
-  "sus2",       // Suspended 2
-  "sus4",       // Suspended 4
-  "5",          // Power chord
-  "dim",        // Diminished
-  "aug",        // Augmented
-  "add9",       // Add 9
-  "add11",      // Add 11
-  "add13",      // Add 13
-  "9",          // Dominant 9
-  "11",         // Dominant 11
-  "13",         // Dominant 13
-  "maj9",       // Major 9
-  "maj11",      // Major 11
-  "maj13",      // Major 13
-  "m9",         // Minor 9
-  "m11",        // Minor 11
-  "m13"         // Minor 13
+  "",
+  "m",
+  "m7",
+  "7",
+  "Maj7",
+  "sus2",
+  "sus4",
+  "5",
+  "dim",
+  "aug",
+  "add9",
+  "add11",
+  "add13",
+  "9",
+  "11",
+  "13",
+  "Maj9",
+  "Maj11",
+  "Maj13",
+  "m9",
+  "m11",
+  "m13",
+  "mMaj7",
+  "m7b9b13",
+  "m11b13",
+  "m13b9",
+  "m7b5b13",
+  "m7b5b9b13",
+  "13#11",
+  "11b13",
+  "Maj13#11",
+  "Maj13#5#11",
+  "7b5b9#9b13",
+  "7#5b9#11b13"
 ];
 
 export function renderChordLoader(element, rootNote, onPlay, onAdd) {
@@ -517,8 +518,8 @@ export function renderChordLoader(element, rootNote, onPlay, onAdd) {
     addBtn.textContent = "+";
     addBtn.dataset.tooltip = `Add ${chordName} to progression`;
 
-    addBtn.addEventListener("click", e => {
-      e.stopPropagation();
+    addBtn.addEventListener("click", event => {
+      event.stopPropagation();
       if (onAdd) onAdd(chordName);
     });
 
@@ -534,30 +535,33 @@ export function initTooltips() {
   tip.setAttribute("aria-hidden", "true");
   document.body.appendChild(tip);
 
-  function position(e) {
+  function position(event) {
     const margin = 12;
-    let x = e.clientX + margin;
-    let y = e.clientY - 34;
-    if (x + tip.offsetWidth > window.innerWidth - 8) x = e.clientX - tip.offsetWidth - margin;
-    if (y < 8) y = e.clientY + margin;
-    tip.style.left = x + "px";
-    tip.style.top = y + "px";
+    let x = event.clientX + margin;
+    let y = event.clientY - 34;
+    if (x + tip.offsetWidth > window.innerWidth - 8) x = event.clientX - tip.offsetWidth - margin;
+    if (y < 8) y = event.clientY + margin;
+    tip.style.left = `${x}px`;
+    tip.style.top = `${y}px`;
   }
 
-  document.addEventListener("mouseover", e => {
-    const el = e.target.closest("[data-tooltip]");
-    if (!el) { tip.style.display = "none"; return; }
+  document.addEventListener("mouseover", event => {
+    const el = event.target.closest("[data-tooltip]");
+    if (!el) {
+      tip.style.display = "none";
+      return;
+    }
     tip.textContent = el.dataset.tooltip;
     tip.style.display = "block";
-    position(e);
+    position(event);
   });
 
-  document.addEventListener("mousemove", e => {
-    if (tip.style.display === "block") position(e);
+  document.addEventListener("mousemove", event => {
+    if (tip.style.display === "block") position(event);
   });
 
-  document.addEventListener("mouseout", e => {
-    if (!e.relatedTarget || !e.relatedTarget.closest("[data-tooltip]")) {
+  document.addEventListener("mouseout", event => {
+    if (!event.relatedTarget || !event.relatedTarget.closest("[data-tooltip]")) {
       tip.style.display = "none";
     }
   });

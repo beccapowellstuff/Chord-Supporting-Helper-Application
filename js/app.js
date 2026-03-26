@@ -15,6 +15,7 @@ import { loadAllData } from "./dataLoader.js";
 import { getSuggestions, parseProgression } from "./engine.js";
 import {
   populateFeelings,
+  populateModeSelect,
   renderSuggestions,
   renderError,
   renderKeyInfo,
@@ -51,7 +52,7 @@ const chordButtons = document.getElementById("chordButtons");
 const appVersion = document.getElementById("appVersion");
 
 let appData = null;
-let selectedKey = "C Major";
+let selectedKey = "C Ionian";
 
 function detectSeparator(text) {
   if (!text) return ",";
@@ -108,6 +109,11 @@ async function loadVersionLabel() {
 }
 
 function refreshKeyUI() {
+  const styleSelect = document.getElementById("styleSelect");
+  if (styleSelect) {
+    styleSelect.value = appData?.musicData?.[selectedKey]?.modeId || "ionian";
+  }
+
   renderRootSelector(
     rootContainer,
     selectedKey,
@@ -273,24 +279,24 @@ async function init() {
 
     const styleSelect = document.getElementById("styleSelect");
     if (styleSelect) {
-      styleSelect.addEventListener("change", () => {
-        const style = styleSelect.value;
-        const root = selectedKey.split(" ")[0];
-        const candidate = `${root} ${style}`;
+      populateModeSelect(styleSelect, appData.modeGroups);
+      styleSelect.value = appData.musicData[selectedKey]?.modeId || "ionian";
 
-        if (appData.musicData && appData.musicData[candidate]) {
-          selectedKey = candidate;
-        } else {
-          const normalizedRoot = normaliseRoot(root);
-          const pc = NOTE_TO_PC[normalizedRoot];
-          if (pc != null) {
-            const match = Object.keys(appData.musicData).find(k => {
-              const parts = k.split(" ");
-              const kRoot = normaliseRoot(parts[0]);
-              const kMode = parts.slice(1).join(" ");
-              return NOTE_TO_PC[kRoot] === pc && kMode.toLowerCase() === style.toLowerCase();
-            });
-            if (match) selectedKey = match;
+      styleSelect.addEventListener("change", () => {
+        const modeId = styleSelect.value;
+        const root = selectedKey.split(" ")[0];
+        const normalizedRoot = normaliseRoot(root);
+        const pc = NOTE_TO_PC[normalizedRoot];
+
+        if (pc != null) {
+          const match = Object.keys(appData.musicData).find(keyName => {
+            const keyData = appData.musicData[keyName];
+            const keyRoot = normaliseRoot(keyData.root);
+            return NOTE_TO_PC[keyRoot] === pc && keyData.modeId === modeId;
+          });
+
+          if (match) {
+            selectedKey = match;
           }
         }
 

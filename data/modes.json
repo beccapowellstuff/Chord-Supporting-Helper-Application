@@ -1,0 +1,183 @@
+{
+  "groupOrder": [
+    "minor_feel",
+    "major_feel",
+    "dominant_feel",
+    "diminished_or_unstable",
+    "other_scales"
+  ],
+  "categoryLabels": {
+    "minor_feel": "Minor-feel modes",
+    "major_feel": "Major-feel modes",
+    "dominant_feel": "Dominant modes",
+    "diminished_or_unstable": "Diminished / unstable",
+    "other_scales": "Other scales"
+  },
+  "modes": [
+    {
+      "id": "ionian",
+      "name": "Ionian",
+      "category": "major_feel",
+      "parentFamily": "major_scale_modes",
+      "parentScaleExample": "C Ionian comes from C major",
+      "chordSymbol": "CMaj13",
+      "notesInC": ["C", "D", "E", "F", "G", "A", "B"],
+      "character": "standard major sound",
+      "aliases": ["Major"]
+    },
+    {
+      "id": "dorian",
+      "name": "Dorian",
+      "category": "minor_feel",
+      "parentFamily": "major_scale_modes",
+      "parentScaleExample": "C Dorian comes from Bb major",
+      "chordSymbol": "Cm13",
+      "notesInC": ["C", "D", "Eb", "F", "G", "A", "Bb"],
+      "character": "minor with a natural 6",
+      "aliases": []
+    },
+    {
+      "id": "phrygian",
+      "name": "Phrygian",
+      "category": "minor_feel",
+      "parentFamily": "major_scale_modes",
+      "parentScaleExample": "C Phrygian comes from Ab major",
+      "chordSymbol": "Cm7b9b13",
+      "notesInC": ["C", "Db", "Eb", "F", "G", "Ab", "Bb"],
+      "character": "dark minor with a flat 2",
+      "aliases": []
+    },
+    {
+      "id": "lydian",
+      "name": "Lydian",
+      "category": "major_feel",
+      "parentFamily": "major_scale_modes",
+      "parentScaleExample": "C Lydian comes from G major",
+      "chordSymbol": "CMaj13#11",
+      "notesInC": ["C", "D", "E", "F#", "G", "A", "B"],
+      "character": "bright major with a sharp 11",
+      "aliases": []
+    },
+    {
+      "id": "mixolydian",
+      "name": "Mixolydian",
+      "category": "dominant_feel",
+      "parentFamily": "major_scale_modes",
+      "parentScaleExample": "C Mixolydian comes from F major",
+      "chordSymbol": "C13",
+      "notesInC": ["C", "D", "E", "F", "G", "A", "Bb"],
+      "character": "dominant sound with a flat 7",
+      "aliases": []
+    },
+    {
+      "id": "aeolian",
+      "name": "Aeolian",
+      "category": "minor_feel",
+      "parentFamily": "major_scale_modes",
+      "parentScaleExample": "C Aeolian comes from Eb major",
+      "chordSymbol": "Cm11b13",
+      "notesInC": ["C", "D", "Eb", "F", "G", "Ab", "Bb"],
+      "character": "natural minor sound",
+      "aliases": ["Natural Minor"]
+    },
+    {
+      "id": "locrian",
+      "name": "Locrian",
+      "category": "diminished_or_unstable",
+      "parentFamily": "major_scale_modes",
+      "parentScaleExample": "C Locrian comes from Db major",
+      "chordSymbol": "Cm7b5b9b13",
+      "notesInC": ["C", "Db", "Eb", "F", "Gb", "Ab", "Bb"],
+      "character": "unstable diminished sound with flat 2 and flat 5",
+      "aliases": []
+    },
+    {
+      "id": "melodic_minor",
+      "name": "Melodic Minor",
+      "category": "minor_feel",
+      "parentFamily": "melodic_minor_modes",
+      "parentScaleExample": "C melodic minor is the parent scale",
+      "chordSymbol": "CmMaj7",
+      "notesInC": ["C", "D", "Eb", "F", "G", "A", "B"],
+      "character": "minor with raised 6 and raised 7",
+      "aliases": []
+    },
+    {
+      "id": "phrygian_nat6",
+      "name": "Phrygian ♮6",
+      "category": "minor_feel",
+      "parentFamily": "melodic_minor_modes",
+      "parentScaleExample": "C Phrygian ♮6 comes from Ab melodic minor",
+      "chordSymbol": "Cm13b9",
+      "notesInC": ["C", "Db", "Eb", "F", "G", "A", "Bb"],
+      "character": "phrygian colour with a natural 6",
+      "aliases": ["Dorian b2"]
+    },
+    {
+      "id": "lydian_augmented",
+      "name": "Lydian Augmented",
+      "category": "major_feel",
+      "parentFamily": "melodic_minor_modes",
+      "parentScaleExample": "C Lydian Augmented comes from A melodic minor",
+      "chordSymbol": "CMaj13#5#11",
+      "notesInC": ["C", "D", "E", "F#", "G#", "A", "B"],
+      "character": "bright major with augmented 5 and sharp 11",
+      "aliases": []
+    },
+    {
+      "id": "lydian_dominant",
+      "name": "Lydian Dominant",
+      "category": "dominant_feel",
+      "parentFamily": "melodic_minor_modes",
+      "parentScaleExample": "C Lydian Dominant comes from G melodic minor",
+      "chordSymbol": "C13#11",
+      "notesInC": ["C", "D", "E", "F#", "G", "A", "Bb"],
+      "character": "dominant sound with a sharp 11",
+      "aliases": ["Acoustic"]
+    },
+    {
+      "id": "mixolydian_b6",
+      "name": "Mixolydian b6",
+      "category": "dominant_feel",
+      "parentFamily": "melodic_minor_modes",
+      "parentScaleExample": "C Mixolydian b6 comes from F melodic minor",
+      "chordSymbol": "C11b13",
+      "notesInC": ["C", "D", "E", "F", "G", "Ab", "Bb"],
+      "character": "dominant sound with a flat 6",
+      "aliases": []
+    },
+    {
+      "id": "half_diminished",
+      "name": "Half-diminished",
+      "category": "diminished_or_unstable",
+      "parentFamily": "melodic_minor_modes",
+      "parentScaleExample": "C Half-diminished comes from Eb melodic minor",
+      "chordSymbol": "Cm7b5b13",
+      "notesInC": ["C", "D", "Eb", "F", "Gb", "Ab", "Bb"],
+      "character": "half-diminished colour with a natural 2",
+      "aliases": ["Locrian natural 2"]
+    },
+    {
+      "id": "altered",
+      "name": "Altered",
+      "category": "diminished_or_unstable",
+      "parentFamily": "melodic_minor_modes",
+      "parentScaleExample": "C Altered comes from Db melodic minor",
+      "chordSymbol": "C7alt",
+      "notesInC": ["C", "Db", "Eb", "E", "Gb", "Ab", "Bb"],
+      "character": "maximum dominant tension with altered extensions",
+      "aliases": ["Super Locrian"]
+    },
+    {
+      "id": "harmonic_minor",
+      "name": "Harmonic Minor",
+      "category": "other_scales",
+      "parentFamily": "other",
+      "parentScaleExample": "C harmonic minor is its own parent scale",
+      "chordSymbol": "CmMaj7b13",
+      "notesInC": ["C", "D", "Eb", "F", "G", "Ab", "B"],
+      "character": "minor with raised 7",
+      "aliases": []
+    }
+  ]
+}

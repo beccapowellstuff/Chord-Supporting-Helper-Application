@@ -1,186 +1,305 @@
 /**
- * theory.js — Music theory data and key generation
+ * theory.js - Music theory helpers backed by JSON mode data
  *
  * Responsibilities:
- *   - Defines KEY_SCALES: the complete set of 24 keys (12 major + 12 minor)
- *     with root, mode, scale notes, and relative key for each
- *   - buildKeyData: derives the full key object (chords, functions map,
- *     transition table) from a KEY_SCALES entry — no hardcoded chord lists
- *   - generateAllKeys: builds and exports the complete musicData object
- *     keyed by key name (e.g. "C Major", "A Minor")
+ *   - Translates JSON mode definitions into reusable interval formulas
+ *   - Generates every supported root/mode combination
+ *   - Derives scale notes, characteristic chords, Roman numerals, and
+ *     suggestion transitions from the selected mode definition
  *
- * Exports: generateAllKeys
- * Depends on: nothing
+ * Exports: generateAllKeys, getModeGroups
+ * Depends on: chordNotes (NOTE_TO_PC)
  */
-const MAJOR_TRIAD_QUALITIES = ["", "m", "m", "", "", "m", "dim"];
-const MINOR_TRIAD_QUALITIES = ["m", "dim", "", "m", "m", "", ""];
+import { NOTE_TO_PC } from "./chordNotes.js";
+
+const ROOTS = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+const LETTERS = ["C", "D", "E", "F", "G", "A", "B"];
+const NATURAL_NOTE_TO_PC = {
+  C: 0,
+  D: 2,
+  E: 4,
+  F: 5,
+  G: 7,
+  A: 9,
+  B: 11
+};
+const SIMPLE_SHARP_NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const SIMPLE_FLAT_NOTES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
 const MAJOR_ROMANS = ["I", "ii", "iii", "IV", "V", "vi", "vii°"];
 const MINOR_ROMANS = ["i", "ii°", "III", "iv", "v", "VI", "VII"];
 
-const KEY_SCALES = {
-  "C Major": {
-    root: "C",
-    mode: "major",
-    scaleNotes: ["C", "D", "E", "F", "G", "A", "B"],
-    relativeKey: "A Minor"
-  },
-  "G Major": {
-    root: "G",
-    mode: "major",
-    scaleNotes: ["G", "A", "B", "C", "D", "E", "F#"],
-    relativeKey: "E Minor"
-  },
-  "D Major": {
-    root: "D",
-    mode: "major",
-    scaleNotes: ["D", "E", "F#", "G", "A", "B", "C#"],
-    relativeKey: "B Minor"
-  },
-  "A Major": {
-    root: "A",
-    mode: "major",
-    scaleNotes: ["A", "B", "C#", "D", "E", "F#", "G#"],
-    relativeKey: "F# Minor"
-  },
-  "E Major": {
-    root: "E",
-    mode: "major",
-    scaleNotes: ["E", "F#", "G#", "A", "B", "C#", "D#"],
-    relativeKey: "C# Minor"
-  },
-  "B Major": {
-    root: "B",
-    mode: "major",
-    scaleNotes: ["B", "C#", "D#", "E", "F#", "G#", "A#"],
-    relativeKey: "G# Minor"
-  },
-  "F# Major": {
-    root: "F#",
-    mode: "major",
-    scaleNotes: ["F#", "G#", "A#", "B", "C#", "D#", "E#"],
-    relativeKey: "D# Minor"
-  },
-  "Db Major": {
-    root: "Db",
-    mode: "major",
-    scaleNotes: ["Db", "Eb", "F", "Gb", "Ab", "Bb", "C"],
-    relativeKey: "Bb Minor"
-  },
-  "Ab Major": {
-    root: "Ab",
-    mode: "major",
-    scaleNotes: ["Ab", "Bb", "C", "Db", "Eb", "F", "G"],
-    relativeKey: "F Minor"
-  },
-  "Eb Major": {
-    root: "Eb",
-    mode: "major",
-    scaleNotes: ["Eb", "F", "G", "Ab", "Bb", "C", "D"],
-    relativeKey: "C Minor"
-  },
-  "Bb Major": {
-    root: "Bb",
-    mode: "major",
-    scaleNotes: ["Bb", "C", "D", "Eb", "F", "G", "A"],
-    relativeKey: "G Minor"
-  },
-  "F Major": {
-    root: "F",
-    mode: "major",
-    scaleNotes: ["F", "G", "A", "Bb", "C", "D", "E"],
-    relativeKey: "D Minor"
-  },
+const MAJOR_FUNCTION_NAMES = [
+  "tonic",
+  "supertonic",
+  "mediant",
+  "subdominant",
+  "dominant",
+  "submediant",
+  "leading tone"
+];
 
-  "A Minor": {
-    root: "A",
-    mode: "minor",
-    scaleNotes: ["A", "B", "C", "D", "E", "F", "G"],
-    relativeKey: "C Major"
+const MINOR_FUNCTION_NAMES = [
+  "tonic",
+  "supertonic",
+  "mediant",
+  "subdominant",
+  "dominant",
+  "submediant",
+  "subtonic"
+];
+
+const MAJOR_BASELINE_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
+const BASE_ROMANS = ["I", "II", "III", "IV", "V", "VI", "VII"];
+const GENERIC_FUNCTION_NAMES = [
+  "tonic",
+  "2nd degree",
+  "3rd degree",
+  "4th degree",
+  "5th degree",
+  "6th degree",
+  "7th degree"
+];
+
+const MODE_BEHAVIOUR = {
+  ionian: {
+    romanMode: "major",
+    functionMode: "major",
+    relativeModeId: "aeolian",
+    relativeDegreeIndex: 5,
+    parallelModeId: "aeolian"
   },
-  "E Minor": {
-    root: "E",
-    mode: "minor",
-    scaleNotes: ["E", "F#", "G", "A", "B", "C", "D"],
-    relativeKey: "G Major"
-  },
-  "B Minor": {
-    root: "B",
-    mode: "minor",
-    scaleNotes: ["B", "C#", "D", "E", "F#", "G", "A"],
-    relativeKey: "D Major"
-  },
-  "F# Minor": {
-    root: "F#",
-    mode: "minor",
-    scaleNotes: ["F#", "G#", "A", "B", "C#", "D", "E"],
-    relativeKey: "A Major"
-  },
-  "C# Minor": {
-    root: "C#",
-    mode: "minor",
-    scaleNotes: ["C#", "D#", "E", "F#", "G#", "A", "B"],
-    relativeKey: "E Major"
-  },
-  "G# Minor": {
-    root: "G#",
-    mode: "minor",
-    scaleNotes: ["G#", "A#", "B", "C#", "D#", "E", "F#"],
-    relativeKey: "B Major"
-  },
-  "D# Minor": {
-    root: "D#",
-    mode: "minor",
-    scaleNotes: ["D#", "E#", "F#", "G#", "A#", "B", "C#"],
-    relativeKey: "F# Major"
-  },
-  "Bb Minor": {
-    root: "Bb",
-    mode: "minor",
-    scaleNotes: ["Bb", "C", "Db", "Eb", "F", "Gb", "Ab"],
-    relativeKey: "Db Major"
-  },
-  "F Minor": {
-    root: "F",
-    mode: "minor",
-    scaleNotes: ["F", "G", "Ab", "Bb", "C", "Db", "Eb"],
-    relativeKey: "Ab Major"
-  },
-  "C Minor": {
-    root: "C",
-    mode: "minor",
-    scaleNotes: ["C", "D", "Eb", "F", "G", "Ab", "Bb"],
-    relativeKey: "Eb Major"
-  },
-  "G Minor": {
-    root: "G",
-    mode: "minor",
-    scaleNotes: ["G", "A", "Bb", "C", "D", "Eb", "F"],
-    relativeKey: "Bb Major"
-  },
-  "D Minor": {
-    root: "D",
-    mode: "minor",
-    scaleNotes: ["D", "E", "F", "G", "A", "Bb", "C"],
-    relativeKey: "F Major"
+  aeolian: {
+    romanMode: "minor",
+    functionMode: "minor",
+    relativeModeId: "ionian",
+    relativeDegreeIndex: 2,
+    parallelModeId: "ionian"
   }
 };
 
-const CIRCLE_OF_FIFTHS_MAJOR = [
-  "C", "G", "D", "A", "E", "B", "F#", "Db", "Ab", "Eb", "Bb", "F"
-];
+function getRootPitchClass(root) {
+  return NOTE_TO_PC[root] ?? null;
+}
+
+function getRootLetter(root) {
+  return String(root || "").charAt(0).toUpperCase();
+}
+
+function getLetterForDegree(rootLetter, degreeIndex) {
+  const rootLetterIndex = LETTERS.indexOf(rootLetter);
+  if (rootLetterIndex === -1) return null;
+  return LETTERS[(rootLetterIndex + degreeIndex) % LETTERS.length];
+}
+
+function getAccidentalForOffset(offset) {
+  if (offset === -2) return "bb";
+  if (offset === -1) return "b";
+  if (offset === 1) return "#";
+  if (offset === 2) return "##";
+  return "";
+}
+
+function getSignedPitchOffset(targetPc, naturalPc) {
+  let diff = ((targetPc - naturalPc) % 12 + 12) % 12;
+  if (diff > 6) diff -= 12;
+  if (diff > 2) diff -= 12;
+  if (diff < -2) diff += 12;
+  return diff;
+}
+
+function formatModeOptionLabel(mode) {
+  if (!Array.isArray(mode.aliases) || !mode.aliases.length) {
+    return mode.name;
+  }
+
+  return `${mode.name} (${mode.aliases.join(", ")})`;
+}
+
+function formatFamilyLabel(parentFamily) {
+  return String(parentFamily || "")
+    .replace(/_modes?$/i, "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, character => character.toUpperCase());
+}
+
+function getModeBehaviour(modeId) {
+  return MODE_BEHAVIOUR[modeId] || {};
+}
+
+function getIntervalsFromCNotes(notesInC) {
+  return notesInC.map(note => {
+    const pitchClass = getRootPitchClass(note);
+    if (pitchClass == null) {
+      throw new Error(`Unsupported note "${note}" in mode definition.`);
+    }
+    return pitchClass;
+  });
+}
+
+function getEquivalentChordSuffix(chordSymbol) {
+  const match = /^C(?:#{1,2}|b{1,2})?(.*)$/.exec(String(chordSymbol || "").trim());
+  return match ? match[1] : "";
+}
+
+function transposePitchClassLabel(root, semitoneOffset, preferFlats = false) {
+  const rootPc = getRootPitchClass(root);
+  if (rootPc == null) return root;
+
+  const noteNames = preferFlats ? SIMPLE_FLAT_NOTES : SIMPLE_SHARP_NOTES;
+  return noteNames[(rootPc + semitoneOffset + 120) % 12];
+}
+
+function buildDerivedFrom(root, modeDefinition) {
+  const example = String(modeDefinition.parentScaleExample || "").trim();
+
+  if (!example) {
+    return null;
+  }
+
+  const comesFromMatch = /^C\s+.+?\s+comes from\s+([A-G](?:#{1,2}|b{1,2})?)\s+(.+)$/i.exec(example);
+  if (comesFromMatch) {
+    const [, parentRoot, parentDescriptor] = comesFromMatch;
+    const parentPc = getRootPitchClass(parentRoot);
+    if (parentPc == null) {
+      return `${parentRoot} ${parentDescriptor}`;
+    }
+
+    const preferFlats = parentRoot.includes("b");
+    const transposedRoot = transposePitchClassLabel(root, parentPc, preferFlats);
+    return `${transposedRoot} ${parentDescriptor}`;
+  }
+
+  const selfParentMatch = /^C\s+(.+?)\s+is(?:(?: its own)?|(?: the))\s+parent scale$/i.exec(example);
+  if (selfParentMatch) {
+    return `${root} ${modeDefinition.name}`;
+  }
+
+  return example;
+}
+
+function spellScaleNotes(root, intervals) {
+  const rootPc = getRootPitchClass(root);
+  const rootLetter = getRootLetter(root);
+
+  if (rootPc == null || !rootLetter) {
+    return [];
+  }
+
+  return intervals.map((interval, degreeIndex) => {
+    const targetPc = (rootPc + interval) % 12;
+    const letter = getLetterForDegree(rootLetter, degreeIndex);
+
+    if (!letter) {
+      return root;
+    }
+
+    const naturalPc = NATURAL_NOTE_TO_PC[letter];
+    const offset = getSignedPitchOffset(targetPc, naturalPc);
+
+    if (Math.abs(offset) > 1) {
+      const simpleNotes = offset < 0 ? SIMPLE_FLAT_NOTES : SIMPLE_SHARP_NOTES;
+      return simpleNotes[targetPc];
+    }
+
+    return `${letter}${getAccidentalForOffset(offset)}`;
+  });
+}
+
+function rotateArray(values, startIndex) {
+  return values.map((_, index) => values[(startIndex + index) % values.length]);
+}
+
+function getTriadQuality(rootPc, thirdPc, fifthPc) {
+  const third = (thirdPc - rootPc + 12) % 12;
+  const fifth = (fifthPc - rootPc + 12) % 12;
+
+  if (third === 4 && fifth === 7) return "major";
+  if (third === 3 && fifth === 7) return "minor";
+  if (third === 3 && fifth === 6) return "dim";
+  if (third === 4 && fifth === 8) return "aug";
+  return "other";
+}
 
 function buildChordName(note, quality) {
-  if (quality === "m") return `${note}m`;
+  if (quality === "minor") return `${note}m`;
   if (quality === "dim") return `${note}dim`;
+  if (quality === "aug") return `${note}aug`;
   return note;
 }
 
-function buildTransitions(chords, mode) {
-  const isMajor = mode === "major";
+function buildDiatonicChords(scaleNotes) {
+  const pitchClasses = scaleNotes.map(note => getRootPitchClass(note));
+
+  return scaleNotes.map((note, index) => {
+    const rotatedPitchClasses = rotateArray(pitchClasses, index);
+    const quality = getTriadQuality(
+      rotatedPitchClasses[0],
+      rotatedPitchClasses[2],
+      rotatedPitchClasses[4]
+    );
+
+    return {
+      chord: buildChordName(note, quality),
+      quality
+    };
+  });
+}
+
+function buildGeneratedRomans(intervals, triadQualities) {
+  return intervals.map((interval, index) => {
+    const diff = interval - MAJOR_BASELINE_INTERVALS[index];
+    const accidental = diff === -1 ? "b" : diff === 1 ? "#" : "";
+    const baseRoman = BASE_ROMANS[index];
+    const quality = triadQualities[index];
+
+    let roman = quality === "minor" || quality === "dim"
+      ? baseRoman.toLowerCase()
+      : baseRoman;
+
+    if (quality === "dim") {
+      roman += "°";
+    } else if (quality === "aug") {
+      roman += "+";
+    }
+
+    return `${accidental}${roman}`;
+  });
+}
+
+function getDegreeLabels(modeDefinition, triadQualities) {
+  const behaviour = getModeBehaviour(modeDefinition.id);
+
+  if (behaviour.romanMode === "major") {
+    return MAJOR_ROMANS;
+  }
+
+  if (behaviour.romanMode === "minor") {
+    return MINOR_ROMANS;
+  }
+
+  return buildGeneratedRomans(modeDefinition.intervals, triadQualities);
+}
+
+function getDegreeDescriptions(modeDefinition) {
+  const behaviour = getModeBehaviour(modeDefinition.id);
+
+  if (behaviour.functionMode === "major") {
+    return MAJOR_FUNCTION_NAMES;
+  }
+
+  if (behaviour.functionMode === "minor") {
+    return MINOR_FUNCTION_NAMES;
+  }
+
+  return GENERIC_FUNCTION_NAMES;
+}
+
+function buildTransitions(chords, tonicQuality) {
+  const isMajorLike = tonicQuality === "major";
   const [i, ii, iii, iv, v, vi, vii] = chords;
 
-  if (isMajor) {
+  if (isMajorLike) {
     return {
       [i]: [iv, v, vi, iii],
       [ii]: [v, vi, iv],
@@ -203,37 +322,111 @@ function buildTransitions(chords, mode) {
   };
 }
 
-function buildKeyData(name, definition) {
-  const isMajor = definition.mode === "major";
-  const qualities = isMajor ? MAJOR_TRIAD_QUALITIES : MINOR_TRIAD_QUALITIES;
-  const romans = isMajor ? MAJOR_ROMANS : MINOR_ROMANS;
+function buildRelativeKey(root, modeDefinition, scaleNotes, modeDefinitionsById) {
+  const behaviour = getModeBehaviour(modeDefinition.id);
+  const relativeMode = modeDefinitionsById[behaviour.relativeModeId];
 
-  const chords = definition.scaleNotes.map((note, index) =>
-    buildChordName(note, qualities[index])
-  );
+  if (!relativeMode) {
+    return null;
+  }
 
-  const functions = {};
-  chords.forEach((chord, index) => {
-    functions[chord] = romans[index];
-  });
+  const relativeRoot = scaleNotes[behaviour.relativeDegreeIndex];
+  return `${relativeRoot} ${relativeMode.name}`;
+}
 
+function buildParallelKey(root, modeDefinition, modeDefinitionsById) {
+  const behaviour = getModeBehaviour(modeDefinition.id);
+  const parallelMode = modeDefinitionsById[behaviour.parallelModeId];
+
+  if (!parallelMode) {
+    return null;
+  }
+
+  return `${root} ${parallelMode.name}`;
+}
+
+function normaliseModeDefinition(mode, categoryLabels) {
   return {
-    name,
-    root: definition.root,
-    mode: definition.mode,
-    scaleNotes: definition.scaleNotes,
-    chords,
-    functions,
-    transitions: buildTransitions(chords, definition.mode),
-    relativeKey: definition.relativeKey
+    ...mode,
+    intervals: getIntervalsFromCNotes(mode.notesInC || []),
+    equivalentChordSuffix: getEquivalentChordSuffix(mode.chordSymbol),
+    categoryLabel: categoryLabels?.[mode.category] || mode.category,
+    optionLabel: formatModeOptionLabel(mode),
+    parentFamilyLabel: formatFamilyLabel(mode.parentFamily)
   };
 }
 
-export function generateAllKeys() {
+function buildKeyData(root, modeDefinition, modeDefinitionsById) {
+  const scaleNotes = spellScaleNotes(root, modeDefinition.intervals);
+  const diatonicChords = buildDiatonicChords(scaleNotes);
+  const triadQualities = diatonicChords.map(item => item.quality);
+  const degreeLabels = getDegreeLabels(modeDefinition, triadQualities);
+  const degreeDescriptions = getDegreeDescriptions(modeDefinition);
+  const chords = diatonicChords.map(item => item.chord);
+  const functions = {};
+
+  chords.forEach((chord, index) => {
+    functions[chord] = degreeLabels[index];
+  });
+
+  return {
+    name: `${root} ${modeDefinition.name}`,
+    root,
+    mode: modeDefinition.name,
+    modeId: modeDefinition.id,
+    category: modeDefinition.category,
+    categoryLabel: modeDefinition.categoryLabel,
+    aliases: modeDefinition.aliases || [],
+    parentFamily: modeDefinition.parentFamily,
+    parentFamilyLabel: modeDefinition.parentFamilyLabel,
+    parentScaleExample: modeDefinition.parentScaleExample,
+    derivedFrom: buildDerivedFrom(root, modeDefinition),
+    character: modeDefinition.character,
+    scaleNotes,
+    chords,
+    functions,
+    degreeLabels,
+    degreeDescriptions,
+    transitions: buildTransitions(chords, triadQualities[0]),
+    relativeKey: buildRelativeKey(root, modeDefinition, scaleNotes, modeDefinitionsById),
+    parallelKey: buildParallelKey(root, modeDefinition, modeDefinitionsById),
+    equivalentChord: `${root}${modeDefinition.equivalentChordSuffix}`
+  };
+}
+
+export function getModeGroups(modesConfig) {
+  const categoryLabels = modesConfig?.categoryLabels || {};
+  const modes = Array.isArray(modesConfig?.modes) ? modesConfig.modes : [];
+  const orderedCategories = Array.isArray(modesConfig?.groupOrder) ? modesConfig.groupOrder : [];
+
+  return orderedCategories
+    .map(category => ({
+      category,
+      label: categoryLabels[category] || category,
+      modes: modes
+        .filter(mode => mode.category === category)
+        .map(mode => ({
+          value: mode.id,
+          label: formatModeOptionLabel(mode)
+        }))
+    }))
+    .filter(group => group.modes.length > 0);
+}
+
+export function generateAllKeys(modesConfig) {
+  const categoryLabels = modesConfig?.categoryLabels || {};
+  const modes = Array.isArray(modesConfig?.modes) ? modesConfig.modes : [];
+  const normalisedModes = modes.map(mode => normaliseModeDefinition(mode, categoryLabels));
+  const modeDefinitionsById = Object.fromEntries(
+    normalisedModes.map(mode => [mode.id, mode])
+  );
   const musicData = {};
 
-  Object.entries(KEY_SCALES).forEach(([name, definition]) => {
-    musicData[name] = buildKeyData(name, definition);
+  ROOTS.forEach(root => {
+    normalisedModes.forEach(modeDefinition => {
+      const keyData = buildKeyData(root, modeDefinition, modeDefinitionsById);
+      musicData[keyData.name] = keyData;
+    });
   });
 
   return musicData;
