@@ -549,14 +549,15 @@ p {
   z-index: 9999;
   background: rgba(40, 20, 30, 0.88);
   color: #fff;
-  padding: 4px 9px;
+  padding: 8px 10px;
   border-radius: 4px;
   font-size: 11px;
   font-weight: 400;
   font-family: inherit;
-  white-space: nowrap;
+  white-space: pre-line;
   pointer-events: none;
   line-height: 1.4;
+  max-width: 240px;
 }
 
 .circle-container {
@@ -735,6 +736,38 @@ textarea {
   gap: 14px;
 }
 
+.chord-loader-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.chord-loader-filter-btn {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chord-loader-filter-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+
+.chord-loader-filter-btn.active {
+  border-color: var(--accent);
+  background: linear-gradient(to bottom, var(--accent-soft), #f9d0e0);
+  color: var(--accent-dark);
+  box-shadow: 0 1px 4px rgba(90, 35, 60, 0.12);
+}
+
 .chord-group {
   display: flex;
   flex-direction: column;
@@ -748,6 +781,27 @@ textarea {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.chord-group-strong .chord-group-title {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.chord-group-normal .chord-group-title {
+  color: #6e5b67;
+}
+
+.chord-group-soft .chord-group-title {
+  color: #8b7380;
+}
+
+.chord-group-softer .chord-group-title {
+  color: #9a8290;
+}
+
+.chord-group-lowest .chord-group-title {
+  color: #a6919d;
 }
 
 .chord-group-grid {
@@ -774,10 +828,43 @@ textarea {
   width: 100%;
   text-align: center;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 36px;
   line-height: 1.2;
+  gap: 2px;
+}
+
+.chord-btn-main {
+  display: block;
+}
+
+.chord-btn-detail {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.chord-group-strong .chord-btn {
+  opacity: 1;
+}
+
+.chord-group-normal .chord-btn {
+  opacity: 0.96;
+}
+
+.chord-group-soft .chord-btn {
+  opacity: 0.9;
+}
+
+.chord-group-softer .chord-btn {
+  opacity: 0.84;
+}
+
+.chord-group-lowest .chord-btn {
+  opacity: 0.76;
 }
 
 .chord-btn:hover {
@@ -786,6 +873,7 @@ textarea {
   border-color: var(--accent-dark);
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(90, 35, 60, 0.2);
+  opacity: 1;
 }
 
 .chord-btn:active {
@@ -797,6 +885,7 @@ textarea {
   background: linear-gradient(to bottom, var(--accent), #a94673);
   color: white;
   border-color: var(--accent-dark);
+  opacity: 1;
 }
 
 /* Add button overlay */
