@@ -16,6 +16,12 @@ import { NOTE_TO_PC } from "./chordNotes.js";
 
 const CHROMATIC = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"];
 
+function formatNoteLabel(note) {
+  return String(note || "")
+    .replace(/b/g, "\u266d")
+    .replace(/#/g, "\u266f");
+}
+
 function noteToPitchClass(note) {
   return NOTE_TO_PC[note] ?? null;
 }
@@ -71,7 +77,7 @@ export function renderRootSelector(container, selectedKey, onSelectKey, musicDat
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "key-chord-main circle-root-btn";
-    btn.textContent = label;
+    btn.textContent = formatNoteLabel(label);
     btn.dataset.root = label;
 
     // Highlight the button whose pitch class matches the current key root

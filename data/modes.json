@@ -141,7 +141,7 @@
       "category": "dominant_feel",
       "parentFamily": "melodic_minor_modes",
       "parentScaleExample": "C Mixolydian b6 comes from F melodic minor",
-      "chordSymbol": "C11b13",
+      "chordSymbol": "C9sus4b13",
       "notesInC": ["C", "D", "E", "F", "G", "Ab", "Bb"],
       "character": "dominant sound with a flat 6",
       "aliases": []

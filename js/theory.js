@@ -29,29 +29,18 @@ const SIMPLE_FLAT_NOTES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A",
 const MAJOR_ROMANS = ["I", "ii", "iii", "IV", "V", "vi", "vii°"];
 const MINOR_ROMANS = ["i", "ii°", "III", "iv", "v", "VI", "VII"];
 
-const MAJOR_FUNCTION_NAMES = [
+const SHARED_DEGREE_NAMES = [
   "tonic",
   "supertonic",
   "mediant",
   "subdominant",
   "dominant",
-  "submediant",
-  "leading tone"
-];
-
-const MINOR_FUNCTION_NAMES = [
-  "tonic",
-  "supertonic",
-  "mediant",
-  "subdominant",
-  "dominant",
-  "submediant",
-  "subtonic"
+  "submediant"
 ];
 
 const MAJOR_BASELINE_INTERVALS = [0, 2, 4, 5, 7, 9, 11];
 const BASE_ROMANS = ["I", "II", "III", "IV", "V", "VI", "VII"];
-const GENERIC_FUNCTION_NAMES = [
+const GENERIC_DEGREE_NAMES = [
   "tonic",
   "2nd degree",
   "3rd degree",
@@ -64,14 +53,12 @@ const GENERIC_FUNCTION_NAMES = [
 const MODE_BEHAVIOUR = {
   ionian: {
     romanMode: "major",
-    functionMode: "major",
     relativeModeId: "aeolian",
     relativeDegreeIndex: 5,
     parallelModeId: "aeolian"
   },
   aeolian: {
     romanMode: "minor",
-    functionMode: "minor",
     relativeModeId: "ionian",
     relativeDegreeIndex: 2,
     parallelModeId: "ionian"
@@ -282,17 +269,17 @@ function getDegreeLabels(modeDefinition, triadQualities) {
 }
 
 function getDegreeDescriptions(modeDefinition) {
-  const behaviour = getModeBehaviour(modeDefinition.id);
+  return modeDefinition.intervals.map((interval, index) => {
+    if (index < SHARED_DEGREE_NAMES.length) {
+      return SHARED_DEGREE_NAMES[index];
+    }
 
-  if (behaviour.functionMode === "major") {
-    return MAJOR_FUNCTION_NAMES;
-  }
+    if (index === 6) {
+      return interval === 11 ? "leading tone" : "subtonic";
+    }
 
-  if (behaviour.functionMode === "minor") {
-    return MINOR_FUNCTION_NAMES;
-  }
-
-  return GENERIC_FUNCTION_NAMES;
+    return GENERIC_DEGREE_NAMES[index] || `${index + 1}th degree`;
+  });
 }
 
 function buildTransitions(chords, tonicQuality) {

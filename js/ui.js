@@ -1,3 +1,5 @@
+import { NOTE_TO_PC, parseChordName } from "./chordNotes.js";
+
 /**
  * ui.js - All DOM rendering and UI helpers
  *
@@ -24,13 +26,240 @@ const FRIENDLY_ROOT_MAP = {
   "E#": "F",
   Fb: "E"
 };
+const SHARP_NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const FLAT_NOTES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+
+function formatAccidentalDisplay(value) {
+  return String(value || "")
+    .replace(/b/g, "\u266d")
+    .replace(/#/g, "\u266f");
+}
 
 function formatKeyLabel(name) {
-  return String(name || "").trim();
+  return formatAccidentalDisplay(String(name || "").trim());
+}
+
+function formatNoteLabel(note) {
+  return formatAccidentalDisplay(note);
+}
+
+const CHORD_SUFFIX_BASES = [
+  "mMaj7",
+  "Maj13",
+  "Maj11",
+  "Maj9",
+  "Maj7",
+  "9sus4",
+  "m13",
+  "m11",
+  "m9",
+  "m7",
+  "7alt",
+  "add13",
+  "add11",
+  "add9",
+  "sus4",
+  "sus2",
+  "13",
+  "11",
+  "9",
+  "7",
+  "aug",
+  "dim",
+  "m",
+  "5",
+  "alt"
+];
+
+const DISPLAY_SUFFIX_ALIASES = {
+  "11": "9sus4",
+  "11b13": "9sus4b13"
+};
+
+function formatChordBaseLabel(base) {
+  if (base === "Maj7") return "maj7";
+  if (base === "Maj9") return "maj9";
+  if (base === "Maj11") return "maj11";
+  if (base === "Maj13") return "maj13";
+  return formatAccidentalDisplay(base);
+}
+
+function formatAlterationList(tail) {
+  const alterations = String(tail || "").match(/[b#](?:5|9|11|13)/gi);
+  if (!alterations?.length) {
+    return formatAccidentalDisplay(tail);
+  }
+
+  return alterations
+    .map(alteration => formatAccidentalDisplay(alteration))
+    .join(",");
+}
+
+function formatChordSuffixLabel(suffix) {
+  const rawSuffix = DISPLAY_SUFFIX_ALIASES[String(suffix || "").trim()] || String(suffix || "").trim();
+
+  if (!rawSuffix) {
+    return "";
+  }
+
+  if (rawSuffix === "dim") {
+    return "\u00b0";
+  }
+
+  for (const base of CHORD_SUFFIX_BASES) {
+    if (!rawSuffix.startsWith(base)) {
+      continue;
+    }
+
+    const tail = rawSuffix.slice(base.length);
+    if (!tail) {
+      return formatChordBaseLabel(base);
+    }
+
+    if (/^(?:[b#](?:5|9|11|13))+$/i.test(tail)) {
+      return `${formatChordBaseLabel(base)}(${formatAlterationList(tail)})`;
+    }
+  }
+
+  return formatAccidentalDisplay(rawSuffix);
 }
 
 function formatChordLabel(chord) {
-  return String(chord || "").replace(/dim$/, "°");
+  const match = /^([A-G](?:#{1,2}|b{1,2})?)(.*)$/.exec(String(chord || "").trim());
+  if (!match) {
+    return formatChordSuffixLabel(chord);
+  }
+
+  const [, root, suffix] = match;
+  return `${formatNoteLabel(root)}${formatChordSuffixLabel(suffix)}`;
+}
+
+function getChordLoaderDisplayParts(chord) {
+  const label = formatChordLabel(chord);
+  const splitIndex = label.indexOf("(");
+
+  if (splitIndex === -1 || !label.endsWith(")")) {
+    return { main: label, detail: "" };
+  }
+
+  return {
+    main: label.slice(0, splitIndex),
+    detail: label.slice(splitIndex)
+  };
+}
+
+function getIntervalLabel(interval) {
+  const labels = {
+    0: "1",
+    1: "b2",
+    2: "2",
+    3: "b3",
+    4: "3",
+    5: "4",
+    6: "b5",
+    7: "5",
+    8: "#5",
+    9: "6",
+    10: "b7",
+    11: "7",
+    13: "b9",
+    14: "9",
+    15: "#9",
+    17: "11",
+    18: "#11",
+    20: "b13",
+    21: "13"
+  };
+
+  return labels[interval] || String(interval);
+}
+
+function getTooltipNoteLabel(root, interval, intervalLabel) {
+  const rootPc = NOTE_TO_PC[root];
+  if (rootPc == null) {
+    return root;
+  }
+
+  const preferFlats = root.includes("b") || intervalLabel.includes("b");
+  const noteNames = preferFlats ? FLAT_NOTES : SHARP_NOTES;
+  return noteNames[(rootPc + interval + 120) % 12];
+}
+
+function getChordTypeLabel(suffix) {
+  const typeLabels = {
+    "": "Major triad",
+    "5": "Power chord",
+    "7": "Dominant seventh",
+    "9": "Dominant ninth",
+    "13": "Dominant thirteenth",
+    "9sus4": "Suspended dominant",
+    "9sus4b13": "Suspended dominant",
+    "Maj7": "Major seventh",
+    "Maj9": "Major ninth",
+    "Maj11": "Major eleventh",
+    "Maj13": "Major thirteenth",
+    "Maj13#11": "Lydian major",
+    "Maj13#5#11": "Altered major",
+    "m": "Minor triad",
+    "m7": "Minor seventh",
+    "m9": "Minor ninth",
+    "m11": "Minor eleventh",
+    "m13": "Minor thirteenth",
+    "mMaj7": "Minor major seventh",
+    "mMaj7b13": "Minor major seventh",
+    "m11b13": "Minor colour chord",
+    "m13b9": "Altered minor",
+    "m7b9b13": "Altered minor",
+    "m7b5b13": "Half-diminished colour chord",
+    "m7b5b9b13": "Altered half-diminished",
+    "13#11": "Lydian dominant",
+    "11b13": "Suspended dominant",
+    "7b5b9#9b13": "Altered dominant",
+    "7#5b9#11b13": "Altered dominant",
+    "add9": "Added ninth",
+    "add11": "Added eleventh",
+    "add13": "Added thirteenth",
+    "sus2": "Suspended second",
+    "sus4": "Suspended fourth",
+    "dim": "Diminished triad",
+    "aug": "Augmented triad",
+    "alt": "Altered dominant",
+    "7alt": "Altered dominant"
+  };
+
+  return typeLabels[suffix] || "Extended chord";
+}
+
+function getChordTooltipText(chord) {
+  const parsed = parseChordName(chord);
+  if (!parsed) {
+    return `Play ${formatChordLabel(chord)}`;
+  }
+
+  const notes = parsed.intervals
+    .map(interval => {
+      const intervalLabel = getIntervalLabel(interval);
+      return formatNoteLabel(getTooltipNoteLabel(parsed.root, interval, intervalLabel));
+    })
+    .join(" ");
+
+  const intervals = parsed.intervals
+    .map(interval => formatAccidentalDisplay(getIntervalLabel(interval)))
+    .join(" ");
+
+  return [
+    `Play ${formatChordLabel(chord)}`,
+    `Notes: ${notes}`,
+    `Intervals: ${intervals}`,
+    getChordTypeLabel(parsed.suffix)
+  ].join("\n");
+}
+
+function formatRomanNumeralLabel(label) {
+  return String(label || "")
+    .replace(/b/g, "\u266d")
+    .replace(/#/g, "\u266f")
+    .replace(/Â°|Ã‚Â°/g, "\u00b0");
 }
 
 function escapeHtml(value) {
@@ -99,7 +328,7 @@ function createSuggestionDetail(item, onChordClick, onChordAdd) {
 
   const fn = document.createElement("span");
   fn.className = "suggestion-detail-function";
-  fn.textContent = `(${item.fn})`;
+  fn.textContent = `(${formatRomanNumeralLabel(item.fn)})`;
   meta.appendChild(fn);
 
   const reason = document.createElement("div");
@@ -192,7 +421,7 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
       .map(item => {
         const labelText = formatDisplayedChordLabel(item.original);
         if (item.inKey) {
-          return `${labelText} (${item.function})`;
+          return `${labelText} (${formatRomanNumeralLabel(item.function)})`;
         }
         return labelText;
       })
@@ -243,7 +472,7 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
 
     const chordBtn = document.createElement("button");
     chordBtn.className = "suggestion-card-chord";
-    chordBtn.dataset.tooltip = `Play ${item.chord}`;
+    chordBtn.dataset.tooltip = `Play ${formatChordLabel(item.chord)}`;
     chordBtn.type = "button";
     appendChordLabelContent(chordBtn, item.chord);
 
@@ -265,12 +494,12 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
 
     const fnLabel = document.createElement("div");
     fnLabel.className = "suggestion-card-fn";
-    fnLabel.textContent = item.fn;
+    fnLabel.textContent = formatRomanNumeralLabel(item.fn);
 
     const addBtn = document.createElement("button");
     addBtn.className = "suggestion-card-add-btn";
     addBtn.textContent = "+";
-    addBtn.dataset.tooltip = `Add ${item.chord} to progression`;
+    addBtn.dataset.tooltip = `Add ${formatChordLabel(item.chord)} to progression`;
     addBtn.type = "button";
     addBtn.addEventListener("click", event => {
       event.stopPropagation();
@@ -308,7 +537,7 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
   ]);
 
   const headingRow = degreeLabels
-    .map(([roman]) => `<td>${roman}</td>`)
+    .map(([roman]) => `<td>${formatRomanNumeralLabel(roman)}</td>`)
     .join("");
 
   const functionRow = degreeLabels
@@ -361,14 +590,14 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
               class="key-summary-play-btn"
               type="button"
               data-chord="${keyData.equivalentChord}"
-              title="Play ${keyData.equivalentChord}">
+              title="Play ${formatChordLabel(keyData.equivalentChord)}">
               Play
             </button>
           </div>
           <span class="key-summary-sep">|</span>
           <div class="key-summary-scale">
             <span class="key-label">Scale:</span>
-            <span class="key-scale-notes">${[...keyData.scaleNotes].join(", ")}</span>
+            <span class="key-scale-notes">${keyData.scaleNotes.map(note => formatNoteLabel(note)).join(", ")}</span>
             <span
               class="key-scale-play"
               title="Play scale"
@@ -449,42 +678,63 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
   }
 }
 
-const CHORD_VARIATIONS = [
-  "",
-  "m",
-  "m7",
-  "7",
-  "Maj7",
-  "sus2",
-  "sus4",
-  "5",
-  "dim",
-  "aug",
-  "add9",
-  "add11",
-  "add13",
-  "9",
-  "11",
-  "13",
-  "Maj9",
-  "Maj11",
-  "Maj13",
-  "m9",
-  "m11",
-  "m13",
-  "mMaj7",
-  "m7b9b13",
-  "m11b13",
-  "m13b9",
-  "m7b5b13",
-  "m7b5b9b13",
-  "13#11",
-  "11b13",
-  "Maj13#11",
-  "Maj13#5#11",
-  "7b5b9#9b13",
-  "7#5b9#11b13"
+const CHORD_LOADER_FILTERS = [
+  { value: "all", label: "All Chords", tooltip: "Browse every chord" },
+  { value: "common", label: "Common Chords", tooltip: "Show the most commonly used chords" },
+  { value: "advanced", label: "Advanced Chords", tooltip: "Show richer and less common chords" }
 ];
+
+let activeChordLoaderFilter = "common";
+
+const CHORD_VARIATION_GROUPS = [
+  {
+    title: "Core",
+    emphasis: "strong",
+    filterModes: ["all", "common"],
+    suffixes: ["", "m", "5", "sus2", "sus4", "dim", "aug"]
+  },
+  {
+    title: "Sevenths",
+    emphasis: "normal",
+    filterModes: ["all", "common"],
+    suffixes: ["7", "Maj7", "m7", "mMaj7"]
+  },
+  {
+    title: "Extended",
+    emphasis: "soft",
+    filterModes: ["all", "common"],
+    suffixes: [
+      "add9",
+      "add11",
+      "add13",
+      "9",
+      "9sus4",
+      "13",
+      "Maj9",
+      "Maj11",
+      "Maj13",
+      "m9",
+      "m11",
+      "m13"
+    ]
+  },
+  {
+    title: "Colour",
+    emphasis: "softer",
+    filterModes: ["all", "advanced"],
+    suffixes: ["m11b13", "13#11", "9sus4b13", "Maj13#11"]
+  },
+  {
+    title: "Altered",
+    emphasis: "lowest",
+    filterModes: ["all", "advanced"],
+    suffixes: ["m7b9b13", "m13b9", "m7b5b13", "m7b5b9b13", "Maj13#5#11", "7b5b9#9b13", "7#5b9#11b13"]
+  }
+];
+
+function shouldShowChordGroup(group) {
+  return group.filterModes.includes(activeChordLoaderFilter);
+}
 
 export function renderChordLoader(element, rootNote, onPlay, onAdd) {
   element.innerHTML = "";
@@ -494,38 +744,92 @@ export function renderChordLoader(element, rootNote, onPlay, onAdd) {
     return;
   }
 
-  CHORD_VARIATIONS.forEach(suffix => {
-    const chordName = rootNote + suffix;
+  const filterBar = document.createElement("div");
+  filterBar.className = "chord-loader-filters";
 
-    const wrapper = document.createElement("div");
-    wrapper.className = "chord-button-wrapper";
+  CHORD_LOADER_FILTERS.forEach(filter => {
+    const filterButton = document.createElement("button");
+    filterButton.type = "button";
+    filterButton.className = "chord-loader-filter-btn";
+    if (filter.value === activeChordLoaderFilter) {
+      filterButton.classList.add("active");
+    }
+    filterButton.textContent = filter.label;
+    filterButton.dataset.tooltip = filter.tooltip;
+    filterButton.addEventListener("click", () => {
+      if (activeChordLoaderFilter === filter.value) {
+        return;
+      }
 
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "chord-btn";
-    button.textContent = chordName;
-
-    button.addEventListener("click", async () => {
-      document.querySelectorAll(".chord-btn").forEach(btn => btn.classList.remove("active"));
-      button.classList.add("active");
-      if (onPlay) await onPlay(chordName);
+      activeChordLoaderFilter = filter.value;
+      renderChordLoader(element, rootNote, onPlay, onAdd);
     });
-    button.dataset.tooltip = `Play ${chordName}`;
+    filterBar.appendChild(filterButton);
+  });
 
-    const addBtn = document.createElement("button");
-    addBtn.type = "button";
-    addBtn.className = "chord-add-btn";
-    addBtn.textContent = "+";
-    addBtn.dataset.tooltip = `Add ${chordName} to progression`;
+  element.appendChild(filterBar);
 
-    addBtn.addEventListener("click", event => {
-      event.stopPropagation();
-      if (onAdd) onAdd(chordName);
+  CHORD_VARIATION_GROUPS.filter(shouldShowChordGroup).forEach(group => {
+    const section = document.createElement("section");
+    section.className = `chord-group chord-group-${group.emphasis}`;
+
+    const title = document.createElement("h3");
+    title.className = "chord-group-title";
+    title.textContent = group.title;
+    section.appendChild(title);
+
+    const grid = document.createElement("div");
+    grid.className = "chord-group-grid";
+
+    group.suffixes.forEach(suffix => {
+      const chordName = rootNote + suffix;
+      const displayChordName = formatChordLabel(chordName);
+      const displayParts = getChordLoaderDisplayParts(chordName);
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "chord-button-wrapper";
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "chord-btn";
+
+      const mainLabel = document.createElement("span");
+      mainLabel.className = "chord-btn-main";
+      mainLabel.textContent = displayParts.main;
+      button.appendChild(mainLabel);
+
+      if (displayParts.detail) {
+        const detailLabel = document.createElement("span");
+        detailLabel.className = "chord-btn-detail";
+        detailLabel.textContent = displayParts.detail;
+        button.appendChild(detailLabel);
+      }
+
+      button.addEventListener("click", async () => {
+        element.querySelectorAll(".chord-btn").forEach(btn => btn.classList.remove("active"));
+        button.classList.add("active");
+        if (onPlay) await onPlay(chordName);
+      });
+      button.dataset.tooltip = getChordTooltipText(chordName);
+
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "chord-add-btn";
+      addBtn.textContent = "+";
+      addBtn.dataset.tooltip = `Add ${displayChordName} to progression`;
+
+      addBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        if (onAdd) onAdd(chordName);
+      });
+
+      wrapper.appendChild(button);
+      wrapper.appendChild(addBtn);
+      grid.appendChild(wrapper);
     });
 
-    wrapper.appendChild(button);
-    wrapper.appendChild(addBtn);
-    element.appendChild(wrapper);
+    section.appendChild(grid);
+    element.appendChild(section);
   });
 }
 
