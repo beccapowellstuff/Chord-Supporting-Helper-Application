@@ -32,6 +32,14 @@ import {
 import { noteToMidi, normaliseRoot, NOTE_TO_PC } from "./chordNotes.js";
 import { ensureAudioReady, playChord, playProgression } from "./playback.js";
 
+document.addEventListener(
+  "pointerdown",
+  () => {
+    ensureAudioContext();
+  },
+  { once: true }
+);
+
 // Verify Tone.js loaded
 console.log("🔍 Checking Tone.js...");
 if (typeof Tone !== "undefined") {

@@ -1,82 +1,60 @@
 /**
- * synth.js - Tone.js synthesiser wrapper
- *
- * Responsibilities:
- *   - initSoundFont: builds the Tone.js signal chain on the first user
- *     interaction and caches it
- *   - playMidiNote: plays a single MIDI note number for a given duration
- *   - playMidiNotes: plays multiple MIDI note numbers simultaneously (chord)
- *   - ensureAudioContext: resumes the Tone.js audio context before playback
- *
- * Exports: initSoundFont, playMidiNote, playMidiNotes, ensureAudioContext
- * Depends on: Tone.js (loaded globally via <script> in index.html)
+ * synth.js — sample-based piano playback using Tone.Sampler
  */
+
 let synth = null;
 let isInitialized = false;
-let limiter = null;
-let compressor = null;
-let filter = null;
+let isReady = false;
 let reverb = null;
-let outputGain = null;
+let filter = null;
+let limiter = null;
 
 export async function initSoundFont() {
   if (isInitialized && synth) {
-    console.log("Synth already initialized");
     return synth;
   }
 
   try {
-    console.log("Starting Tone.js audio context...");
     await Tone.start();
-    console.log("Audio context started");
 
-    // Add headroom and dynamics control so stacked chords stop clipping.
-    limiter = new Tone.Limiter(-2).toDestination();
-
-    compressor = new Tone.Compressor({
-      threshold: -24,
-      ratio: 3,
-      attack: 0.01,
-      release: 0.25
-    }).connect(limiter);
+    limiter = new Tone.Limiter(-3).toDestination();
 
     reverb = new Tone.Reverb({
-      decay: 1.4,
-      preDelay: 0.01,
-      wet: 0.08
-    }).connect(compressor);
+      decay: 2.8,
+      wet: 0.18
+    }).connect(limiter);
+
+    await reverb.generate();
 
     filter = new Tone.Filter({
       frequency: 2600,
       type: "lowpass",
       rolloff: -24
-    }).connect(compressor);
+    }).connect(reverb);
 
-    filter.connect(reverb);
-
-    outputGain = new Tone.Gain(0.5).connect(filter);
-
-    // A softer, shorter envelope feels less like a retro synth lead.
-    synth = new Tone.PolySynth(Tone.Synth, {
-      maxPolyphony: 8,
-      volume: -10,
-      oscillator: {
-        type: "sine"
+    synth = new Tone.Sampler({
+      urls: {
+        C3: "samples/C3.wav",
+        "D#3": "samples/Ds3.wav",
+        "F#3": "samples/Fs3.wav",
+        A3: "samples/A3.wav"
       },
-      envelope: {
-        attack: 0.01,
-        decay: 0.28,
-        sustain: 0.08,
-        release: 0.9
+      release: 1.8,
+      onload: () => {
+        isReady = true;
+        console.log("✓ Piano samples loaded");
+      },
+      onerror: (err) => {
+        console.error("✗ Failed loading samples:", err);
       }
-    }).connect(outputGain);
+    }).connect(filter);
+
+    synth.volume.value = -12;
 
     isInitialized = true;
-    console.log("Audio chain initialized");
     return synth;
   } catch (error) {
-    console.error("Failed to initialize synth:", error);
-    isInitialized = true;
+    console.error("Failed to initialize piano sampler:", error);
     return null;
   }
 }
@@ -86,17 +64,16 @@ export async function playMidiNote(midiNumber, duration = 1.0) {
     await initSoundFont();
   }
 
-  if (!synth) {
-    console.error("Synth still not available");
+  if (!synth || !isReady) {
+    console.log("Sampler not ready yet");
     return;
   }
 
   try {
-    const noteName = midiToNoteName(midiNumber);
-    console.log("Playing:", noteName);
-    synth.triggerAttackRelease(noteName, duration, Tone.now() + 0.01);
+    const noteName = clampNoteToRange(midiToNoteName(midiNumber));
+    synth.triggerAttackRelease(noteName, duration, Tone.now(), 0.45);
   } catch (error) {
-    console.error("Failed to play note:", error);
+    console.error("✗ Failed to play note:", error);
   }
 }
 
@@ -105,25 +82,31 @@ export async function playMidiNotes(midiNumbers, duration = 1.0) {
     await initSoundFont();
   }
 
-  if (!synth) {
-    console.error("Synth still not available");
+  if (!synth || !isReady) {
+    console.log("Sampler not ready yet");
     return;
   }
 
   try {
-    const noteNames = midiNumbers.map(midi => midiToNoteName(midi));
-    console.log("Playing chord:", noteNames.join(" "));
-    synth.triggerAttackRelease(noteNames, duration, Tone.now() + 0.01);
+    const noteNames = midiNumbers.map((midi) =>
+      clampNoteToRange(midiToNoteName(midi))
+    );
+
+    synth.triggerAttackRelease(noteNames, duration, Tone.now(), 0.45);
   } catch (error) {
-    console.error("Failed to play notes:", error);
+    console.error("✗ Failed to play notes:", error);
   }
 }
 
 export async function ensureAudioContext() {
   try {
-    await Tone.start();
+    if (!synth) {
+      await initSoundFont();
+    } else {
+      await Tone.start();
+    }
   } catch (error) {
-    console.error("Failed to start audio context:", error);
+    console.error("✗ Failed to start audio context:", error);
   }
 }
 
@@ -132,4 +115,38 @@ function midiToNoteName(midiNumber) {
   const octave = Math.floor(midiNumber / 12) - 1;
   const noteIndex = midiNumber % 12;
   return notes[noteIndex] + octave;
+}
+
+function clampNoteToRange(noteName) {
+  const midi = noteNameToMidi(noteName);
+
+  // Keep playback in a sensible range so 4 samples do not get stretched too far.
+  const minMidi = noteNameToMidi("C2");
+  const maxMidi = noteNameToMidi("C5");
+
+  const clampedMidi = Math.max(minMidi, Math.min(maxMidi, midi));
+  return midiToNoteName(clampedMidi);
+}
+
+function noteNameToMidi(noteName) {
+  const match = noteName.match(/^([A-G])(#?)(-?\d+)$/);
+
+  if (!match) {
+    throw new Error(`Invalid note name: ${noteName}`);
+  }
+
+  const [, note, sharp, octaveStr] = match;
+  const octave = parseInt(octaveStr, 10);
+
+  const noteMap = {
+    C: 0,
+    D: 2,
+    E: 4,
+    F: 5,
+    G: 7,
+    A: 9,
+    B: 11
+  };
+
+  return (octave + 1) * 12 + noteMap[note] + (sharp ? 1 : 0);
 }
