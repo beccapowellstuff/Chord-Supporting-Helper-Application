@@ -25,12 +25,103 @@ const FRIENDLY_ROOT_MAP = {
   Fb: "E"
 };
 
+function formatAccidentalDisplay(value) {
+  return String(value || "")
+    .replace(/b/g, "\u266d")
+    .replace(/#/g, "\u266f");
+}
+
 function formatKeyLabel(name) {
-  return String(name || "").trim();
+  return formatAccidentalDisplay(String(name || "").trim());
+}
+
+function formatNoteLabel(note) {
+  return formatAccidentalDisplay(note);
+}
+
+const CHORD_SUFFIX_BASES = [
+  "mMaj7",
+  "Maj13",
+  "Maj11",
+  "Maj9",
+  "Maj7",
+  "m13",
+  "m11",
+  "m9",
+  "m7",
+  "7alt",
+  "add13",
+  "add11",
+  "add9",
+  "sus4",
+  "sus2",
+  "13",
+  "11",
+  "9",
+  "7",
+  "aug",
+  "dim",
+  "m",
+  "5",
+  "alt"
+];
+
+function formatChordBaseLabel(base) {
+  if (base === "Maj7") return "maj7";
+  if (base === "Maj9") return "maj9";
+  if (base === "Maj11") return "maj11";
+  if (base === "Maj13") return "maj13";
+  return formatAccidentalDisplay(base);
+}
+
+function formatAlterationList(tail) {
+  const alterations = String(tail || "").match(/[b#](?:5|9|11|13)/gi);
+  if (!alterations?.length) {
+    return formatAccidentalDisplay(tail);
+  }
+
+  return alterations
+    .map(alteration => formatAccidentalDisplay(alteration))
+    .join(",");
+}
+
+function formatChordSuffixLabel(suffix) {
+  const rawSuffix = String(suffix || "").trim();
+
+  if (!rawSuffix) {
+    return "";
+  }
+
+  if (rawSuffix === "dim") {
+    return "\u00b0";
+  }
+
+  for (const base of CHORD_SUFFIX_BASES) {
+    if (!rawSuffix.startsWith(base)) {
+      continue;
+    }
+
+    const tail = rawSuffix.slice(base.length);
+    if (!tail) {
+      return formatChordBaseLabel(base);
+    }
+
+    if (/^(?:[b#](?:5|9|11|13))+$/i.test(tail)) {
+      return `${formatChordBaseLabel(base)}(${formatAlterationList(tail)})`;
+    }
+  }
+
+  return formatAccidentalDisplay(rawSuffix);
 }
 
 function formatChordLabel(chord) {
-  return String(chord || "").replace(/dim$/, "\u00b0");
+  const match = /^([A-G](?:#{1,2}|b{1,2})?)(.*)$/.exec(String(chord || "").trim());
+  if (!match) {
+    return formatChordSuffixLabel(chord);
+  }
+
+  const [, root, suffix] = match;
+  return `${formatNoteLabel(root)}${formatChordSuffixLabel(suffix)}`;
 }
 
 function formatRomanNumeralLabel(label) {
@@ -250,7 +341,7 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
 
     const chordBtn = document.createElement("button");
     chordBtn.className = "suggestion-card-chord";
-    chordBtn.dataset.tooltip = `Play ${item.chord}`;
+    chordBtn.dataset.tooltip = `Play ${formatChordLabel(item.chord)}`;
     chordBtn.type = "button";
     appendChordLabelContent(chordBtn, item.chord);
 
@@ -277,7 +368,7 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     const addBtn = document.createElement("button");
     addBtn.className = "suggestion-card-add-btn";
     addBtn.textContent = "+";
-    addBtn.dataset.tooltip = `Add ${item.chord} to progression`;
+    addBtn.dataset.tooltip = `Add ${formatChordLabel(item.chord)} to progression`;
     addBtn.type = "button";
     addBtn.addEventListener("click", event => {
       event.stopPropagation();
@@ -368,14 +459,14 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
               class="key-summary-play-btn"
               type="button"
               data-chord="${keyData.equivalentChord}"
-              title="Play ${keyData.equivalentChord}">
+              title="Play ${formatChordLabel(keyData.equivalentChord)}">
               Play
             </button>
           </div>
           <span class="key-summary-sep">|</span>
           <div class="key-summary-scale">
             <span class="key-label">Scale:</span>
-            <span class="key-scale-notes">${[...keyData.scaleNotes].join(", ")}</span>
+            <span class="key-scale-notes">${keyData.scaleNotes.map(note => formatNoteLabel(note)).join(", ")}</span>
             <span
               class="key-scale-play"
               title="Play scale"
@@ -456,41 +547,40 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
   }
 }
 
-const CHORD_VARIATIONS = [
-  "",
-  "m",
-  "m7",
-  "7",
-  "Maj7",
-  "sus2",
-  "sus4",
-  "5",
-  "dim",
-  "aug",
-  "add9",
-  "add11",
-  "add13",
-  "9",
-  "11",
-  "13",
-  "Maj9",
-  "Maj11",
-  "Maj13",
-  "m9",
-  "m11",
-  "m13",
-  "mMaj7",
-  "m7b9b13",
-  "m11b13",
-  "m13b9",
-  "m7b5b13",
-  "m7b5b9b13",
-  "13#11",
-  "11b13",
-  "Maj13#11",
-  "Maj13#5#11",
-  "7b5b9#9b13",
-  "7#5b9#11b13"
+const CHORD_VARIATION_GROUPS = [
+  {
+    title: "Core",
+    suffixes: ["", "m", "5", "sus2", "sus4", "dim", "aug"]
+  },
+  {
+    title: "Sevenths",
+    suffixes: ["7", "Maj7", "m7", "mMaj7"]
+  },
+  {
+    title: "Extended",
+    suffixes: [
+      "add9",
+      "add11",
+      "add13",
+      "9",
+      "11",
+      "13",
+      "Maj9",
+      "Maj11",
+      "Maj13",
+      "m9",
+      "m11",
+      "m13"
+    ]
+  },
+  {
+    title: "Color",
+    suffixes: ["m11b13", "13#11", "11b13", "Maj13#11"]
+  },
+  {
+    title: "Altered",
+    suffixes: ["m7b9b13", "m13b9", "m7b5b13", "m7b5b9b13", "Maj13#5#11", "7b5b9#9b13", "7#5b9#11b13"]
+  }
 ];
 
 export function renderChordLoader(element, rootNote, onPlay, onAdd) {
@@ -501,38 +591,55 @@ export function renderChordLoader(element, rootNote, onPlay, onAdd) {
     return;
   }
 
-  CHORD_VARIATIONS.forEach(suffix => {
-    const chordName = rootNote + suffix;
+  CHORD_VARIATION_GROUPS.forEach(group => {
+    const section = document.createElement("section");
+    section.className = "chord-group";
 
-    const wrapper = document.createElement("div");
-    wrapper.className = "chord-button-wrapper";
+    const title = document.createElement("h3");
+    title.className = "chord-group-title";
+    title.textContent = group.title;
+    section.appendChild(title);
 
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "chord-btn";
-    button.textContent = chordName;
+    const grid = document.createElement("div");
+    grid.className = "chord-group-grid";
 
-    button.addEventListener("click", async () => {
-      document.querySelectorAll(".chord-btn").forEach(btn => btn.classList.remove("active"));
-      button.classList.add("active");
-      if (onPlay) await onPlay(chordName);
+    group.suffixes.forEach(suffix => {
+      const chordName = rootNote + suffix;
+      const displayChordName = formatChordLabel(chordName);
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "chord-button-wrapper";
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "chord-btn";
+      button.textContent = displayChordName;
+
+      button.addEventListener("click", async () => {
+        element.querySelectorAll(".chord-btn").forEach(btn => btn.classList.remove("active"));
+        button.classList.add("active");
+        if (onPlay) await onPlay(chordName);
+      });
+      button.dataset.tooltip = `Play ${displayChordName}`;
+
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "chord-add-btn";
+      addBtn.textContent = "+";
+      addBtn.dataset.tooltip = `Add ${displayChordName} to progression`;
+
+      addBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        if (onAdd) onAdd(chordName);
+      });
+
+      wrapper.appendChild(button);
+      wrapper.appendChild(addBtn);
+      grid.appendChild(wrapper);
     });
-    button.dataset.tooltip = `Play ${chordName}`;
 
-    const addBtn = document.createElement("button");
-    addBtn.type = "button";
-    addBtn.className = "chord-add-btn";
-    addBtn.textContent = "+";
-    addBtn.dataset.tooltip = `Add ${chordName} to progression`;
-
-    addBtn.addEventListener("click", event => {
-      event.stopPropagation();
-      if (onAdd) onAdd(chordName);
-    });
-
-    wrapper.appendChild(button);
-    wrapper.appendChild(addBtn);
-    element.appendChild(wrapper);
+    section.appendChild(grid);
+    element.appendChild(section);
   });
 }
 
