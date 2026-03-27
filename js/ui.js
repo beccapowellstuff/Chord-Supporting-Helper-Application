@@ -30,7 +30,14 @@ function formatKeyLabel(name) {
 }
 
 function formatChordLabel(chord) {
-  return String(chord || "").replace(/dim$/, "°");
+  return String(chord || "").replace(/dim$/, "\u00b0");
+}
+
+function formatRomanNumeralLabel(label) {
+  return String(label || "")
+    .replace(/b/g, "\u266d")
+    .replace(/#/g, "\u266f")
+    .replace(/Â°|Ã‚Â°/g, "\u00b0");
 }
 
 function escapeHtml(value) {
@@ -99,7 +106,7 @@ function createSuggestionDetail(item, onChordClick, onChordAdd) {
 
   const fn = document.createElement("span");
   fn.className = "suggestion-detail-function";
-  fn.textContent = `(${item.fn})`;
+  fn.textContent = `(${formatRomanNumeralLabel(item.fn)})`;
   meta.appendChild(fn);
 
   const reason = document.createElement("div");
@@ -192,7 +199,7 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
       .map(item => {
         const labelText = formatDisplayedChordLabel(item.original);
         if (item.inKey) {
-          return `${labelText} (${item.function})`;
+          return `${labelText} (${formatRomanNumeralLabel(item.function)})`;
         }
         return labelText;
       })
@@ -265,7 +272,7 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
 
     const fnLabel = document.createElement("div");
     fnLabel.className = "suggestion-card-fn";
-    fnLabel.textContent = item.fn;
+    fnLabel.textContent = formatRomanNumeralLabel(item.fn);
 
     const addBtn = document.createElement("button");
     addBtn.className = "suggestion-card-add-btn";
@@ -308,7 +315,7 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
   ]);
 
   const headingRow = degreeLabels
-    .map(([roman]) => `<td>${roman}</td>`)
+    .map(([roman]) => `<td>${formatRomanNumeralLabel(roman)}</td>`)
     .join("");
 
   const functionRow = degreeLabels
