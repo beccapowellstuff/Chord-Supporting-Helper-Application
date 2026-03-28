@@ -122,7 +122,7 @@ function clampNoteToRange(noteName) {
 
   // Keep playback in a sensible range so 4 samples do not get stretched too far.
   const minMidi = noteNameToMidi("C2");
-  const maxMidi = noteNameToMidi("C5");
+  const maxMidi = noteNameToMidi("C6");
 
   const clampedMidi = Math.max(minMidi, Math.min(maxMidi, midi));
   return midiToNoteName(clampedMidi);

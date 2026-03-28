@@ -11,8 +11,7 @@
  * Exports: ensureAudioReady, playSoundChord, playChord, playProgression
  * Depends on: chordNotes, chordVoicing, synth
  */
-import { noteToMidi, getChordNotes } from "./chordNotes.js";
-import { buildVoicings, distance } from "./chordVoicing.js";
+import { buildVoicings, distance, getAscendingRootVoicing } from "./chordVoicing.js";
 import { ensureAudioContext, playMidiNotes } from "./synth.js";
 
 export async function ensureAudioReady() {
@@ -41,14 +40,9 @@ export async function playSoundChord(chordName, duration = 1.0, useSmoothing = f
         }
       }
     } else {
-      const notes = getChordNotes(chordName);
-      if (!notes) return { voicing: [] };
-
-      voicing = [];
-      notes.forEach((note, index) => {
-        voicing.push(noteToMidi(note, index === 0 ? 3 : 4));
-      });
-      voicing = voicing.sort((a, b) => a - b);
+      const options = buildVoicings(chordName);
+      if (!options.length) return { voicing: [] };
+      voicing = options[0];
     }
 
     if (voicing.length) {
@@ -63,7 +57,16 @@ export async function playSoundChord(chordName, duration = 1.0, useSmoothing = f
 }
 
 export async function playChord(chordName, duration = 1.0) {
-  await playSoundChord(chordName, duration, false, null);
+  if (!chordName) return;
+
+  try {
+    await ensureAudioReady();
+    const voicing = getAscendingRootVoicing(chordName);
+    if (!voicing.length) return;
+    await playMidiNotes(voicing, duration);
+  } catch (error) {
+    console.error("Could not play chord:", error);
+  }
 }
 
 export async function playProgression(chords, tempo = 90) {

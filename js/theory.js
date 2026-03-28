@@ -4,8 +4,8 @@
  * Responsibilities:
  *   - Translates JSON mode definitions into reusable interval formulas
  *   - Generates every supported root/mode combination
- *   - Derives scale notes, characteristic chords, Roman numerals, and
- *     suggestion transitions from the selected mode definition
+ *   - Derives scale notes, tonic chords, characteristic notes, Roman numerals,
+ *     and suggestion transitions from the selected mode definition
  *
  * Exports: generateAllKeys, getModeGroups
  * Depends on: chordNotes (NOTE_TO_PC)
@@ -63,6 +63,24 @@ const MODE_BEHAVIOUR = {
     relativeDegreeIndex: 2,
     parallelModeId: "ionian"
   }
+};
+
+const MODE_THEORY_DETAILS = {
+  ionian: { tonicChordSuffix: "Maj7", characteristicNoteDegree: "4", characteristicNoteIndex: 3 },
+  dorian: { tonicChordSuffix: "m7", characteristicNoteDegree: "6", characteristicNoteIndex: 5 },
+  phrygian: { tonicChordSuffix: "m7", characteristicNoteDegree: "b2", characteristicNoteIndex: 1 },
+  lydian: { tonicChordSuffix: "Maj7", characteristicNoteDegree: "#4", characteristicNoteIndex: 3 },
+  mixolydian: { tonicChordSuffix: "7", characteristicNoteDegree: "b7", characteristicNoteIndex: 6 },
+  aeolian: { tonicChordSuffix: "m7", characteristicNoteDegree: "b6", characteristicNoteIndex: 5 },
+  locrian: { tonicChordSuffix: "m7b5", characteristicNoteDegree: "b5", characteristicNoteIndex: 4 },
+  melodic_minor: { tonicChordSuffix: "mMaj7", characteristicNoteDegree: "6", characteristicNoteIndex: 5 },
+  phrygian_nat6: { tonicChordSuffix: "m7", characteristicNoteDegree: "b2", characteristicNoteIndex: 1 },
+  lydian_augmented: { tonicChordSuffix: "aug", characteristicNoteDegree: "#4", characteristicNoteIndex: 3 },
+  lydian_dominant: { tonicChordSuffix: "7", characteristicNoteDegree: "b7", characteristicNoteIndex: 6 },
+  mixolydian_b6: { tonicChordSuffix: "7", characteristicNoteDegree: "b6", characteristicNoteIndex: 5 },
+  half_diminished: { tonicChordSuffix: "m7b5", characteristicNoteDegree: "2", characteristicNoteIndex: 1 },
+  altered: { tonicChordSuffix: "7b5" },
+  harmonic_minor: { tonicChordSuffix: "mMaj7", characteristicNoteDegree: "7", characteristicNoteIndex: 6 }
 };
 
 function getRootPitchClass(root) {
@@ -127,6 +145,13 @@ function getIntervalsFromCNotes(notesInC) {
 function getEquivalentChordSuffix(chordSymbol) {
   const match = /^C(?:#{1,2}|b{1,2})?(.*)$/.exec(String(chordSymbol || "").trim());
   return match ? match[1] : "";
+}
+
+function getModeTheoryDetails(modeId, fallbackChordSuffix = "") {
+  return {
+    tonicChordSuffix: fallbackChordSuffix,
+    ...MODE_THEORY_DETAILS[modeId]
+  };
 }
 
 function transposePitchClassLabel(root, semitoneOffset, preferFlats = false) {
@@ -333,10 +358,16 @@ function buildParallelKey(root, modeDefinition, modeDefinitionsById) {
 }
 
 function normaliseModeDefinition(mode, categoryLabels) {
+  const theoryDetails = getModeTheoryDetails(mode.id, getEquivalentChordSuffix(mode.chordSymbol));
+
   return {
     ...mode,
     intervals: getIntervalsFromCNotes(mode.notesInC || []),
-    equivalentChordSuffix: getEquivalentChordSuffix(mode.chordSymbol),
+    tonicChordSuffix: theoryDetails.tonicChordSuffix,
+    characteristicNoteDegree: theoryDetails.characteristicNoteDegree || null,
+    characteristicNoteIndex: Number.isInteger(theoryDetails.characteristicNoteIndex)
+      ? theoryDetails.characteristicNoteIndex
+      : null,
     categoryLabel: categoryLabels?.[mode.category] || mode.category,
     optionLabel: formatModeOptionLabel(mode),
     parentFamilyLabel: formatFamilyLabel(mode.parentFamily)
@@ -355,6 +386,13 @@ function buildKeyData(root, modeDefinition, modeDefinitionsById) {
   chords.forEach((chord, index) => {
     functions[chord] = degreeLabels[index];
   });
+
+  const characteristicNote = modeDefinition.characteristicNoteIndex == null
+    ? null
+    : {
+        note: scaleNotes[modeDefinition.characteristicNoteIndex] || null,
+        degree: modeDefinition.characteristicNoteDegree
+      };
 
   return {
     name: `${root} ${modeDefinition.name}`,
@@ -377,7 +415,8 @@ function buildKeyData(root, modeDefinition, modeDefinitionsById) {
     transitions: buildTransitions(chords, triadQualities[0]),
     relativeKey: buildRelativeKey(root, modeDefinition, scaleNotes, modeDefinitionsById),
     parallelKey: buildParallelKey(root, modeDefinition, modeDefinitionsById),
-    equivalentChord: `${root}${modeDefinition.equivalentChordSuffix}`
+    tonicChord: `${root}${modeDefinition.tonicChordSuffix || ""}`,
+    characteristicNote
   };
 }
 

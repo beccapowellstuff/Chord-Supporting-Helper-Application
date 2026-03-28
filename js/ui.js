@@ -106,6 +106,17 @@ function formatChordSuffixLabel(suffix) {
     return "\u00b0";
   }
 
+  if (rawSuffix === "mMaj7") {
+    return "m(maj7)";
+  }
+
+  if (rawSuffix.startsWith("mMaj7")) {
+    const tail = rawSuffix.slice("mMaj7".length);
+    if (/^(?:[b#](?:5|9|11|13))+$/i.test(tail)) {
+      return `m(maj7,${formatAlterationList(tail)})`;
+    }
+  }
+
   for (const base of CHORD_SUFFIX_BASES) {
     if (!rawSuffix.startsWith(base)) {
       continue;
@@ -142,9 +153,14 @@ function getChordLoaderDisplayParts(chord) {
     return { main: label, detail: "" };
   }
 
+  const detail = label.slice(splitIndex);
+  if (!detail.includes(",")) {
+    return { main: label, detail: "" };
+  }
+
   return {
     main: label.slice(0, splitIndex),
-    detail: label.slice(splitIndex)
+    detail
   };
 }
 
@@ -190,6 +206,7 @@ function getChordTypeLabel(suffix) {
     "": "Major triad",
     "5": "Power chord",
     "7": "Dominant seventh",
+    "7b5": "Dominant flat five",
     "9": "Dominant ninth",
     "13": "Dominant thirteenth",
     "9sus4": "Suspended dominant",
@@ -202,6 +219,7 @@ function getChordTypeLabel(suffix) {
     "Maj13#5#11": "Altered major",
     "m": "Minor triad",
     "m7": "Minor seventh",
+    "m7b5": "Half-diminished seventh",
     "m9": "Minor ninth",
     "m11": "Minor eleventh",
     "m13": "Minor thirteenth",
@@ -585,13 +603,14 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
           <strong class="key-summary-name">${formatKeyLabel(keyData.name)}</strong>
           <span class="key-summary-sep">|</span>
           <div class="key-summary-chord">
-            <span class="key-summary-chord-name">${escapeHtml(formatChordLabel(keyData.equivalentChord))}</span>
+            <span class="key-label">Tonic chord:</span>
             <button
-              class="key-summary-play-btn"
+              class="key-summary-chord-btn"
               type="button"
-              data-chord="${keyData.equivalentChord}"
-              title="Play ${formatChordLabel(keyData.equivalentChord)}">
-              Play
+              data-chord="${keyData.tonicChord}"
+              title="Play ${formatChordLabel(keyData.tonicChord)}"
+              aria-label="Play ${formatChordLabel(keyData.tonicChord)}">
+              ${escapeHtml(formatChordLabel(keyData.tonicChord))}
             </button>
           </div>
           <span class="key-summary-sep">|</span>
@@ -608,6 +627,19 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
               🎶
             </span>
           </div>
+          ${keyData.characteristicNote?.note ? `
+            <span class="key-summary-sep">|</span>
+            <div class="key-summary-characteristic">
+              <span class="key-label">Characteristic note:</span>
+              <span class="key-summary-characteristic-note">
+                ${formatNoteLabel(keyData.characteristicNote.note)}
+                <span class="key-summary-characteristic-degree">(${formatAccidentalDisplay(keyData.characteristicNote.degree)})</span>
+              </span>
+            </div>
+          ` : ""}
+        </div>
+        <div class="key-summary-help">
+          Tonic chord shows a common chord quality built on the mode's root. Characteristic note shows the scale tone that most helps define the mode's flavour.
         </div>
       </div>
       <div class="key-mode-details">
@@ -641,7 +673,7 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
   `;
 
   if (onChordClick) {
-    element.querySelectorAll(".key-chord-main, .key-summary-play-btn").forEach(button => {
+    element.querySelectorAll(".key-chord-main, .key-summary-chord-btn").forEach(button => {
       button.addEventListener("click", () => {
         const chord = button.getAttribute("data-chord");
         if (chord) onChordClick(chord);
@@ -799,6 +831,7 @@ export function renderChordLoader(element, rootNote, onPlay, onAdd) {
       button.appendChild(mainLabel);
 
       if (displayParts.detail) {
+        button.classList.add("chord-btn-two-line");
         const detailLabel = document.createElement("span");
         detailLabel.className = "chord-btn-detail";
         detailLabel.textContent = displayParts.detail;
@@ -808,7 +841,11 @@ export function renderChordLoader(element, rootNote, onPlay, onAdd) {
       button.addEventListener("click", async () => {
         element.querySelectorAll(".chord-btn").forEach(btn => btn.classList.remove("active"));
         button.classList.add("active");
-        if (onPlay) await onPlay(chordName);
+        try {
+          if (onPlay) await onPlay(chordName);
+        } finally {
+          button.classList.remove("active");
+        }
       });
       button.dataset.tooltip = getChordTooltipText(chordName);
 

@@ -14,35 +14,16 @@
  * Exports: getAscendingRootVoicing, distance, buildVoicings, chooseVoicing
  * Depends on: chordNotes
  */
-import { NOTE_TO_PC, normaliseRoot, noteToMidi, getChordNotes } from "./chordNotes.js";
+import { noteToMidi, parseChordName } from "./chordNotes.js";
 
 export function getAscendingRootVoicing(chordName) {
-  let root = String(chordName || "").trim();
-  let intervals = [0, 4, 7];
+  const parsed = parseChordName(chordName);
+  if (!parsed) return [];
 
-  if (!root) return [];
+  const rootMidi = noteToMidi(parsed.root, 4);
+  if (rootMidi == null) return [];
 
-  if (root.endsWith("dim")) {
-    root = root.slice(0, -3);
-    intervals = [0, 3, 6];
-  } else if (root.endsWith("m")) {
-    root = root.slice(0, -1);
-    intervals = [0, 3, 7];
-  }
-
-  root = normaliseRoot(root);
-
-  const rootPc = NOTE_TO_PC[root];
-  if (rootPc == null) return [];
-
-  const baseMidi = rootPc < NOTE_TO_PC["C"]
-    ? noteToMidi(root, 5)
-    : noteToMidi(root, 4);
-
-  const third = baseMidi + intervals[1];
-  const fifth = baseMidi + intervals[2];
-
-  return [baseMidi, third, fifth];
+  return parsed.intervals.map(interval => rootMidi + interval);
 }
 
 export function distance(a, b) {
@@ -56,30 +37,25 @@ export function distance(a, b) {
 }
 
 export function buildVoicings(chordName) {
-  const notes = getChordNotes(chordName);
-  if (!notes) return [];
+  const parsed = parseChordName(chordName);
+  if (!parsed) return [];
 
-  const root = notes[0];
-  const rootMidi = noteToMidi(root, 3);
+  const bassRootMidi = noteToMidi(parsed.root, 3);
+  const upperRootMidi = noteToMidi(parsed.root, 4);
+  if (bassRootMidi == null || upperRootMidi == null) return [];
 
-  const chordMidis = notes.map((note, idx) => {
-    const octave = idx === 0 ? 4 : (idx === notes.length - 1 && notes.length > 3 ? 4 : 4);
-    return noteToMidi(note, octave);
-  });
+  const upperStructure = parsed.intervals.map(interval => upperRootMidi + interval);
+  const voicings = [];
 
-  const rootPosition = [rootMidi, ...chordMidis].sort((a, b) => a - b);
+  for (let inversionIndex = 0; inversionIndex < upperStructure.length; inversionIndex += 1) {
+    const inversion = upperStructure.map((midi, index) =>
+      index < inversionIndex ? midi + 12 : midi
+    );
 
-  const firstInversion = [
-    rootMidi,
-    ...chordMidis.map((midi, idx) => idx === 0 ? midi + 12 : midi)
-  ].sort((a, b) => a - b);
+    voicings.push([bassRootMidi, ...inversion]);
+  }
 
-  const secondInversion = [
-    rootMidi,
-    ...chordMidis.map((midi, idx) => idx <= 1 ? midi + 12 : midi)
-  ].sort((a, b) => a - b);
-
-  return [rootPosition, firstInversion, secondInversion];
+  return voicings;
 }
 
 export function chooseVoicing(chordName, previousVoicing) {
