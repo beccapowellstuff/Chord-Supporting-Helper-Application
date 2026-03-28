@@ -17,7 +17,7 @@ import { NOTE_TO_PC, parseChordName } from "./chordNotes.js";
  *
  * Exports: populateFeelings, populateModeSelect, renderSuggestions,
  *          renderError, renderKeyInfo, renderChordLoader, initTooltips,
- *          getFriendlyChordName
+ *          getFriendlyChordName, getComparisonChord, isComparisonChordInKey
  * Depends on: nothing (pure DOM, receives all data and callbacks as arguments)
  */
 const FRIENDLY_ROOT_MAP = {
@@ -78,6 +78,7 @@ const DISPLAY_SUFFIX_ALIASES = {
   "11": "9sus4",
   "11b13": "9sus4b13"
 };
+const ENABLE_RELATED_KEY_MATCHES = true;
 
 function formatChordBaseLabel(base) {
   if (base === "Maj7") return "maj7";
@@ -321,6 +322,60 @@ function getChordTooltipText(chord) {
     `Intervals: ${intervals}`,
     getChordTypeLabel(parsed.suffix)
   ].join("\n");
+}
+
+function getChordFeelLabel(matchLevel) {
+  if (matchLevel === "primary") {
+    return "Safe";
+  }
+
+  if (matchLevel === "related") {
+    return "Interesting";
+  }
+
+  return "Tension";
+}
+
+export function getComparisonChord(chordName) {
+  const parsed = parseChordName(chordName);
+  if (!parsed) {
+    return String(chordName || "").trim();
+  }
+
+  const { root, suffix } = parsed;
+
+  if (suffix.startsWith("m7b5") || suffix === "dim") {
+    return `${root}dim`;
+  }
+
+  if (suffix === "aug") {
+    return `${root}aug`;
+  }
+
+  if (suffix.startsWith("m")) {
+    return `${root}m`;
+  }
+
+  return root;
+}
+
+export function isComparisonChordInKey(comparisonChord, keyChordSet) {
+  if (!comparisonChord || !Array.isArray(keyChordSet) || !keyChordSet.length) {
+    return false;
+  }
+
+  const keyComparisonSet = new Set(keyChordSet.map(chord => getComparisonChord(chord)));
+  return keyComparisonSet.has(comparisonChord);
+}
+
+function getExactChordMatch(chordName, keyChordSet) {
+  if (!Array.isArray(keyChordSet) || !keyChordSet.length) {
+    return false;
+  }
+
+  const parsed = parseChordName(chordName);
+  const baseChordName = parsed ? `${parsed.root}${parsed.suffix}` : String(chordName || "").trim();
+  return keyChordSet.includes(baseChordName);
 }
 
 function formatRomanNumeralLabel(label) {
@@ -831,7 +886,8 @@ function slugifyChordGroupTitle(title) {
     .replace(/[^a-z0-9]+/g, "-");
 }
 
-function buildChordGroupSection(group, rootNote, bassRoot, onPlay, onAdd) {
+function buildChordGroupSection(group, rootNote, bassRoot, keyChordSet, onPlay, onAdd) {
+  const hasActiveKeyContext = Array.isArray(keyChordSet) && keyChordSet.length === 7;
   const section = document.createElement("section");
   const titleSlug = slugifyChordGroupTitle(group.title);
   section.className = `chord-group chord-group-${group.emphasis} chord-group-${titleSlug}`;
@@ -847,6 +903,14 @@ function buildChordGroupSection(group, rootNote, bassRoot, onPlay, onAdd) {
   group.suffixes.forEach(suffix => {
     const slashBass = bassRoot && bassRoot !== rootNote ? `/${bassRoot}` : "";
     const chordName = `${rootNote}${suffix}${slashBass}`;
+    const comparisonChord = getComparisonChord(chordName);
+    const isInKey = hasActiveKeyContext && getExactChordMatch(chordName, keyChordSet);
+    const isRelatedToKey =
+      hasActiveKeyContext &&
+      ENABLE_RELATED_KEY_MATCHES &&
+      !isInKey &&
+      isComparisonChordInKey(comparisonChord, keyChordSet);
+    const matchLevel = isInKey ? "primary" : isRelatedToKey ? "related" : "none";
     const displayChordName = formatChordLabel(chordName);
     const displayParts = getChordLoaderDisplayParts(chordName);
 
@@ -879,7 +943,14 @@ function buildChordGroupSection(group, rootNote, bassRoot, onPlay, onAdd) {
         button.classList.remove("active");
       }
     });
-    button.dataset.tooltip = getChordTooltipText(chordName);
+    button.dataset.tooltip = `${getChordTooltipText(chordName)}\nFeel: ${getChordFeelLabel(matchLevel)}`;
+    button.dataset.comparisonChord = comparisonChord;
+    button.dataset.isInKey = String(isInKey);
+    button.dataset.isRelatedToKey = String(isRelatedToKey);
+    button.dataset.matchLevel = matchLevel;
+    button.dataset.scaleFeel = getChordFeelLabel(matchLevel);
+    button.isInKey = isInKey;
+    button.isRelatedToKey = isRelatedToKey;
 
     const addBtn = document.createElement("button");
     addBtn.type = "button";
@@ -901,8 +972,10 @@ function buildChordGroupSection(group, rootNote, bassRoot, onPlay, onAdd) {
   return section;
 }
 
-export function renderChordLoader(element, rootNote, bassRoot, onPlay, onAdd) {
+export function renderChordLoader(element, rootNote, bassRoot, keyChordSet, onPlay, onAdd) {
   element.innerHTML = "";
+  const hasActiveKeyContext = Array.isArray(keyChordSet) && keyChordSet.length === 7;
+  element.dataset.hasKeyContext = String(hasActiveKeyContext);
 
   if (!rootNote) {
     element.innerHTML = "<p style='color: var(--muted); margin: 0;'>Select a key to view chord options</p>";
@@ -927,7 +1000,7 @@ export function renderChordLoader(element, rootNote, bassRoot, onPlay, onAdd) {
       }
 
       activeChordLoaderFilter = filter.value;
-      renderChordLoader(element, rootNote, bassRoot, onPlay, onAdd);
+      renderChordLoader(element, rootNote, bassRoot, keyChordSet, onPlay, onAdd);
     });
     filterBar.appendChild(filterButton);
   });
@@ -950,7 +1023,7 @@ export function renderChordLoader(element, rootNote, bassRoot, onPlay, onAdd) {
     row.className = `chord-group-row ${rowGroups.length > 1 ? "chord-group-row-paired" : "chord-group-row-single"}`;
 
     rowGroups.forEach(group => {
-      row.appendChild(buildChordGroupSection(group, rootNote, bassRoot, onPlay, onAdd));
+      row.appendChild(buildChordGroupSection(group, rootNote, bassRoot, keyChordSet, onPlay, onAdd));
     });
 
     element.appendChild(row);
@@ -962,13 +1035,28 @@ export function initTooltips() {
   tip.className = "app-tooltip";
   tip.setAttribute("aria-hidden", "true");
   document.body.appendChild(tip);
+  let activeTooltipElement = null;
 
-  function position(event) {
+  function position(target, event = null) {
+    if (!target) return;
+
     const margin = 12;
-    let x = event.clientX + margin;
-    let y = event.clientY - 34;
-    if (x + tip.offsetWidth > window.innerWidth - 8) x = event.clientX - tip.offsetWidth - margin;
-    if (y < 8) y = event.clientY + margin;
+    const rect = target.getBoundingClientRect();
+    let x = rect.left + (rect.width / 2) - (tip.offsetWidth / 2);
+    let y = rect.top - tip.offsetHeight - margin;
+
+    if (x < 8) {
+      x = 8;
+    }
+
+    if (x + tip.offsetWidth > window.innerWidth - 8) {
+      x = window.innerWidth - tip.offsetWidth - 8;
+    }
+
+    if (y < 8) {
+      y = rect.bottom + margin;
+    }
+
     tip.style.left = `${x}px`;
     tip.style.top = `${y}px`;
   }
@@ -977,20 +1065,25 @@ export function initTooltips() {
     const el = event.target.closest("[data-tooltip]");
     if (!el) {
       tip.style.display = "none";
+      activeTooltipElement = null;
       return;
     }
+    activeTooltipElement = el;
     tip.textContent = el.dataset.tooltip;
     tip.style.display = "block";
-    position(event);
+    position(el, event);
   });
 
   document.addEventListener("mousemove", event => {
-    if (tip.style.display === "block") position(event);
+    if (tip.style.display === "block" && activeTooltipElement) {
+      position(activeTooltipElement, event);
+    }
   });
 
   document.addEventListener("mouseout", event => {
     if (!event.relatedTarget || !event.relatedTarget.closest("[data-tooltip]")) {
       tip.style.display = "none";
+      activeTooltipElement = null;
     }
   });
 }

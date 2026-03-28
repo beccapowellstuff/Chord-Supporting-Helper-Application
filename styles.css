@@ -231,6 +231,36 @@ body {
   transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
+.tool-nav-btn-warning {
+  position: relative;
+  padding-right: 34px;
+}
+
+.tool-nav-status-icon {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff0f0;
+  border: 1px solid rgba(201, 88, 88, 0.42);
+  color: #c94a4a;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tool-nav-btn.active .tool-nav-status-icon {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.38);
+  color: #fff4f4;
+}
+
 .tool-nav-btn:hover {
   background: linear-gradient(to bottom, var(--accent-soft), #f9d0e0);
   color: var(--accent-dark);
@@ -411,7 +441,64 @@ h2 {
 
 .tool-panel-description-inline {
   margin: 0;
+  padding: 8px 14px 2px;
+}
+
+.tool-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: var(--section-header-padding);
+  border-bottom: 1px solid rgba(230, 201, 214, 0.72);
+  background: linear-gradient(to bottom, #fae8f0, #f8e6ef);
+}
+
+.tool-header-bar .chord-loader-title {
+  padding: 0;
+  border-bottom: none;
+  background: none;
+  flex: 0 1 auto;
+}
+
+.tool-header-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tool-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   padding: 8px 14px 0;
+}
+
+.tool-context-inline {
+  padding: 0;
+  justify-content: flex-end;
+  flex: 0 1 auto;
+}
+
+.tool-context-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid rgba(214, 188, 201, 0.72);
+  color: #8a6d7c;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.tool-context-chip-mode {
+  color: #967c88;
+  font-weight: 600;
 }
 
 .tool-status {
@@ -1308,6 +1395,73 @@ textarea {
   gap: 8px;
 }
 
+.chord-explorer-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(230, 201, 214, 0.58);
+  color: #876876;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.chord-explorer-legend-inline {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  color: #8a6d7c;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.chord-explorer-legend-inline .chord-explorer-legend-item {
+  gap: 4px;
+}
+
+.chord-explorer-legend-inline .chord-explorer-legend-swatch {
+  width: 24px;
+  height: 14px;
+  border-radius: 6px;
+}
+
+.chord-explorer-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chord-explorer-legend-swatch {
+  width: 28px;
+  height: 16px;
+  border-radius: 7px;
+  display: inline-flex;
+  border: 1.5px solid #e5c2d0;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.chord-explorer-legend-swatch-primary {
+  background: linear-gradient(to bottom, #ef91ba, #de84a9);
+  border-color: #cf89ab;
+}
+
+.chord-explorer-legend-swatch-related {
+  background: linear-gradient(to bottom, #f8e5ee, #f3d5e3);
+  border-color: #cf89ab;
+}
+
+.chord-explorer-legend-swatch-none {
+  background: #fff;
+  border-color: #e4c2d0;
+}
+
 .chord-loader-filters {
   display: flex;
   flex-wrap: nowrap;
@@ -1438,9 +1592,10 @@ textarea {
 }
 
 .chord-btn {
+  position: relative;
   padding: 8px 12px;
-  background: linear-gradient(to bottom, var(--accent-soft), #f9d0e0);
-  color: var(--accent-dark);
+  background: #fff;
+  color: #9f4f73;
   border: 1.5px solid var(--accent);
   border-radius: 8px;
   cursor: pointer;
@@ -1460,12 +1615,61 @@ textarea {
   opacity: 1;
 }
 
+.chord-btn[data-match-level="primary"] {
+  background: linear-gradient(to bottom, #ef91ba, #de84a9);
+  color: #fff;
+  border-color: #cf89ab;
+  box-shadow: 0 2px 6px rgba(137, 72, 104, 0.12);
+}
+
+.chord-btn[data-match-level="primary"] .chord-btn-main {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.chord-btn[data-match-level="primary"] .chord-btn-detail {
+  color: rgba(255, 255, 255, 0.88);
+  opacity: 1;
+}
+
+.chord-btn[data-match-level="related"] {
+  background: linear-gradient(to bottom, #f8e5ee, #f3d5e3);
+  color: #bc7897;
+  border-color: #cf89ab;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
+}
+
+.chord-btn[data-match-level="related"] .chord-btn-main {
+  color: #8d4769;
+  font-weight: 700;
+}
+
+.chord-btn[data-match-level="related"] .chord-btn-detail {
+  color: #865f72;
+  opacity: 0.92;
+}
+
+.chord-btn[data-match-level="none"] {
+  border-color: #e4c2d081;
+  color: #bf94a7;
+  box-shadow: none;
+}
+
+.chord-btn[data-match-level="none"] .chord-btn-main {
+  color: #ad758f;
+}
+
+.chord-btn[data-match-level="none"] .chord-btn-detail {
+  color: #b392a2;
+  opacity: 0.76;
+}
+
 .chord-btn-two-line {
   min-height: 46px;
 }
 
 .chord-group-altered .chord-btn {
-  min-height: 40px;
+  min-height: 46px;
 }
 
 .chord-group-altered .chord-btn-detail {
@@ -1482,7 +1686,7 @@ textarea {
   display: block;
   font-size: 10px;
   font-weight: 600;
-  opacity: 0.78;
+  opacity: 0.84;
   line-height: 1.15;
 }
 
@@ -1493,6 +1697,25 @@ textarea {
   transform: translateY(-1px);
   box-shadow: 0 2px 6px rgba(90, 35, 60, 0.2);
   opacity: 1;
+}
+
+.chord-btn:hover .chord-btn-main,
+.chord-btn:hover .chord-btn-detail {
+  color: white;
+}
+
+.chord-btn[data-match-level="primary"]:hover,
+.chord-btn[data-match-level="related"]:hover {
+  background: linear-gradient(to bottom, var(--accent), #c85f8f);
+  border-color: var(--accent-dark);
+  box-shadow: 0 2px 6px rgba(90, 35, 60, 0.2);
+}
+
+.chord-btn[data-match-level="primary"]:hover .chord-btn-main,
+.chord-btn[data-match-level="primary"]:hover .chord-btn-detail,
+.chord-btn[data-match-level="related"]:hover .chord-btn-main,
+.chord-btn[data-match-level="related"]:hover .chord-btn-detail {
+  color: white;
 }
 
 .chord-btn:active {

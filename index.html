@@ -37,13 +37,22 @@
       <div class="tool-nav" aria-label="Tool navigation">
         <button type="button" class="tool-nav-btn active" data-tool-panel="keyExplorerPanel" aria-pressed="true">Key Explorer</button>
         <button type="button" class="tool-nav-btn" data-tool-panel="chordExplorerPanel" aria-pressed="false">Chord Explorer</button>
-        <button type="button" class="tool-nav-btn" data-tool-panel="suggestionEnginePanel" aria-pressed="false">Suggestion Engine</button>
+        <button type="button" class="tool-nav-btn tool-nav-btn-warning" data-tool-panel="suggestionEnginePanel" aria-pressed="false">
+          Suggestion Engine
+          <span class="tool-nav-status-icon" aria-hidden="true">✕</span>
+        </button>
       </div>
 
       <div class="tool-stage">
         <div id="keyExplorerPanel" class="panel tool-panel">
           <div class="chord-loader key-explorer-module">
-            <p class="chord-loader-title">Key Explorer</p>
+            <div class="tool-header-bar">
+              <p class="chord-loader-title">Key Explorer</p>
+              <div class="tool-context tool-context-inline" data-tool-context>
+                <span class="tool-context-chip" data-tool-context-root>C</span>
+                <span class="tool-context-chip tool-context-chip-mode" data-tool-context-mode>Ionian</span>
+              </div>
+            </div>
             <p class="tool-panel-description tool-panel-description-inline">Explore chords within a key and mode.</p>
             <div class="chord-loader-body key-explorer-body">
             <table class="select-root-style-table">
@@ -73,7 +82,29 @@
 
         <div id="chordExplorerPanel" class="panel tool-panel" hidden>
           <div class="chord-loader">
-            <p class="chord-loader-title">Chord Explorer</p>
+            <div class="tool-header-bar">
+              <p class="chord-loader-title">Chord Explorer</p>
+              <div class="tool-header-meta">
+                <div class="chord-explorer-legend chord-explorer-legend-inline" aria-label="Chord match legend">
+                  <span class="chord-explorer-legend-item">
+                    <span class="chord-explorer-legend-swatch chord-explorer-legend-swatch-primary" aria-hidden="true"></span>
+                    <span>In-key</span>
+                  </span>
+                  <span class="chord-explorer-legend-item">
+                    <span class="chord-explorer-legend-swatch chord-explorer-legend-swatch-related" aria-hidden="true"></span>
+                    <span>Related</span>
+                  </span>
+                  <span class="chord-explorer-legend-item">
+                    <span class="chord-explorer-legend-swatch chord-explorer-legend-swatch-none" aria-hidden="true"></span>
+                    <span>Out of key</span>
+                  </span>
+                </div>
+                <div class="tool-context tool-context-inline" data-tool-context>
+                  <span class="tool-context-chip" data-tool-context-root>C</span>
+                  <span class="tool-context-chip tool-context-chip-mode" data-tool-context-mode>Ionian</span>
+                </div>
+              </div>
+            </div>
             <p class="tool-panel-description tool-panel-description-inline">Build and preview any chord.</p>
             <div class="chord-loader-body">
               <div class="chord-root-controls">
@@ -87,7 +118,13 @@
 
         <div id="suggestionEnginePanel" class="panel tool-panel" hidden>
           <div class="chord-loader suggestion-engine-module">
-            <p class="chord-loader-title">Suggestion Engine</p>
+            <div class="tool-header-bar">
+              <p class="chord-loader-title">Suggestion Engine</p>
+              <div class="tool-context tool-context-inline" data-tool-context>
+                <span class="tool-context-chip" data-tool-context-root>C</span>
+                <span class="tool-context-chip tool-context-chip-mode" data-tool-context-mode>Ionian</span>
+              </div>
+            </div>
             <p class="tool-panel-description tool-panel-description-inline">Get ideas based on your progression.</p>
             <div class="tool-status tool-status-warning" role="status" aria-live="polite">
               <span class="tool-status-icon" aria-hidden="true">!</span>

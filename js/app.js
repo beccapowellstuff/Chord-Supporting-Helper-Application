@@ -3,7 +3,7 @@
  *
  * Responsibilities:
  *   - Initialises the app and loads all data via dataLoader
- *   - Holds the single piece of shared state: selectedKey
+ *   - Holds the shared application state for key/chord context
  *   - Wires all UI events (root selector, style select, suggest button,
  *     play button, auto-suggest toggle, chord loader add/play actions)
  *   - Delegates every concern to the appropriate module — no note math,
@@ -73,11 +73,16 @@ const sequenceKeyboard = document.getElementById("sequenceKeyboard");
 const appVersion = document.getElementById("appVersion");
 const toolNavButtons = document.querySelectorAll(".tool-nav-btn");
 const toolPanels = document.querySelectorAll(".tool-panel");
+const toolContextBlocks = document.querySelectorAll("[data-tool-context]");
 
 let appData = null;
-let selectedKey = "C Ionian";
-let selectedChordRoot = "C";
-let selectedBassRoot = "C";
+const appState = {
+  selectedKey: "C Ionian",
+  selectedChordRoot: "C",
+  selectedBassRoot: "C",
+  keyChordSet: null
+};
+window.appState = appState;
 let sequenceKeyboardMidiNotes = [];
 let sequenceKeyboardFlashMidiNotes = [];
 let sequenceKeyboardDisplayMidiNotes = [];
@@ -90,10 +95,41 @@ const TOOL_PANEL_TRANSITION_MS = 180;
 let activeToolPanelId = "keyExplorerPanel";
 let toolPanelTransitionTimeout = null;
 
+function updateKeyChordSet() {
+  if (!appData || !appState.selectedKey) {
+    appState.keyChordSet = null;
+    return;
+  }
+
+  const keyData = appData.musicData?.[appState.selectedKey];
+  appState.keyChordSet = Array.isArray(keyData?.chords)
+    ? [...keyData.chords]
+    : null;
+}
+
 function formatAccidentalDisplay(value) {
   return String(value || "")
     .replace(/b/g, "\u266d")
     .replace(/#/g, "\u266f");
+}
+
+function updateToolContext() {
+  const selectedKeyParts = String(appState.selectedKey || "").trim().split(" ");
+  const root = selectedKeyParts[0] || "No key";
+  const mode = selectedKeyParts.slice(1).join(" ") || "No mode";
+
+  toolContextBlocks.forEach(block => {
+    const rootEl = block.querySelector("[data-tool-context-root]");
+    const modeEl = block.querySelector("[data-tool-context-mode]");
+
+    if (rootEl) {
+      rootEl.textContent = formatAccidentalDisplay(root);
+    }
+
+    if (modeEl) {
+      modeEl.textContent = mode;
+    }
+  });
 }
 
 function updateActiveToolButtons(panelId) {
@@ -487,9 +523,9 @@ async function playChordWithSequenceKeyboard(chordName, duration = 1.0) {
 function refreshChordPlaygroundUI() {
   renderCompactRootSelector(bassRootSelector, {
     title: "Bass Root",
-    selectedNote: selectedBassRoot,
+    selectedNote: appState.selectedBassRoot,
     onSelect: async note => {
-      selectedBassRoot = note;
+      appState.selectedBassRoot = note;
       refreshChordPlaygroundUI();
 
       try {
@@ -507,12 +543,12 @@ function refreshChordPlaygroundUI() {
 
   renderCompactRootSelector(chordRootSelector, {
     title: "Chord Root",
-    selectedNote: selectedChordRoot,
+    selectedNote: appState.selectedChordRoot,
     onSelect: async note => {
-      const previousChordRoot = selectedChordRoot;
-      selectedChordRoot = note;
-      if (selectedBassRoot === previousChordRoot) {
-        selectedBassRoot = note;
+      const previousChordRoot = appState.selectedChordRoot;
+      appState.selectedChordRoot = note;
+      if (appState.selectedBassRoot === previousChordRoot) {
+        appState.selectedBassRoot = note;
       }
       refreshChordPlaygroundUI();
 
@@ -531,8 +567,9 @@ function refreshChordPlaygroundUI() {
 
   renderChordLoader(
     chordButtons,
-    selectedChordRoot,
-    selectedBassRoot,
+    appState.selectedChordRoot,
+    appState.selectedBassRoot,
+    appState.keyChordSet,
     async chordName => {
       try {
         await ensureAudioReady();
@@ -564,19 +601,21 @@ async function loadVersionLabel() {
 }
 
 function refreshKeyUI() {
+  updateToolContext();
   const styleSelect = document.getElementById("styleSelect");
   if (styleSelect) {
-    styleSelect.value = appData?.musicData?.[selectedKey]?.modeId || "ionian";
+    styleSelect.value = appData?.musicData?.[appState.selectedKey]?.modeId || "ionian";
   }
 
   renderRootSelector(
     rootContainer,
-    selectedKey,
+    appState.selectedKey,
     async newKey => {
-      selectedKey = newKey;
+      appState.selectedKey = newKey;
+      updateKeyChordSet();
       const rootNote = newKey.split(" ")[0] || "C";
-      selectedChordRoot = rootNote;
-      selectedBassRoot = rootNote;
+      appState.selectedChordRoot = rootNote;
+      appState.selectedBassRoot = rootNote;
       refreshChordPlaygroundUI();
       refreshKeyUI();
 
@@ -597,7 +636,7 @@ function refreshKeyUI() {
   renderKeyInfo(
     keyInfo,
     appData.musicData,
-    selectedKey,
+    appState.selectedKey,
     async chord => {
       try {
         await ensureAudioReady();
@@ -680,7 +719,7 @@ function runSuggestions() {
     moodBoosts: appData.moodBoosts,
     functionDescriptions: appData.functionDescriptions,
     moodReasonText: appData.moodReasonText,
-    selectedKey,
+    selectedKey: appState.selectedKey,
     progression: progressionInput.value,
     feeling: feelingSelect.value
   });
@@ -698,11 +737,11 @@ function runSuggestions() {
     appendChordToProgression(chordName);
   };
 
-  renderSuggestions(results, suggestionPayload, appData.musicData, selectedKey, onSuggestedChordClick, onSuggestedChordAdd);
+  renderSuggestions(results, suggestionPayload, appData.musicData, appState.selectedKey, onSuggestedChordClick, onSuggestedChordAdd);
 }
 
 async function handlePlayProgression() {
-  const keyData = appData?.musicData?.[selectedKey];
+  const keyData = appData?.musicData?.[appState.selectedKey];
   if (!keyData) return;
 
   const { parsed } = parseProgression(progressionInput.value, keyData);
@@ -729,17 +768,18 @@ async function init() {
     console.log("✓ Data loaded");
 
     populateFeelings(feelingSelect, appData.moodBoosts);
-    selectedChordRoot = selectedKey.split(" ")[0];
-    selectedBassRoot = selectedChordRoot;
+    appState.selectedChordRoot = appState.selectedKey.split(" ")[0];
+    appState.selectedBassRoot = appState.selectedChordRoot;
+    updateKeyChordSet();
 
     const styleSelect = document.getElementById("styleSelect");
     if (styleSelect) {
       populateModeSelect(styleSelect, appData.modeGroups);
-      styleSelect.value = appData.musicData[selectedKey]?.modeId || "ionian";
+      styleSelect.value = appData.musicData[appState.selectedKey]?.modeId || "ionian";
 
       styleSelect.addEventListener("change", () => {
         const modeId = styleSelect.value;
-        const root = selectedKey.split(" ")[0];
+        const root = appState.selectedKey.split(" ")[0];
         const normalizedRoot = normaliseRoot(root);
         const pc = NOTE_TO_PC[normalizedRoot];
 
@@ -751,17 +791,20 @@ async function init() {
           });
 
           if (match) {
-            selectedKey = match;
+            appState.selectedKey = match;
           }
         }
 
+        updateKeyChordSet();
         refreshKeyUI();
+        refreshChordPlaygroundUI();
       });
     }
 
     refreshKeyUI();
     refreshSequenceKeyboard();
     refreshChordPlaygroundUI();
+    updateToolContext();
 
     suggestBtn.dataset.tooltip = "Suggest the next best chords based on your progression and mood";
     if (playProgressionBtn) playProgressionBtn.dataset.tooltip = "Play all chords in the progression";
