@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">ChordCanvas logo</title>
+  <desc id="desc">A circular guitar chord diagram with three highlighted notes.</desc>
+  <defs>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4f4a4d"/>
+      <stop offset="100%" stop-color="#2f2a2d"/>
+    </linearGradient>
+    <linearGradient id="dot" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d97aa4"/>
+      <stop offset="100%" stop-color="#a94673"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="28" fill="#fff8fb"/>
+
+  <text x="64" y="21" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#2f2a2d">C</text>
+
+  <circle cx="64" cy="72" r="42" fill="none" stroke="url(#ring)" stroke-width="8"/>
+
+  <g fill="none" stroke="#4f4a4d" stroke-width="3" stroke-linecap="round">
+    <line x1="31" y1="45" x2="97" y2="45"/>
+    <line x1="31" y1="58" x2="97" y2="58"/>
+    <line x1="31" y1="71" x2="97" y2="71"/>
+    <line x1="31" y1="84" x2="97" y2="84"/>
+    <line x1="31" y1="97" x2="97" y2="97"/>
+
+    <line x1="41" y1="40" x2="41" y2="102"/>
+    <line x1="53" y1="40" x2="53" y2="102"/>
+    <line x1="65" y1="40" x2="65" y2="102"/>
+    <line x1="77" y1="40" x2="77" y2="102"/>
+    <line x1="89" y1="40" x2="89" y2="102"/>
+  </g>
+
+  <g stroke="#fff8fb" stroke-width="2.5">
+    <circle cx="65" cy="58" r="5.75" fill="url(#dot)"/>
+    <circle cx="77" cy="71" r="5.75" fill="url(#dot)"/>
+    <circle cx="89" cy="84" r="5.75" fill="url(#dot)"/>
+  </g>
+
+  <g fill="#4f4a4d">
+    <rect x="20" y="51" width="11" height="3.5" rx="1.75"/>
+    <rect x="20" y="64" width="11" height="3.5" rx="1.75"/>
+    <rect x="20" y="77" width="11" height="3.5" rx="1.75"/>
+    <rect x="97" y="51" width="11" height="3.5" rx="1.75"/>
+    <rect x="97" y="64" width="11" height="3.5" rx="1.75"/>
+    <rect x="97" y="77" width="11" height="3.5" rx="1.75"/>
+  </g>
+</svg>

@@ -1,4 +1,4 @@
-# Chord Supporting Helper Application
+# ChordCanvas
 
 A browser-based music idea tool designed to help musicians find the next part of a chord progression without handing the whole creative process over to AI.
 
@@ -127,7 +127,7 @@ So yes, this is a vibe coded project. If that alone puts you off, this repositor
 
 ## What it does
 
-Chord Supporting Helper Application is a music theory and progression support tool built around an interactive Circle of Fifths.
+ChordCanvas is a music theory and progression support tool built around an interactive Circle of Fifths.
 
 At the moment, it allows the user to:
 
@@ -392,6 +392,6 @@ Especially useful feedback includes:
 
 ## Summary
 
-Chord Supporting Helper Application is an interactive music support tool for musicians who want help finding what comes next, while still writing the music themselves.
+ChordCanvas is an interactive music support tool for musicians who want help finding what comes next, while still writing the music themselves.
 
 It combines visual theory, harmonic structure, and guided suggestion systems to help users move forward creatively without giving up control of the process.
