@@ -76,7 +76,7 @@ export function renderRootSelector(container, selectedKey, onSelectKey, musicDat
 
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "key-chord-main circle-root-btn";
+    btn.className = "circle-root-btn";
     btn.textContent = formatNoteLabel(label);
     btn.dataset.root = label;
 

@@ -21,16 +21,25 @@ import {
   renderKeyInfo,
   renderChordLoader,
   initTooltips,
-  getFriendlyChordName
+  getFriendlyChordName,
+  formatChordLabel
 } from "./ui.js";
 import { renderRootSelector } from "./rootSelector.js";
-import { renderPlaygroundKeyboard } from "./playgroundKeyboard.js";
+import { renderCompactRootSelector, renderSequenceKeyboard } from "./playgroundKeyboard.js";
 import {
   initSoundFont,
   playMidiNote,
+  playMidiNotes,
   ensureAudioContext
 } from "./synth.js";
-import { noteToMidi, normaliseRoot, NOTE_TO_PC, getChordNotes, parseChordName } from "./chordNotes.js";
+import {
+  noteToMidi,
+  normaliseRoot,
+  NOTE_TO_PC,
+  parseChordName,
+  identifyChordFromMidiNotes,
+  pitchClassToDisplayNote
+} from "./chordNotes.js";
 import { ensureAudioReady, playChord, playProgression } from "./playback.js";
 
 document.addEventListener(
@@ -58,19 +67,23 @@ const results = document.getElementById("results");
 const rootContainer = document.getElementById("rootContainer");
 const keyInfo = document.getElementById("keyInfo");
 const chordButtons = document.getElementById("chordButtons");
-const playgroundKeyboard = document.getElementById("playgroundKeyboard");
+const bassRootSelector = document.getElementById("bassRootSelector");
+const chordRootSelector = document.getElementById("chordRootSelector");
+const sequenceKeyboard = document.getElementById("sequenceKeyboard");
 const appVersion = document.getElementById("appVersion");
 
 let appData = null;
 let selectedKey = "C Ionian";
 let selectedChordRoot = "C";
 let selectedBassRoot = "C";
-let currentPlayedBassRoot = "";
-let currentPlayedChordPitchClasses = [];
-let lastPlayedBassRoot = "";
-let lastPlayedChordPitchClasses = [];
-let lastPlayedChordName = "";
-let keyboardHighlightTimeout = null;
+let sequenceKeyboardMidiNotes = [];
+let sequenceKeyboardFlashMidiNotes = [];
+let sequenceKeyboardDisplayMidiNotes = [];
+let identifiedSequenceChord = null;
+let lockedSequenceChordName = "";
+let sequenceKeyboardFlashTimeout = null;
+const SEQUENCE_KEYBOARD_MIN_MIDI = 48; // C3
+const SEQUENCE_KEYBOARD_MAX_MIDI = 95; // B6
 
 function formatAccidentalDisplay(value) {
   return String(value || "")
@@ -114,161 +127,333 @@ function extractChordList(parsedProgression) {
     .filter(Boolean);
 }
 
-function clearPlaygroundLastPlayed(clearCurrent = false) {
-  lastPlayedBassRoot = "";
-  lastPlayedChordPitchClasses = [];
-  lastPlayedChordName = "";
-
-  if (clearCurrent) {
-    currentPlayedBassRoot = "";
-    currentPlayedChordPitchClasses = [];
-  }
-
-  if (keyboardHighlightTimeout) {
-    clearTimeout(keyboardHighlightTimeout);
-    keyboardHighlightTimeout = null;
-  }
+function normalizeMidiList(midiNotes) {
+  return [...new Set(
+    (Array.isArray(midiNotes) ? midiNotes : []).filter(midi => Number.isFinite(midi))
+  )].sort((a, b) => a - b);
 }
 
-function refreshPlaygroundKeyboard() {
-  renderPlaygroundKeyboard(
-    playgroundKeyboard,
+function getVisibleSequenceKeyboardNotes(midiNotes) {
+  return normalizeMidiList(
+    (Array.isArray(midiNotes) ? midiNotes : []).filter(
+      midi => midi >= SEQUENCE_KEYBOARD_MIN_MIDI && midi <= SEQUENCE_KEYBOARD_MAX_MIDI
+    )
+  );
+}
+
+function getVisibleSequenceKeyboardChordDisplay(chordName) {
+  const parsed = parseChordName(chordName);
+  if (!parsed) {
+    return [];
+  }
+
+  const rootMidi = noteToMidi(parsed.root, 4);
+  if (rootMidi == null) {
+    return [];
+  }
+
+  const upperStructure = parsed.intervals.map(interval => rootMidi + interval);
+  const bassMidi = noteToMidi(parsed.bass || parsed.root, 3);
+
+  return getVisibleSequenceKeyboardNotes([
+    ...(bassMidi == null ? [] : [bassMidi]),
+    ...upperStructure
+  ]);
+}
+
+function identifySequenceKeyboardChord() {
+  if (lockedSequenceChordName) {
+    const parsed = parseChordName(lockedSequenceChordName);
+    identifiedSequenceChord = parsed
+      ? {
+          root: parsed.root,
+          bass: parsed.bass,
+          suffix: parsed.suffix,
+          canonicalName: parsed.canonicalName,
+          playedMidiNotes: [...sequenceKeyboardMidiNotes],
+          playedPitchClasses: []
+        }
+      : null;
+    return;
+  }
+
+  const normalizedMidi = normalizeMidiList(sequenceKeyboardMidiNotes);
+  const offscreenBassMidiNotes = normalizedMidi.filter(midi => midi < SEQUENCE_KEYBOARD_MIN_MIDI);
+  const visibleMidiNotes = normalizedMidi.filter(midi => midi >= SEQUENCE_KEYBOARD_MIN_MIDI);
+  const lowerLaneMidiNotes = visibleMidiNotes.filter(midi => midi < 60);
+  const upperLaneMidiNotes = visibleMidiNotes.filter(midi => midi >= 60);
+
+  if (!visibleMidiNotes.length) {
+    identifiedSequenceChord = null;
+    return;
+  }
+
+  const preferredRootPitchClass = ((visibleMidiNotes[0] % 12) + 12) % 12;
+  const allNotesIdentifiedChord = identifyChordFromMidiNotes(visibleMidiNotes, {
+    preferredRootPitchClass
+  });
+  const upperLaneIdentifiedChord =
+    lowerLaneMidiNotes.length && upperLaneMidiNotes.length
+      ? identifyChordFromMidiNotes(upperLaneMidiNotes, {
+          preferredRootPitchClass: ((upperLaneMidiNotes[0] % 12) + 12) % 12
+        })
+      : null;
+  const lowestVisiblePitchClass = ((visibleMidiNotes[0] % 12) + 12) % 12;
+  const allNotesRootPitchClass = allNotesIdentifiedChord
+    ? NOTE_TO_PC[normaliseRoot(allNotesIdentifiedChord.root)]
+    : null;
+  const useUpperLaneAsChord =
+    Boolean(upperLaneIdentifiedChord) &&
+    allNotesRootPitchClass !== lowestVisiblePitchClass;
+  const chordMidiNotes = useUpperLaneAsChord ? upperLaneMidiNotes : visibleMidiNotes;
+  const bassMidiNotes = normalizeMidiList([
+    ...offscreenBassMidiNotes,
+    ...(useUpperLaneAsChord ? lowerLaneMidiNotes : [])
+  ]);
+  const identifiedChord = useUpperLaneAsChord
+    ? upperLaneIdentifiedChord
+    : allNotesIdentifiedChord;
+
+  if (!identifiedChord) {
+    identifiedSequenceChord = null;
+    return;
+  }
+
+  const lowestBassMidi = bassMidiNotes[0];
+  const bassPitchClass = Number.isFinite(lowestBassMidi)
+    ? ((lowestBassMidi % 12) + 12) % 12
+    : null;
+  const bassNote = Number.isFinite(bassPitchClass)
+    ? pitchClassToDisplayNote(bassPitchClass)
+    : null;
+  const chordRootPitchClass = NOTE_TO_PC[normaliseRoot(identifiedChord.root)];
+  const canonicalName = bassNote && chordRootPitchClass !== bassPitchClass
+    ? `${identifiedChord.root}${identifiedChord.suffix}/${bassNote}`
+    : identifiedChord.canonicalName;
+  const parsedIdentified = parseChordName(canonicalName);
+
+  identifiedSequenceChord = parsedIdentified
+    ? {
+        root: parsedIdentified.root,
+        bass: parsedIdentified.bass,
+        suffix: parsedIdentified.suffix,
+        canonicalName: parsedIdentified.canonicalName,
+        playedMidiNotes: [...normalizedMidi],
+        playedPitchClasses: []
+      }
+    : null;
+}
+
+function getSequenceKeyboardLabel() {
+  if (!sequenceKeyboardMidiNotes.length) {
+    return "No notes selected";
+  }
+
+  if (!identifiedSequenceChord) {
+    return "Chord not recognised";
+  }
+
+  return formatChordLabel(identifiedSequenceChord.canonicalName);
+}
+
+function setSequenceKeyboardFlash(midiNotes, durationSeconds = 1.0) {
+  sequenceKeyboardFlashMidiNotes = normalizeMidiList(midiNotes);
+
+  if (sequenceKeyboardFlashTimeout) {
+    clearTimeout(sequenceKeyboardFlashTimeout);
+  }
+
+  sequenceKeyboardFlashTimeout = setTimeout(() => {
+    sequenceKeyboardFlashMidiNotes = [];
+    sequenceKeyboardDisplayMidiNotes = [];
+    refreshSequenceKeyboard();
+  }, Math.max(250, durationSeconds * 1000));
+}
+
+function refreshSequenceKeyboard() {
+  renderSequenceKeyboard(
+    sequenceKeyboard,
     {
-      selectedBassRoot,
-      selectedChordRoot,
-      currentPlayedBassRoot,
-      currentPlayedChordPitchClasses,
-      lastPlayedBassRoot,
-      lastPlayedChordPitchClasses,
-      canSaveLastPlayed: Boolean(lastPlayedChordName)
+      activeMidiNotes: sequenceKeyboardDisplayMidiNotes.length
+        ? sequenceKeyboardDisplayMidiNotes
+        : sequenceKeyboardMidiNotes,
+      flashMidiNotes: sequenceKeyboardFlashMidiNotes,
+      chordLabel: getSequenceKeyboardLabel(),
+      canSave: Boolean(identifiedSequenceChord),
+      canPlay: sequenceKeyboardMidiNotes.length > 0
     },
     {
-      onClearLastPlayed: () => {
-        clearPlaygroundLastPlayed(true);
-        refreshPlaygroundKeyboard();
-      },
-      onSaveLastPlayed: () => {
-        if (lastPlayedChordName) {
-          appendChordToProgression(lastPlayedChordName);
+      onKeyToggle: async midi => {
+        lockedSequenceChordName = "";
+        sequenceKeyboardDisplayMidiNotes = [];
+        const midiSet = new Set(sequenceKeyboardMidiNotes);
+        if (midiSet.has(midi)) {
+          midiSet.delete(midi);
+        } else {
+          midiSet.add(midi);
         }
-      },
-      onBassSelect: async note => {
-        selectedBassRoot = note;
-        clearPlaygroundLastPlayed(true);
-        currentPlayedBassRoot = note;
-        refreshChordPlaygroundUI();
-        keyboardHighlightTimeout = setTimeout(() => {
-          currentPlayedBassRoot = "";
-          refreshPlaygroundKeyboard();
-        }, 500);
+
+        sequenceKeyboardMidiNotes = normalizeMidiList([...midiSet]);
+        identifySequenceKeyboardChord();
+        setSequenceKeyboardFlash([midi], 0.4);
+        refreshSequenceKeyboard();
+
         try {
           await ensureAudioReady();
-          const midi = noteToMidi(note, 3);
-          if (midi != null) {
-            await playMidiNote(midi, 0.5);
-          }
+          await playMidiNote(midi, 0.45);
         } catch (error) {
-          console.warn("Could not play bass root key:", error);
+          console.warn("Could not play sequence keyboard note:", error);
         }
       },
-      onChordSelect: async note => {
-        const previousChordRoot = selectedChordRoot;
-        selectedChordRoot = note;
-        if (selectedBassRoot === previousChordRoot) {
-          selectedBassRoot = note;
+      onPlay: async () => {
+        if (!sequenceKeyboardMidiNotes.length) {
+          return;
         }
-        clearPlaygroundLastPlayed(true);
-        const pitchClass = NOTE_TO_PC[normaliseRoot(note)];
-        currentPlayedChordPitchClasses = pitchClass == null ? [] : [pitchClass];
-        refreshChordPlaygroundUI();
-        keyboardHighlightTimeout = setTimeout(() => {
-          currentPlayedChordPitchClasses = [];
-          refreshPlaygroundKeyboard();
-        }, 500);
+
+        const isLockedPlaybackChord = Boolean(lockedSequenceChordName);
+        const playbackNotes = isLockedPlaybackChord && identifiedSequenceChord?.canonicalName
+          ? getVisibleSequenceKeyboardChordDisplay(identifiedSequenceChord.canonicalName)
+          : normalizeMidiList(sequenceKeyboardMidiNotes);
+        const displayNotes = isLockedPlaybackChord && identifiedSequenceChord?.canonicalName
+          ? getVisibleSequenceKeyboardChordDisplay(identifiedSequenceChord.canonicalName)
+          : normalizeMidiList(sequenceKeyboardMidiNotes);
+        const flashNotes = displayNotes.length
+          ? displayNotes
+          : normalizeMidiList(sequenceKeyboardMidiNotes);
+
+        sequenceKeyboardDisplayMidiNotes = displayNotes;
+        setSequenceKeyboardFlash(flashNotes, 1.0);
+        refreshSequenceKeyboard();
+
         try {
           await ensureAudioReady();
-          const midi = noteToMidi(note, 4);
-          if (midi != null) {
-            await playMidiNote(midi, 0.5);
-          }
+          await playMidiNotes(playbackNotes, 1.0);
         } catch (error) {
-          console.warn("Could not play chord root key:", error);
+          console.warn("Could not play sequence keyboard notes:", error);
+        }
+      },
+      onClear: () => {
+        sequenceKeyboardMidiNotes = [];
+        sequenceKeyboardFlashMidiNotes = [];
+        sequenceKeyboardDisplayMidiNotes = [];
+        identifiedSequenceChord = null;
+        lockedSequenceChordName = "";
+        if (sequenceKeyboardFlashTimeout) {
+          clearTimeout(sequenceKeyboardFlashTimeout);
+          sequenceKeyboardFlashTimeout = null;
+        }
+        refreshSequenceKeyboard();
+      },
+      onIdentify: () => {
+        identifySequenceKeyboardChord();
+        refreshSequenceKeyboard();
+      },
+      onSave: () => {
+        if (identifiedSequenceChord?.canonicalName) {
+          appendChordToProgression(identifiedSequenceChord.canonicalName);
         }
       }
     }
   );
 }
 
-function flashPlaygroundKeyboardNotes(noteNames, durationSeconds = 1.0, summary = "") {
-  const resolvedNotes = (Array.isArray(noteNames) ? noteNames : [])
-    .map(note => normaliseRoot(note))
-    .filter(note => NOTE_TO_PC[note] != null);
-
-  if (!resolvedNotes.length) {
-    return;
-  }
-
-  currentPlayedBassRoot = "";
-  currentPlayedChordPitchClasses = [...new Set(
-    resolvedNotes
-      .map(note => NOTE_TO_PC[note])
-      .filter(pitchClass => pitchClass != null)
-  )];
-  lastPlayedBassRoot = "";
-  lastPlayedChordPitchClasses = [...currentPlayedChordPitchClasses];
-  lastPlayedChordName = "";
-
-  refreshPlaygroundKeyboard();
-
-  if (keyboardHighlightTimeout) {
-    clearTimeout(keyboardHighlightTimeout);
-  }
-
-  keyboardHighlightTimeout = setTimeout(() => {
-    currentPlayedBassRoot = "";
-    currentPlayedChordPitchClasses = [];
-    refreshPlaygroundKeyboard();
-  }, Math.max(250, durationSeconds * 1000));
+function setSequenceKeyboardNotes(midiNotes, durationSeconds = 1.0, chordName = "") {
+  sequenceKeyboardMidiNotes = normalizeMidiList(midiNotes);
+  lockedSequenceChordName = chordName || "";
+  sequenceKeyboardDisplayMidiNotes = [];
+  identifySequenceKeyboardChord();
+  setSequenceKeyboardFlash(sequenceKeyboardMidiNotes, durationSeconds);
+  refreshSequenceKeyboard();
 }
 
-function flashPlaygroundKeyboard(chordName, durationSeconds = 1.0) {
+function getDisplayMidiForNoteNames(noteNames, octave = 3) {
+  return normalizeMidiList(
+    (Array.isArray(noteNames) ? noteNames : [])
+      .map(note => noteToMidi(normaliseRoot(note), octave))
+      .filter(midi => midi != null)
+  );
+}
+
+function getDisplayMidiForChord(chordName) {
   const parsed = parseChordName(chordName);
-  const notes = getChordNotes(chordName);
-  if (!parsed || !notes?.length) {
-    return;
+  if (!parsed) return [];
+
+  const rootMidi = noteToMidi(parsed.root, 4);
+  if (rootMidi == null) {
+    return [];
   }
 
-  currentPlayedBassRoot = parsed.bass || parsed.root;
-  const chordToneNotes = parsed.bass ? notes.slice(1) : notes;
-  currentPlayedChordPitchClasses = [...new Set(
-    chordToneNotes
-      .map(note => NOTE_TO_PC[normaliseRoot(note)])
-      .filter(pitchClass => pitchClass != null)
-  )];
-  lastPlayedBassRoot = currentPlayedBassRoot;
-  lastPlayedChordPitchClasses = [...currentPlayedChordPitchClasses];
-  lastPlayedChordName = chordName;
+  const bassMidi = noteToMidi(parsed.bass || parsed.root, 3);
+  const upperStructure = parsed.intervals.map(interval => rootMidi + interval);
 
-  refreshPlaygroundKeyboard();
-
-  if (keyboardHighlightTimeout) {
-    clearTimeout(keyboardHighlightTimeout);
-  }
-
-  keyboardHighlightTimeout = setTimeout(() => {
-    currentPlayedBassRoot = "";
-    currentPlayedChordPitchClasses = [];
-    refreshPlaygroundKeyboard();
-  }, Math.max(250, durationSeconds * 1000));
+  return normalizeMidiList([
+    ...(bassMidi == null ? [] : [bassMidi]),
+    ...upperStructure
+  ]);
 }
 
-async function playChordWithPlaygroundHighlight(chordName, duration = 1.0) {
-  flashPlaygroundKeyboard(chordName, duration);
+function showSequenceKeyboardNotes(noteNames, durationSeconds = 1.0) {
+  const midiNotes = getDisplayMidiForNoteNames(noteNames, 3);
+  if (!midiNotes.length) return;
+  setSequenceKeyboardNotes(midiNotes, durationSeconds);
+}
+
+function showSequenceKeyboardChord(chordName, durationSeconds = 1.0) {
+  const midiNotes = getDisplayMidiForChord(chordName);
+  if (!midiNotes.length) return;
+  setSequenceKeyboardNotes(midiNotes, durationSeconds, chordName);
+}
+
+async function playChordWithSequenceKeyboard(chordName, duration = 1.0) {
+  showSequenceKeyboardChord(chordName, duration);
   await playChord(chordName, duration);
 }
 
 function refreshChordPlaygroundUI() {
-  refreshPlaygroundKeyboard();
+  renderCompactRootSelector(bassRootSelector, {
+    title: "Bass Root",
+    selectedNote: selectedBassRoot,
+    onSelect: async note => {
+      selectedBassRoot = note;
+      refreshChordPlaygroundUI();
+
+      try {
+        await ensureAudioReady();
+        showSequenceKeyboardNotes([note], 0.5);
+        const midi = noteToMidi(note, 3);
+        if (midi != null) {
+          await playMidiNote(midi, 0.5);
+        }
+      } catch (error) {
+        console.warn("Could not play bass root note:", error);
+      }
+    }
+  });
+
+  renderCompactRootSelector(chordRootSelector, {
+    title: "Chord Root",
+    selectedNote: selectedChordRoot,
+    onSelect: async note => {
+      const previousChordRoot = selectedChordRoot;
+      selectedChordRoot = note;
+      if (selectedBassRoot === previousChordRoot) {
+        selectedBassRoot = note;
+      }
+      refreshChordPlaygroundUI();
+
+      try {
+        await ensureAudioReady();
+        showSequenceKeyboardNotes([note], 0.5);
+        const midi = noteToMidi(note, 3);
+        if (midi != null) {
+          await playMidiNote(midi, 0.5);
+        }
+      } catch (error) {
+        console.warn("Could not play chord root note:", error);
+      }
+    }
+  });
+
   renderChordLoader(
     chordButtons,
     selectedChordRoot,
@@ -276,7 +461,7 @@ function refreshChordPlaygroundUI() {
     async chordName => {
       try {
         await ensureAudioReady();
-        await playChordWithPlaygroundHighlight(chordName, 1.0);
+        await playChordWithSequenceKeyboard(chordName, 1.0);
       } catch (error) {
         console.error("✗ Could not play chord:", error);
       }
@@ -324,7 +509,7 @@ function refreshKeyUI() {
         await ensureAudioReady();
         const midi = noteToMidi(rootNote, 4);
         if (midi != null) {
-          flashPlaygroundKeyboardNotes([rootNote], 0.8, formatAccidentalDisplay(rootNote));
+          showSequenceKeyboardNotes([rootNote], 0.8);
           await playMidiNote(midi, 0.8);
         }
       } catch (error) {
@@ -341,7 +526,7 @@ function refreshKeyUI() {
     async chord => {
       try {
         await ensureAudioReady();
-        await playChordWithPlaygroundHighlight(chord, 1.0);
+        await playChordWithSequenceKeyboard(chord, 1.0);
       } catch (error) {
         console.error("✗ Could not play chord:", error);
       }
@@ -354,7 +539,7 @@ function refreshKeyUI() {
         await ensureAudioReady();
         const midi = noteToMidi(note, 4);
         if (midi != null) {
-          flashPlaygroundKeyboardNotes([note], 0.6, formatAccidentalDisplay(note));
+          showSequenceKeyboardNotes([note], 0.6);
           await playMidiNote(midi, 0.6);
         }
       } catch (error) {
@@ -402,7 +587,7 @@ function refreshKeyUI() {
           const midi = midiNotes[i];
           const noteName = fullScale[i] || "";
           if (noteName) {
-            flashPlaygroundKeyboardNotes([noteName], 0.22, formatAccidentalDisplay(noteName));
+            showSequenceKeyboardNotes([noteName], 0.22);
           }
           await playMidiNote(midi, 0.45);
           await new Promise(resolve => setTimeout(resolve, 220));
@@ -428,7 +613,7 @@ function runSuggestions() {
   const onSuggestedChordClick = async (chordName) => {
     try {
       await ensureAudioReady();
-      await playChordWithPlaygroundHighlight(chordName, 1.0);
+      await playChordWithSequenceKeyboard(chordName, 1.0);
     } catch (error) {
       console.error("✗ Could not play suggested chord:", error);
     }
@@ -453,7 +638,7 @@ async function handlePlayProgression() {
   try {
     await ensureAudioReady();
     await playProgression(chordList, 90, async (chord, durationSeconds) => {
-      flashPlaygroundKeyboard(chord, durationSeconds);
+      showSequenceKeyboardChord(chord, durationSeconds);
     });
   } catch (error) {
     console.error("Could not play progression:", error);
@@ -499,6 +684,7 @@ async function init() {
     }
 
     refreshKeyUI();
+    refreshSequenceKeyboard();
     refreshChordPlaygroundUI();
 
     suggestBtn.dataset.tooltip = "Suggest the next best chords based on your progression and mood";

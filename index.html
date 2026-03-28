@@ -42,6 +42,7 @@
       <div class="sequence-panel">
         <div class="sequence-panel-title">Chord Sequence</div>
         <div class="sequence-panel-body">
+          <div id="sequenceKeyboard" class="sequence-keyboard-mount"></div>
           <div class="input-help">Build your chord sequence using the Chord Explorer. Separate chords with commas, pipes, or new lines.</div>
           <textarea id="progression" rows="3" placeholder="Example: C | Am | F" aria-label="Chord Sequence"></textarea>
           <button id="playProgressionBtn" type="button">Play sequence</button>
@@ -51,7 +52,10 @@
       <div id="chordLoader" class="chord-loader">
         <p class="chord-loader-title">Chord Explorer</p>
         <div class="chord-loader-body">
-          <div id="playgroundKeyboard" class="playground-keyboard-shell"></div>
+          <div class="chord-root-controls">
+            <div id="bassRootSelector" class="compact-root-mount"></div>
+            <div id="chordRootSelector" class="compact-root-mount"></div>
+          </div>
           <div id="chordButtons" class="chord-buttons"></div>
         </div>
       </div>
