@@ -156,22 +156,28 @@ export function parseChordName(chordName) {
   const cleaned = String(chordName || "").trim().replace(/\s+/g, "");
   if (!cleaned) return null;
 
-  const match = /^([A-G](?:#{1,2}|b{1,2})?)(.*)$/i.exec(cleaned);
+  const match = /^([A-G](?:#{1,2}|b{1,2})?)(.*?)(?:\/([A-G](?:#{1,2}|b{1,2})?))?$/i.exec(cleaned);
   if (!match) return null;
 
   const root = canonicaliseRoot(match[1]);
   const suffixText = match[2] || "";
+  const bass = canonicaliseRoot(match[3] || "");
   const definition = findChordDefinition(suffixText);
 
   if (!root || !definition) {
     return null;
   }
 
+  const bassRoot = bass && NOTE_TO_PC[bass] != null && NOTE_TO_PC[bass] !== NOTE_TO_PC[root]
+    ? bass
+    : null;
+
   return {
     root,
+    bass: bassRoot,
     suffix: definition.suffix,
     intervals: definition.intervals,
-    canonicalName: `${root}${definition.suffix}`
+    canonicalName: `${root}${definition.suffix}${bassRoot ? `/${bassRoot}` : ""}`
   };
 }
 
@@ -180,7 +186,13 @@ export function getChordNotes(chordName) {
   if (!parsed) return null;
 
   const root = normaliseRoot(parsed.root);
-  const chordNotes = [root];
+  const chordNotes = [];
+
+  if (parsed.bass) {
+    chordNotes.push(normaliseRoot(parsed.bass));
+  }
+
+  chordNotes.push(root);
 
   for (let i = 1; i < parsed.intervals.length; i += 1) {
     const note = transpose(root, parsed.intervals[i]);

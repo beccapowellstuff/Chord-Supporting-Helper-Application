@@ -39,14 +39,21 @@
 
     <div class="panel">
       <h2>Chord Playground</h2>
-      <label for="progression">Chord Sequence</label>
-      <div class="input-help">Build your chord sequence using chords from the selected key. Separate them with commas, pipes, or new lines.</div>
-      <textarea id="progression" rows="3" placeholder="Example: C | Am | F"></textarea>
-      <button id="playProgressionBtn" type="button">Play sequence</button>
+      <div class="sequence-panel">
+        <div class="sequence-panel-title">Chord Sequence</div>
+        <div class="sequence-panel-body">
+          <div class="input-help">Build your chord sequence using the Chord Explorer. Separate chords with commas, pipes, or new lines.</div>
+          <textarea id="progression" rows="3" placeholder="Example: C | Am | F" aria-label="Chord Sequence"></textarea>
+          <button id="playProgressionBtn" type="button">Play sequence</button>
+        </div>
+      </div>
 
       <div id="chordLoader" class="chord-loader">
-        <p>Chord Library</p>
-        <div id="chordButtons" class="chord-buttons"></div>
+        <p class="chord-loader-title">Chord Explorer</p>
+        <div class="chord-loader-body">
+          <div id="playgroundKeyboard" class="playground-keyboard-shell"></div>
+          <div id="chordButtons" class="chord-buttons"></div>
+        </div>
       </div>
 
       <label for="feeling">Feeling</label>

@@ -136,6 +136,11 @@ function formatChordSuffixLabel(suffix) {
 }
 
 function formatChordLabel(chord) {
+  const parsed = parseChordName(chord);
+  if (parsed) {
+    return `${formatNoteLabel(parsed.root)}${formatChordSuffixLabel(parsed.suffix)}${parsed.bass ? `/${formatNoteLabel(parsed.bass)}` : ""}`;
+  }
+
   const match = /^([A-G](?:#{1,2}|b{1,2})?)(.*)$/.exec(String(chord || "").trim());
   if (!match) {
     return formatChordSuffixLabel(chord);
@@ -150,6 +155,17 @@ function getChordLoaderDisplayParts(chord) {
   const splitIndex = label.indexOf("(");
 
   if (splitIndex === -1 || !label.endsWith(")")) {
+    const slashIndex = label.lastIndexOf("/");
+    if (splitIndex !== -1 && slashIndex > splitIndex) {
+      const detail = label.slice(splitIndex, slashIndex);
+      if (detail.includes(",")) {
+        return {
+          main: `${label.slice(0, splitIndex)}${label.slice(slashIndex)}`,
+          detail
+        };
+      }
+    }
+
     return { main: label, detail: "" };
   }
 
@@ -254,11 +270,14 @@ function getChordTooltipText(chord) {
     return `Play ${formatChordLabel(chord)}`;
   }
 
-  const notes = parsed.intervals
+  const notes = [
+    ...(parsed.bass ? [formatNoteLabel(parsed.bass)] : []),
+    ...parsed.intervals
     .map(interval => {
       const intervalLabel = getIntervalLabel(interval);
       return formatNoteLabel(getTooltipNoteLabel(parsed.root, interval, intervalLabel));
     })
+  ]
     .join(" ");
 
   const intervals = parsed.intervals
@@ -289,6 +308,13 @@ function escapeHtml(value) {
 }
 
 export function getFriendlyChordName(chord) {
+  const parsed = parseChordName(chord);
+  if (parsed) {
+    const friendlyRoot = FRIENDLY_ROOT_MAP[parsed.root] || parsed.root;
+    const friendlyBass = parsed.bass ? (FRIENDLY_ROOT_MAP[parsed.bass] || parsed.bass) : "";
+    return `${friendlyRoot}${parsed.suffix}${friendlyBass ? `/${friendlyBass}` : ""}`;
+  }
+
   const match = /^([A-G](?:#{1,2}|b{1,2})?)(.*)$/.exec(chord);
   if (!match) return chord;
 
@@ -768,7 +794,7 @@ function shouldShowChordGroup(group) {
   return group.filterModes.includes(activeChordLoaderFilter);
 }
 
-export function renderChordLoader(element, rootNote, onPlay, onAdd) {
+export function renderChordLoader(element, rootNote, bassRoot, onPlay, onAdd) {
   element.innerHTML = "";
 
   if (!rootNote) {
@@ -794,7 +820,7 @@ export function renderChordLoader(element, rootNote, onPlay, onAdd) {
       }
 
       activeChordLoaderFilter = filter.value;
-      renderChordLoader(element, rootNote, onPlay, onAdd);
+      renderChordLoader(element, rootNote, bassRoot, onPlay, onAdd);
     });
     filterBar.appendChild(filterButton);
   });
@@ -814,7 +840,8 @@ export function renderChordLoader(element, rootNote, onPlay, onAdd) {
     grid.className = "chord-group-grid";
 
     group.suffixes.forEach(suffix => {
-      const chordName = rootNote + suffix;
+      const slashBass = bassRoot && bassRoot !== rootNote ? `/${bassRoot}` : "";
+      const chordName = `${rootNote}${suffix}${slashBass}`;
       const displayChordName = formatChordLabel(chordName);
       const displayParts = getChordLoaderDisplayParts(chordName);
 

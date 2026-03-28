@@ -69,13 +69,16 @@ export async function playChord(chordName, duration = 1.0) {
   }
 }
 
-export async function playProgression(chords, tempo = 90) {
+export async function playProgression(chords, tempo = 90, onChordStart = null) {
   if (!chords.length) return;
 
   const msPerChord = (60 / tempo) * 2 * 1000;
   let previousVoicing = null;
 
   for (const chord of chords) {
+    if (onChordStart) {
+      await onChordStart(chord, (msPerChord / 1000) * 0.9);
+    }
     const { voicing } = await playSoundChord(chord, (msPerChord / 1000) * 0.9, true, previousVoicing);
     previousVoicing = voicing;
     await new Promise(resolve => setTimeout(resolve, msPerChord));

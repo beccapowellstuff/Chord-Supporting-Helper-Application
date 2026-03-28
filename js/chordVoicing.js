@@ -20,10 +20,13 @@ export function getAscendingRootVoicing(chordName) {
   const parsed = parseChordName(chordName);
   if (!parsed) return [];
 
+  const lowBassMidi = noteToMidi(parsed.bass || parsed.root, 2);
+  const upperBassMidi = noteToMidi(parsed.bass || parsed.root, 3);
   const rootMidi = noteToMidi(parsed.root, 4);
-  if (rootMidi == null) return [];
+  if (lowBassMidi == null || upperBassMidi == null || rootMidi == null) return [];
 
-  return parsed.intervals.map(interval => rootMidi + interval);
+  const upperVoicing = parsed.intervals.map(interval => rootMidi + interval);
+  return [lowBassMidi, upperBassMidi, ...upperVoicing];
 }
 
 export function distance(a, b) {
@@ -40,9 +43,10 @@ export function buildVoicings(chordName) {
   const parsed = parseChordName(chordName);
   if (!parsed) return [];
 
-  const bassRootMidi = noteToMidi(parsed.root, 3);
+  const lowBassMidi = noteToMidi(parsed.bass || parsed.root, 2);
+  const upperBassMidi = noteToMidi(parsed.bass || parsed.root, 3);
   const upperRootMidi = noteToMidi(parsed.root, 4);
-  if (bassRootMidi == null || upperRootMidi == null) return [];
+  if (lowBassMidi == null || upperBassMidi == null || upperRootMidi == null) return [];
 
   const upperStructure = parsed.intervals.map(interval => upperRootMidi + interval);
   const voicings = [];
@@ -52,7 +56,7 @@ export function buildVoicings(chordName) {
       index < inversionIndex ? midi + 12 : midi
     );
 
-    voicings.push([bassRootMidi, ...inversion]);
+    voicings.push([lowBassMidi, upperBassMidi, ...inversion]);
   }
 
   return voicings;

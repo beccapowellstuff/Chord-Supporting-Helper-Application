@@ -183,6 +183,35 @@ body {
   box-shadow: 0 1px 2px rgba(90, 35, 60, 0.05);
 }
 
+.sequence-panel {
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.sequence-panel-title,
+.chord-loader-title {
+  margin: 0;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+  font-weight: bold;
+  background: #f8e6ef;
+  color: var(--text);
+}
+
+.sequence-panel-body,
+.chord-loader-body {
+  padding: 12px;
+}
+
+.sequence-panel-body textarea,
+.sequence-panel-body button {
+  margin-bottom: 0;
+}
+
 label {
   display: block;
   margin-top: 12px;
@@ -593,6 +622,181 @@ p {
   gap: 12px;
 }
 
+.playground-keyboard-shell {
+  margin-bottom: 14px;
+}
+
+.playground-keyboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.playground-keyboard-half {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px 12px;
+}
+
+.playground-keyboard-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.playground-keyboard-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.playground-keyboard-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.playground-keyboard-save,
+.playground-keyboard-clear {
+  width: auto;
+  min-width: 28px;
+  margin: 0;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: white;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.playground-keyboard-save {
+  min-width: 46px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.playground-keyboard-save:hover,
+.playground-keyboard-clear:hover {
+  background: #f8e6ef;
+  color: var(--accent-dark);
+}
+
+.playground-keyboard-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  color: #9f8e97;
+  background: white;
+}
+
+.playground-piano {
+  position: relative;
+}
+
+.playground-piano-whites {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.playground-key {
+  position: relative;
+  border: 1px solid #d6c0cc;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.playground-key-white {
+  min-height: 88px;
+  padding: 0 0 8px;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(to bottom, #fff 0%, #f7edf3 100%);
+  color: #8d6077;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.playground-key-black {
+  position: absolute;
+  top: 0;
+  width: 24px;
+  min-height: 54px;
+  padding: 0 2px 8px;
+  border-radius: 0 0 8px 8px;
+  background: linear-gradient(to bottom, #755367 0%, #4f3848 100%);
+  color: rgba(255, 255, 255, 0.92);
+  border-color: #452f3d;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font-size: 10px;
+  z-index: 2;
+}
+
+.playground-key-white:hover {
+  background: linear-gradient(to bottom, #fff 0%, #f2dce6 100%);
+  color: var(--accent-dark);
+}
+
+.playground-key-black:hover {
+  background: linear-gradient(to bottom, #8f667c 0%, #614554 100%);
+}
+
+.playground-key-selected-bass {
+  background: linear-gradient(to bottom, #e8f4ff 0%, #cfe7ff 100%);
+  color: #24507a;
+  border-color: #7db5ea;
+}
+
+.playground-key-selected-chord {
+  background: linear-gradient(to bottom, var(--accent-soft) 0%, #f3cfde 100%);
+  color: var(--accent-dark);
+  border-color: var(--accent);
+}
+
+.playground-key-black.playground-key-selected-bass {
+  background: linear-gradient(to bottom, #6ca8dc 0%, #4c84b7 100%);
+  color: white;
+  border-color: #3f6d96;
+}
+
+.playground-key-black.playground-key-selected-chord {
+  background: linear-gradient(to bottom, #c86a95 0%, #9f4f73 100%);
+  color: white;
+  border-color: #87415f;
+}
+
+.playground-key-last-played::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: #ffc94d;
+  box-shadow: 0 0 0 1px rgba(90, 35, 60, 0.18);
+}
+
+.playground-key-black.playground-key-last-played::after {
+  top: 6px;
+  background: #ffe082;
+}
+
+.playground-key-flash {
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.92), 0 0 0 2px rgba(255, 214, 102, 0.85);
+}
+
 .style-container {
   min-width: 160px;
   display: flex;
@@ -739,14 +943,8 @@ textarea {
   background: var(--panel-soft);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 10px;
+  overflow: hidden;
   margin-bottom: 12px;
-}
-
-.chord-loader p {
-  margin: 0 0 8px 0;
-  font-size: 13px;
-  font-weight: 500;
 }
 
 .chord-buttons {
