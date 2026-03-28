@@ -1,6 +1,6 @@
 {
   "name": "chord-supporting-helper-application",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A browser-based music idea tool designed to help musicians find the next part of a chord progression without handing the whole creative process over to AI.",
   "main": "index.js",
   "scripts": {
