@@ -414,6 +414,37 @@ h2 {
   padding: 8px 14px 0;
 }
 
+.tool-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 14px 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.tool-status-warning {
+  background: #fff3f0;
+  border: 1px solid rgba(220, 130, 106, 0.35);
+  color: #8b4b3d;
+}
+
+.tool-status-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(220, 130, 106, 0.16);
+  border: 1px solid rgba(220, 130, 106, 0.28);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .suggestion-engine-body {
   display: flex;
   flex-direction: column;
