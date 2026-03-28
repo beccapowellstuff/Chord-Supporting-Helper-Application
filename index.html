@@ -10,37 +10,11 @@
 <body>
   <div class="page">
     <h1>Chord Supporting Helper Application</h1>
-    <p>Select a root for the scale and mode, enter your progression so far, then choose the mood you want the next move to lean towards.</p>
+    <p>Build a progression, explore a key, try any chord, or get ideas for what comes next.</p>
 
-    <div class="panel">
-      <h2>Key Explorer</h2>
-        <table class="select-root-style-table">
-          <thead>
-            <tr>
-              <th class="select-root-style-title">Select Scale Root</th>
-              <th class="select-root-style-title">Select Scale Mode</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="root-cell">
-                <div id="rootContainer" class="circle-container"></div>
-              </td>
-              <td class="style-cell">
-                <div class="style-container">
-                  <select id="styleSelect"></select>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      <div id="keyInfo" class="key-info">No key selected.</div>
-    </div>
-
-    <div class="panel">
-      <h2>Chord Playground</h2>
+    <div class="panel builder-panel">
       <div class="sequence-panel">
-        <div class="sequence-panel-title">Chord Sequence</div>
+        <div class="sequence-panel-title">Progression Builder</div>
         <div class="sequence-panel-body">
           <div id="sequenceKeyboard" class="sequence-keyboard-mount"></div>
           <div class="input-help">Build your chord sequence using the Chord Explorer. Separate chords with commas, pipes, or new lines.</div>
@@ -48,35 +22,87 @@
           <button id="playProgressionBtn" type="button">Play sequence</button>
         </div>
       </div>
-
-      <div id="chordLoader" class="chord-loader">
-        <p class="chord-loader-title">Chord Explorer</p>
-        <div class="chord-loader-body">
-          <div class="chord-root-controls">
-            <div id="bassRootSelector" class="compact-root-mount"></div>
-            <div id="chordRootSelector" class="compact-root-mount"></div>
-          </div>
-          <div id="chordButtons" class="chord-buttons"></div>
-        </div>
-      </div>
-
-      <label for="feeling">Feeling</label>
-      <select id="feeling"></select>
-
-      <div class="suggest-actions">
-        <button id="suggestBtn" type="button">Suggest next chords</button>
-        <label class="suggest-toggle" for="autoSuggestToggle">
-          <input id="autoSuggestToggle" type="checkbox">
-          <span>Auto-refresh suggestions when adding chords</span>
-        </label>
-      </div>
     </div>
 
-    <div class="panel">
-      <h2>Suggest New Ideas</h2>
-      <ul id="results">
-        <li>No suggestions yet.</li>
-      </ul>
+    <div class="tool-shell">
+      <div class="tool-nav" aria-label="Tool navigation">
+        <button type="button" class="tool-nav-btn active" data-tool-panel="keyExplorerPanel" aria-pressed="true">Key Explorer</button>
+        <button type="button" class="tool-nav-btn" data-tool-panel="chordExplorerPanel" aria-pressed="false">Chord Explorer</button>
+        <button type="button" class="tool-nav-btn" data-tool-panel="suggestionEnginePanel" aria-pressed="false">Suggestion Engine</button>
+      </div>
+
+      <div class="tool-stage">
+        <div id="keyExplorerPanel" class="panel tool-panel">
+          <div class="chord-loader key-explorer-module">
+            <p class="chord-loader-title">Key Explorer</p>
+            <p class="tool-panel-description tool-panel-description-inline">Explore chords within a key and mode.</p>
+            <div class="chord-loader-body key-explorer-body">
+            <table class="select-root-style-table">
+              <thead>
+                <tr>
+                  <th class="select-root-style-title">Select Scale Root</th>
+                  <th class="select-root-style-title">Select Scale Mode</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="root-cell">
+                    <div id="rootContainer" class="circle-container"></div>
+                  </td>
+                  <td class="style-cell">
+                    <div class="style-container">
+                      <select id="styleSelect"></select>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div id="keyInfo" class="key-info">No key selected.</div>
+            </div>
+          </div>
+        </div>
+
+        <div id="chordExplorerPanel" class="panel tool-panel" hidden>
+          <div class="chord-loader">
+            <p class="chord-loader-title">Chord Explorer</p>
+            <p class="tool-panel-description tool-panel-description-inline">Build and preview any chord.</p>
+            <div class="chord-loader-body">
+              <div class="chord-root-controls">
+                <div id="bassRootSelector" class="compact-root-mount"></div>
+                <div id="chordRootSelector" class="compact-root-mount"></div>
+              </div>
+              <div id="chordButtons" class="chord-buttons"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="suggestionEnginePanel" class="panel tool-panel" hidden>
+          <div class="chord-loader suggestion-engine-module">
+            <p class="chord-loader-title">Suggestion Engine</p>
+            <p class="tool-panel-description tool-panel-description-inline">Get ideas based on your progression.</p>
+            <div class="chord-loader-body suggestion-engine-body">
+              <div class="suggestion-engine-controls">
+                <div class="suggestion-engine-feeling">
+                  <label for="feeling">Feeling</label>
+                  <select id="feeling"></select>
+                </div>
+
+                <div class="suggest-actions">
+                  <button id="suggestBtn" type="button">Suggest next chords</button>
+                  <label class="suggest-toggle" for="autoSuggestToggle">
+                    <input id="autoSuggestToggle" type="checkbox">
+                    <span>Auto-refresh suggestions when adding chords</span>
+                  </label>
+                </div>
+              </div>
+
+              <ul id="results">
+                <li>No suggestions yet.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   
     <p style="text-align:center; font-size: 12px; margin-top: 20px;">
