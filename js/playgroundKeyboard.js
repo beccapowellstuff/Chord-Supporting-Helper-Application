@@ -1,56 +1,64 @@
-import { NOTE_TO_PC } from "./chordNotes.js";
+import { DISPLAY_CHROMATIC, NOTE_TO_PC, noteToMidi, pitchClassToDisplayNote } from "./chordNotes.js";
 
-const WHITE_NOTES = ["C", "D", "E", "F", "G", "A", "B"];
-const BLACK_NOTES = [
-  { note: "C#", label: "C#", afterIndex: 0 },
-  { note: "Eb", label: "Eb", afterIndex: 1 },
-  { note: "F#", label: "F#", afterIndex: 3 },
-  { note: "G#", label: "G#", afterIndex: 4 },
-  { note: "Bb", label: "Bb", afterIndex: 5 }
-];
+const KEYBOARD_OCTAVES = [3, 4, 5, 6];
+const WHITE_PITCH_CLASSES = new Set([0, 2, 4, 5, 7, 9, 11]);
+const BLACK_KEY_AFTER_WHITE_INDEXES = [0, 1, 3, 4, 5];
 
-function formatNoteLabel(note) {
-  return String(note || "")
+function formatAccidentalDisplay(value) {
+  return String(value || "")
     .replace(/b/g, "\u266d")
     .replace(/#/g, "\u266f");
 }
 
-function noteMatches(target, note) {
-  return NOTE_TO_PC[target] != null && NOTE_TO_PC[target] === NOTE_TO_PC[note];
+function buildKeyboardLayout() {
+  const whiteKeys = [];
+  const blackKeys = [];
+  let whiteIndexOffset = 0;
+
+  KEYBOARD_OCTAVES.forEach((octave, octaveIndex) => {
+    for (let pitchClass = 0; pitchClass < 12; pitchClass += 1) {
+      const noteLabel = pitchClassToDisplayNote(pitchClass);
+      const midi = noteToMidi(noteLabel, octave);
+      if (midi == null) continue;
+
+      const key = {
+        midi,
+        noteLabel,
+        octave,
+        pitchClass
+      };
+
+      if (WHITE_PITCH_CLASSES.has(pitchClass)) {
+        whiteKeys.push(key);
+      } else {
+        const localBlackIndex = BLACK_KEY_AFTER_WHITE_INDEXES[
+          [1, 3, 6, 8, 10].indexOf(pitchClass)
+        ];
+        blackKeys.push({
+          ...key,
+          afterWhiteIndex: whiteIndexOffset + localBlackIndex
+        });
+      }
+    }
+
+    whiteIndexOffset += 7;
+  });
+
+  return { whiteKeys, blackKeys, whiteCount: KEYBOARD_OCTAVES.length * 7 };
 }
 
-function setMarkerClasses(button, note, lastPlayedPitchClasses, currentPlayedPitchClasses) {
-  const pitchClass = NOTE_TO_PC[note];
-  if (lastPlayedPitchClasses.has(pitchClass)) {
-    button.classList.add("playground-key-last-played");
-  }
-  if (currentPlayedPitchClasses.has(pitchClass)) {
-    button.classList.add("playground-key-flash");
-  }
-}
+const KEYBOARD_LAYOUT = buildKeyboardLayout();
 
-function buildKeyButton(
-  note,
-  role,
-  selectedNote,
-  lastPlayedPitchClasses,
-  currentPlayedPitchClasses,
-  onSelect,
-  className
-) {
+function buildCompactRootButton(note, title, selectedNote, onSelect) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = className;
-  button.textContent = formatNoteLabel(note);
-  button.dataset.note = note;
-  button.dataset.role = role;
-  button.title = `${role === "bass" ? "Bass" : "Chord"} root ${formatNoteLabel(note)}`;
+  button.className = "compact-root-btn";
+  button.textContent = formatAccidentalDisplay(note);
+  button.title = `${title} ${formatAccidentalDisplay(note)}`;
 
-  if (noteMatches(selectedNote, note)) {
-    button.classList.add(role === "bass" ? "playground-key-selected-bass" : "playground-key-selected-chord");
+  if (NOTE_TO_PC[note] === NOTE_TO_PC[selectedNote]) {
+    button.classList.add("active");
   }
-
-  setMarkerClasses(button, note, lastPlayedPitchClasses, currentPlayedPitchClasses);
 
   button.addEventListener("click", () => {
     if (onSelect) onSelect(note);
@@ -59,119 +67,80 @@ function buildKeyButton(
   return button;
 }
 
-function buildKeyboardHalf(
-  title,
-  role,
-  selectedNote,
-  lastPlayedPitchClasses,
-  currentPlayedPitchClasses,
-  onSelect,
-  onClearLastPlayed,
-  onSaveLastPlayed,
-  canSaveLastPlayed
-) {
-  const section = document.createElement("section");
-  section.className = "playground-keyboard-half";
-
-  const heading = document.createElement("div");
-  heading.className = "playground-keyboard-heading";
-
-  const headingLabel = document.createElement("div");
-  headingLabel.className = "playground-keyboard-label";
-  headingLabel.textContent = title;
-  heading.appendChild(headingLabel);
-
-  const actionGroup = document.createElement("div");
-  actionGroup.className = "playground-keyboard-actions";
-
-  const saveButton = document.createElement("button");
-  saveButton.type = "button";
-  saveButton.className = "playground-keyboard-save";
-  saveButton.textContent = "Save";
-  saveButton.title = canSaveLastPlayed ? "Save last played chord to sequence" : "Play a chord to save it to the sequence";
-  saveButton.setAttribute("aria-label", "Save last played to sequence");
-  saveButton.disabled = !canSaveLastPlayed;
-  saveButton.addEventListener("click", () => {
-    if (onSaveLastPlayed && canSaveLastPlayed) onSaveLastPlayed();
-  });
-  actionGroup.appendChild(saveButton);
-
-  const clearButton = document.createElement("button");
-  clearButton.type = "button";
-  clearButton.className = "playground-keyboard-clear";
-  clearButton.textContent = "🗑";
-  clearButton.title = "Clear last played";
-  clearButton.setAttribute("aria-label", "Clear last played");
-  clearButton.addEventListener("click", () => {
-    if (onClearLastPlayed) onClearLastPlayed();
-  });
-  actionGroup.appendChild(clearButton);
-
-  heading.appendChild(actionGroup);
-
-  section.appendChild(heading);
-
-  const keyboard = document.createElement("div");
-  keyboard.className = "playground-piano";
-
-  const whites = document.createElement("div");
-  whites.className = "playground-piano-whites";
-
-  WHITE_NOTES.forEach(note => {
-    whites.appendChild(
-      buildKeyButton(
-        note,
-        role,
-        selectedNote,
-        lastPlayedPitchClasses,
-        currentPlayedPitchClasses,
-        onSelect,
-        "playground-key playground-key-white"
-      )
-    );
-  });
-
-  const blacks = document.createElement("div");
-  blacks.className = "playground-piano-blacks";
-
-  BLACK_NOTES.forEach(({ note, label, afterIndex }) => {
-    const blackKey = buildKeyButton(
-      note,
-      role,
-      selectedNote,
-      lastPlayedPitchClasses,
-      currentPlayedPitchClasses,
-      onSelect,
-      "playground-key playground-key-black"
-    );
-    blackKey.textContent = formatNoteLabel(label);
-    blackKey.style.left = `calc(${((afterIndex + 1) * 100) / 7}% - 12px)`;
-    blacks.appendChild(blackKey);
-  });
-
-  keyboard.appendChild(whites);
-  keyboard.appendChild(blacks);
-  section.appendChild(keyboard);
-
-  return section;
-}
-
-export function renderPlaygroundKeyboard(
+export function renderCompactRootSelector(
   container,
   {
-    selectedBassRoot,
-    selectedChordRoot,
-    currentPlayedBassRoot,
-    currentPlayedChordPitchClasses = [],
-    lastPlayedBassRoot,
-    lastPlayedChordPitchClasses = [],
-    canSaveLastPlayed = false
+    title,
+    selectedNote,
+    onSelect
+  }
+) {
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const shell = document.createElement("div");
+  shell.className = "compact-root-selector";
+
+  const label = document.createElement("div");
+  label.className = "compact-root-title";
+  label.textContent = title;
+  shell.appendChild(label);
+
+  const row = document.createElement("div");
+  row.className = "compact-root-row";
+
+  DISPLAY_CHROMATIC.forEach(note => {
+    row.appendChild(buildCompactRootButton(note, `Set ${title} to`, selectedNote, onSelect));
+  });
+
+  shell.appendChild(row);
+  container.appendChild(shell);
+}
+
+function buildSequenceKey(midi, noteLabel, className, activeMidiNotes, flashMidiNotes, onKeyToggle) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = className;
+  button.dataset.midi = String(midi);
+  button.dataset.note = noteLabel;
+  button.title = formatAccidentalDisplay(noteLabel);
+
+  const label = document.createElement("span");
+  label.className = "sequence-key-label";
+  label.textContent = formatAccidentalDisplay(noteLabel);
+  button.appendChild(label);
+
+  if (activeMidiNotes.has(midi)) {
+    button.classList.add("sequence-key-active");
+  }
+
+  if (flashMidiNotes.has(midi)) {
+    button.classList.add("sequence-key-flash");
+  }
+
+  button.addEventListener("click", () => {
+    if (onKeyToggle) onKeyToggle(midi);
+  });
+
+  return button;
+}
+
+export function renderSequenceKeyboard(
+  container,
+  {
+    activeMidiNotes = [],
+    flashMidiNotes = [],
+    chordLabel = "No notes selected",
+    canSave = false,
+    canPlay = false
   },
   {
-    onClearLastPlayed,
-    onSaveLastPlayed,
-    onBassSelect,
-    onChordSelect
+    onKeyToggle,
+    onPlay,
+    onSave,
+    onClear,
+    onIdentify
   } = {}
 ) {
   if (!container) return;
@@ -179,45 +148,157 @@ export function renderPlaygroundKeyboard(
   container.innerHTML = "";
 
   const shell = document.createElement("div");
-  shell.className = "playground-keyboard";
+  shell.className = "sequence-keyboard-shell";
 
-  const lastPlayedBass = new Set();
-  if (lastPlayedBassRoot && NOTE_TO_PC[lastPlayedBassRoot] != null) {
-    lastPlayedBass.add(NOTE_TO_PC[lastPlayedBassRoot]);
-  }
+  const header = document.createElement("div");
+  header.className = "sequence-keyboard-header";
 
-  const currentPlayedBass = new Set();
-  if (currentPlayedBassRoot && NOTE_TO_PC[currentPlayedBassRoot] != null) {
-    currentPlayedBass.add(NOTE_TO_PC[currentPlayedBassRoot]);
-  }
+  const titleBlock = document.createElement("div");
+  titleBlock.className = "sequence-keyboard-title-block";
 
-  shell.appendChild(
-    buildKeyboardHalf(
-      "Bass Root",
-      "bass",
-      selectedBassRoot,
-      lastPlayedBass,
-      currentPlayedBass,
-      onBassSelect,
-      onClearLastPlayed,
-      onSaveLastPlayed,
-      canSaveLastPlayed
-    )
-  );
+  const label = document.createElement("div");
+  label.className = "sequence-keyboard-label";
+  label.textContent = "Keyboard";
+  titleBlock.appendChild(label);
 
-  shell.appendChild(
-    buildKeyboardHalf(
-      "Chord Root",
-      "chord",
-      selectedChordRoot,
-      new Set(lastPlayedChordPitchClasses),
-      new Set(currentPlayedChordPitchClasses),
-      onChordSelect,
-      onClearLastPlayed,
-      onSaveLastPlayed,
-      canSaveLastPlayed
-    )
-  );
+  const chordName = document.createElement("div");
+  chordName.className = "sequence-keyboard-chord-name";
+  chordName.textContent = chordLabel;
+  titleBlock.appendChild(chordName);
+
+  header.appendChild(titleBlock);
+
+  const actions = document.createElement("div");
+  actions.className = "sequence-keyboard-actions";
+
+  const playButton = document.createElement("button");
+  playButton.type = "button";
+  playButton.className = "sequence-keyboard-action";
+  playButton.textContent = "Play";
+  playButton.disabled = !canPlay;
+  playButton.title = canPlay ? "Play the selected notes" : "Select notes to play them";
+  playButton.addEventListener("click", () => {
+    if (canPlay && onPlay) onPlay();
+  });
+  actions.appendChild(playButton);
+
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.className = "sequence-keyboard-action";
+  saveButton.textContent = "Save";
+  saveButton.disabled = !canSave;
+  saveButton.title = canSave ? "Save identified chord to sequence" : "Select a recognised chord to save it";
+  saveButton.addEventListener("click", () => {
+    if (canSave && onSave) onSave();
+  });
+  actions.appendChild(saveButton);
+
+  const clearButton = document.createElement("button");
+  clearButton.type = "button";
+  clearButton.className = "sequence-keyboard-action";
+  clearButton.textContent = "Clear";
+  clearButton.title = "Clear selected notes";
+  clearButton.addEventListener("click", () => {
+    if (onClear) onClear();
+  });
+  actions.appendChild(clearButton);
+
+  const identifyButton = document.createElement("button");
+  identifyButton.type = "button";
+  identifyButton.className = "sequence-keyboard-action";
+  identifyButton.textContent = "Identify";
+  identifyButton.title = "Identify the selected notes";
+  identifyButton.addEventListener("click", () => {
+    if (onIdentify) onIdentify();
+  });
+  actions.appendChild(identifyButton);
+
+  header.appendChild(actions);
+  shell.appendChild(header);
+
+  const piano = document.createElement("div");
+  piano.className = "sequence-piano";
+
+  const pianoStage = document.createElement("div");
+  pianoStage.className = "sequence-piano-stage";
+
+  const activeSet = new Set(activeMidiNotes);
+  const flashSet = new Set(flashMidiNotes);
+
+  const whites = document.createElement("div");
+  whites.className = "sequence-piano-whites";
+  KEYBOARD_LAYOUT.whiteKeys.forEach(key => {
+    whites.appendChild(
+      buildSequenceKey(
+        key.midi,
+        key.noteLabel,
+        "sequence-key sequence-key-white",
+        activeSet,
+        flashSet,
+        onKeyToggle
+      )
+    );
+  });
+
+  const blacks = document.createElement("div");
+  blacks.className = "sequence-piano-blacks";
+  KEYBOARD_LAYOUT.blackKeys.forEach(key => {
+    const button = buildSequenceKey(
+      key.midi,
+      key.noteLabel,
+      "sequence-key sequence-key-black",
+      activeSet,
+      flashSet,
+      onKeyToggle
+    );
+    button.style.left = `${((key.afterWhiteIndex + 1) * 100) / KEYBOARD_LAYOUT.whiteCount}%`;
+    blacks.appendChild(button);
+  });
+
+  pianoStage.appendChild(whites);
+  pianoStage.appendChild(blacks);
+  piano.appendChild(pianoStage);
+  shell.appendChild(piano);
 
   container.appendChild(shell);
+
+  const targetMidiNotes = normalizeTargetMidiNotes(
+    flashMidiNotes.length ? flashMidiNotes : activeMidiNotes
+  );
+  if (targetMidiNotes.length) {
+    requestAnimationFrame(() => {
+      scrollKeyboardToMidiRange(piano, targetMidiNotes);
+    });
+  }
+}
+
+function normalizeTargetMidiNotes(midiNotes) {
+  return [...new Set((Array.isArray(midiNotes) ? midiNotes : []).filter(Number.isFinite))].sort((a, b) => a - b);
+}
+
+function scrollKeyboardToMidiRange(piano, midiNotes) {
+  if (!piano || !midiNotes.length) return;
+
+  const targetButtons = midiNotes
+    .map(midi => piano.querySelector(`[data-midi="${midi}"]`))
+    .filter(Boolean);
+
+  if (!targetButtons.length) return;
+
+  const firstButton = targetButtons[0];
+  const lastButton = targetButtons[targetButtons.length - 1];
+  const leftEdge = firstButton.offsetLeft;
+  const rightEdge = lastButton.offsetLeft + lastButton.offsetWidth;
+  const visibleLeft = piano.scrollLeft;
+  const visibleRight = visibleLeft + piano.clientWidth;
+  const padding = 32;
+
+  if (leftEdge - padding < visibleLeft) {
+    piano.scrollLeft = Math.max(0, leftEdge - padding);
+    return;
+  }
+
+  if (rightEdge + padding > visibleRight) {
+    piano.scrollLeft = Math.max(0, rightEdge - piano.clientWidth + padding);
+  }
 }

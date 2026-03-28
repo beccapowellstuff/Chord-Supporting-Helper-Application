@@ -52,6 +52,7 @@ export const NOTE_TO_PC = {
 };
 
 export const CHROMATIC = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+export const DISPLAY_CHROMATIC = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"];
 
 const ENHARMONIC_TO_SHARP = {
   "B#": "C",
@@ -87,6 +88,7 @@ const CHORD_DEFINITIONS = [
   { suffix: "Maj9", aliases: ["Maj9", "maj9"], intervals: [0, 4, 7, 11, 14] },
   { suffix: "Maj7", aliases: ["Maj7", "maj7"], intervals: [0, 4, 7, 11] },
   { suffix: "mMaj7b13", aliases: ["mMaj7b13", "mmaj7b13"], intervals: [0, 3, 7, 11, 14, 17, 20] },
+  { suffix: "mMaj7add13", aliases: ["mMaj7add13", "mmaj7add13"], intervals: [0, 3, 7, 11, 21] },
   { suffix: "mMaj7", aliases: ["mMaj7", "mmaj7"], intervals: [0, 3, 7, 11] },
   { suffix: "m7b9b13", aliases: ["m7b9b13"], intervals: [0, 3, 7, 10, 13, 17, 20] },
   { suffix: "m7b5", aliases: ["m7b5"], intervals: [0, 3, 6, 10] },
@@ -97,6 +99,9 @@ const CHORD_DEFINITIONS = [
   { suffix: "m13", aliases: ["m13"], intervals: [0, 3, 7, 10, 14, 17, 21] },
   { suffix: "m11", aliases: ["m11"], intervals: [0, 3, 7, 10, 14, 17] },
   { suffix: "m9", aliases: ["m9"], intervals: [0, 3, 7, 10, 14] },
+  { suffix: "madd13", aliases: ["madd13", "m(add13)"], intervals: [0, 3, 7, 21] },
+  { suffix: "madd11", aliases: ["madd11", "m(add11)"], intervals: [0, 3, 7, 17] },
+  { suffix: "madd9", aliases: ["madd9", "m(add9)"], intervals: [0, 3, 7, 14] },
   { suffix: "m7", aliases: ["m7"], intervals: [0, 3, 7, 10] },
   { suffix: "9sus4b13", aliases: ["9sus4b13", "11b13"], intervals: [0, 5, 7, 10, 14, 20] },
   { suffix: "9sus4", aliases: ["9sus4", "11"], intervals: [0, 5, 7, 10, 14] },
@@ -119,6 +124,24 @@ const CHORD_DEFINITIONS = [
   { suffix: "", aliases: [""], intervals: [0, 4, 7] }
 ];
 
+function sortUniqueNumbers(values) {
+  return [...new Set(values.filter(value => Number.isFinite(value)))].sort((a, b) => a - b);
+}
+
+function setsMatch(a, b) {
+  if (a.size !== b.size) return false;
+  for (const value of a) {
+    if (!b.has(value)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function getDefinitionPitchClasses(rootPc, definition) {
+  return new Set(definition.intervals.map(interval => (rootPc + interval + 120) % 12));
+}
+
 export function normaliseRoot(root) {
   return ENHARMONIC_TO_SHARP[root] || root;
 }
@@ -134,6 +157,11 @@ export function noteToMidi(noteName, octave) {
   const pitchClass = NOTE_TO_PC[noteName];
   if (pitchClass == null) return null;
   return (octave + 1) * 12 + pitchClass;
+}
+
+export function pitchClassToDisplayNote(pitchClass) {
+  if (!Number.isFinite(pitchClass)) return null;
+  return DISPLAY_CHROMATIC[((pitchClass % 12) + 12) % 12] || null;
 }
 
 export function midiToFrequency(midi) {
@@ -201,4 +229,95 @@ export function getChordNotes(chordName) {
   }
 
   return chordNotes;
+}
+
+export function identifyChordFromMidiNotes(midiNotes, options = {}) {
+  const orderedMidiNotes = sortUniqueNumbers(Array.isArray(midiNotes) ? midiNotes : []);
+  if (!orderedMidiNotes.length) {
+    return null;
+  }
+
+  const preferredRootPitchClass = Number.isFinite(options.preferredRootPitchClass)
+    ? ((options.preferredRootPitchClass % 12) + 12) % 12
+    : null;
+  const bassPitchClass = ((orderedMidiNotes[0] % 12) + 12) % 12;
+  const playedPitchClasses = new Set(
+    orderedMidiNotes.map(midi => ((midi % 12) + 12) % 12)
+  );
+  let bestMatch = null;
+
+  for (let rootPitchClass = 0; rootPitchClass < 12; rootPitchClass += 1) {
+    const root = pitchClassToDisplayNote(rootPitchClass);
+    if (!root) continue;
+
+    for (const definition of CHORD_DEFINITIONS) {
+      const chordPitchClasses = getDefinitionPitchClasses(rootPitchClass, definition);
+      const slashPitchClasses = new Set(chordPitchClasses);
+      slashPitchClasses.add(bassPitchClass);
+
+      const directMatch = setsMatch(playedPitchClasses, chordPitchClasses);
+      const slashMatch =
+        bassPitchClass !== rootPitchClass &&
+        setsMatch(playedPitchClasses, slashPitchClasses);
+
+      if (!directMatch && !slashMatch) {
+        continue;
+      }
+
+      const bass =
+        bassPitchClass !== rootPitchClass
+          ? pitchClassToDisplayNote(bassPitchClass)
+          : null;
+      const match = {
+        root,
+        bass,
+        suffix: definition.suffix,
+        canonicalName: `${root}${definition.suffix}${bass ? `/${bass}` : ""}`,
+        playedMidiNotes: orderedMidiNotes,
+        playedPitchClasses: [...playedPitchClasses],
+        matchesPreferredRoot: preferredRootPitchClass != null && rootPitchClass === preferredRootPitchClass,
+        rootMatchesBass: rootPitchClass === bassPitchClass,
+        matchKind: directMatch ? "direct" : "slash",
+        matchSize: chordPitchClasses.size
+      };
+
+      if (!bestMatch) {
+        bestMatch = match;
+        continue;
+      }
+
+      const bestKindScore = bestMatch.matchKind === "direct" ? 2 : 1;
+      const matchKindScore = match.matchKind === "direct" ? 2 : 1;
+      const bestPreferredScore = bestMatch.matchesPreferredRoot ? 1 : 0;
+      const matchPreferredScore = match.matchesPreferredRoot ? 1 : 0;
+      const bestRootScore = bestMatch.rootMatchesBass ? 1 : 0;
+      const matchRootScore = match.rootMatchesBass ? 1 : 0;
+
+      if (
+        matchPreferredScore > bestPreferredScore ||
+        (
+          matchPreferredScore === bestPreferredScore &&
+          (
+            matchRootScore > bestRootScore ||
+            (
+              matchRootScore === bestRootScore &&
+              (
+                matchKindScore > bestKindScore ||
+                (matchKindScore === bestKindScore && match.matchSize > bestMatch.matchSize)
+              )
+            )
+          )
+        )
+      ) {
+        bestMatch = match;
+      }
+    }
+  }
+
+  if (!bestMatch) {
+    return null;
+  }
+
+  const { matchesPreferredRoot, rootMatchesBass, matchKind, matchSize, ...result } = bestMatch;
+  return result;
 }
