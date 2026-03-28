@@ -7,6 +7,8 @@
     "preview:chrome": "node open-browser.js chromium",
     "preview:firefox": "node open-browser.js firefox",
     "preview:safari": "node open-browser.js webkit",
+    "release:minor": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/release-merge-cleanup.ps1",
+    "release:minor:delete": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/release-merge-cleanup.ps1 -DeleteRepoAfterSuccess",
     "test:syntax": "node tests/syntax-check.cjs",
     "test:e2e": "playwright test",
     "test": "npm run test:syntax && npm run test:e2e",
