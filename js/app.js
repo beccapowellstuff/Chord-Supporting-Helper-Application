@@ -71,6 +71,8 @@ const bassRootSelector = document.getElementById("bassRootSelector");
 const chordRootSelector = document.getElementById("chordRootSelector");
 const sequenceKeyboard = document.getElementById("sequenceKeyboard");
 const appVersion = document.getElementById("appVersion");
+const toolNavButtons = document.querySelectorAll(".tool-nav-btn");
+const toolPanels = document.querySelectorAll(".tool-panel");
 
 let appData = null;
 let selectedKey = "C Ionian";
@@ -84,11 +86,84 @@ let lockedSequenceChordName = "";
 let sequenceKeyboardFlashTimeout = null;
 const SEQUENCE_KEYBOARD_MIN_MIDI = 48; // C3
 const SEQUENCE_KEYBOARD_MAX_MIDI = 95; // B6
+const TOOL_PANEL_TRANSITION_MS = 180;
+let activeToolPanelId = "keyExplorerPanel";
+let toolPanelTransitionTimeout = null;
 
 function formatAccidentalDisplay(value) {
   return String(value || "")
     .replace(/b/g, "\u266d")
     .replace(/#/g, "\u266f");
+}
+
+function updateActiveToolButtons(panelId) {
+  toolNavButtons.forEach(button => {
+    const isActive = button.getAttribute("data-tool-panel") === panelId;
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function setActiveToolPanel(panelId, options = {}) {
+  const { immediate = false } = options;
+  const nextPanel = document.getElementById(panelId);
+
+  if (!nextPanel || (!immediate && panelId === activeToolPanelId)) {
+    return;
+  }
+
+  const currentPanel = document.getElementById(activeToolPanelId);
+  activeToolPanelId = panelId;
+  updateActiveToolButtons(panelId);
+
+  if (toolPanelTransitionTimeout) {
+    clearTimeout(toolPanelTransitionTimeout);
+    toolPanelTransitionTimeout = null;
+  }
+
+  toolPanels.forEach(panel => {
+    if (panel !== currentPanel && panel !== nextPanel) {
+      panel.hidden = true;
+      panel.classList.remove("tool-panel-active", "tool-panel-exiting");
+    }
+  });
+
+  if (immediate || !currentPanel || currentPanel === nextPanel) {
+    toolPanels.forEach(panel => {
+      const isActive = panel === nextPanel;
+      panel.hidden = !isActive;
+      panel.classList.toggle("tool-panel-active", isActive);
+      panel.classList.remove("tool-panel-exiting");
+    });
+    return;
+  }
+
+  nextPanel.hidden = false;
+  nextPanel.classList.remove("tool-panel-exiting");
+
+  requestAnimationFrame(() => {
+    nextPanel.classList.add("tool-panel-active");
+    currentPanel.classList.remove("tool-panel-active");
+    currentPanel.classList.add("tool-panel-exiting");
+  });
+
+  toolPanelTransitionTimeout = setTimeout(() => {
+    currentPanel.hidden = true;
+    currentPanel.classList.remove("tool-panel-exiting");
+    toolPanelTransitionTimeout = null;
+  }, TOOL_PANEL_TRANSITION_MS);
+}
+
+function initToolNavigation() {
+  toolNavButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      const panelId = button.getAttribute("data-tool-panel");
+      if (!panelId) return;
+      setActiveToolPanel(panelId);
+    });
+  });
+
+  setActiveToolPanel("keyExplorerPanel", { immediate: true });
 }
 
 function detectSeparator(text) {
@@ -648,6 +723,7 @@ async function handlePlayProgression() {
 async function init() {
   try {
     console.log("🚀 App initializing...");
+    initToolNavigation();
     await loadVersionLabel();
     appData = await loadAllData();
     console.log("✓ Data loaded");

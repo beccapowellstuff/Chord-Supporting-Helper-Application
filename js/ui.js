@@ -693,16 +693,20 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
       </div>
       <div class="key-mode-details">
         <div class="key-mode-detail">
-          <span class="key-label">Group:</span> ${escapeHtml(keyData.categoryLabel || keyData.category)}
+          <span class="key-mode-detail-label">Group</span>
+          <span class="key-mode-detail-value">${escapeHtml(keyData.categoryLabel || keyData.category)}</span>
         </div>
         <div class="key-mode-detail">
-          <span class="key-label">Character:</span> ${escapeHtml(keyData.character)}
+          <span class="key-mode-detail-label">Character</span>
+          <span class="key-mode-detail-value">${escapeHtml(keyData.character)}</span>
         </div>
         <div class="key-mode-detail">
-          <span class="key-label">Parent family:</span> ${escapeHtml(keyData.parentFamilyLabel || keyData.parentFamily)}
+          <span class="key-mode-detail-label">Parent family</span>
+          <span class="key-mode-detail-value">${escapeHtml(keyData.parentFamilyLabel || keyData.parentFamily)}</span>
         </div>
         <div class="key-mode-detail">
-          <span class="key-label">Derived from:</span> ${escapeHtml(keyData.derivedFrom || keyData.parentScaleExample)}
+          <span class="key-mode-detail-label">Derived from</span>
+          <span class="key-mode-detail-value">${escapeHtml(keyData.derivedFrom || keyData.parentScaleExample)}</span>
         </div>
       </div>
     </div>
