@@ -335,6 +335,18 @@ body {
   margin-bottom: 0;
 }
 
+.sequence-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.sequence-panel-actions button {
+  flex: 1 1 180px;
+  width: auto;
+}
+
 label {
   display: block;
   margin-top: 12px;
@@ -2256,5 +2268,9 @@ textarea {
 
   textarea {
     min-height: 96px;
+  }
+
+  .sequence-panel-actions button {
+    flex-basis: 100%;
   }
 }

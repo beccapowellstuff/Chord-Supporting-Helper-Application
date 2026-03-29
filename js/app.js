@@ -63,6 +63,9 @@ const feelingSelect = document.getElementById("feeling");
 const suggestBtn = document.getElementById("suggestBtn");
 const autoSuggestToggle = document.getElementById("autoSuggestToggle");
 const playProgressionBtn = document.getElementById("playProgressionBtn");
+const saveProgressionBtn = document.getElementById("saveProgressionBtn");
+const loadProgressionBtn = document.getElementById("loadProgressionBtn");
+const loadProgressionInput = document.getElementById("loadProgressionInput");
 const results = document.getElementById("results");
 const rootContainer = document.getElementById("rootContainer");
 const keyInfo = document.getElementById("keyInfo");
@@ -94,6 +97,8 @@ const SEQUENCE_KEYBOARD_MAX_MIDI = 95; // B6
 const TOOL_PANEL_TRANSITION_MS = 180;
 let activeToolPanelId = "keyExplorerPanel";
 let toolPanelTransitionTimeout = null;
+const PROGRESSION_FILE_TYPE = "chordcanvas-progression";
+const PROGRESSION_FILE_VERSION = 1;
 
 function updateKeyChordSet() {
   if (!appData || !appState.selectedKey) {
@@ -244,6 +249,138 @@ function extractChordList(parsedProgression) {
       return null;
     })
     .filter(Boolean);
+}
+
+function getProgressionChordList() {
+  const keyData = appData?.musicData?.[appState.selectedKey];
+  if (!keyData) return [];
+
+  const { parsed } = parseProgression(progressionInput.value, keyData);
+  return extractChordList(parsed);
+}
+
+function buildProgressionSavePayload() {
+  const chords = getProgressionChordList();
+  if (!chords.length) {
+    return null;
+  }
+
+  const [root = "C", ...modeParts] = String(appState.selectedKey || "").split(" ");
+  const mode = modeParts.join(" ") || "Ionian";
+
+  return {
+    type: PROGRESSION_FILE_TYPE,
+    version: PROGRESSION_FILE_VERSION,
+    savedAt: new Date().toISOString(),
+    key: {
+      name: appState.selectedKey,
+      root,
+      mode
+    },
+    bars: chords.map((chord, index) => ({
+      bar: index + 1,
+      chord
+    }))
+  };
+}
+
+function buildProgressionFilename() {
+  const keySlug = String(appState.selectedKey || "progression")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^A-Za-z0-9#-]/g, "")
+    .toLowerCase();
+
+  return `${keySlug || "progression"}-progression.json`;
+}
+
+function downloadProgressionFile(payload) {
+  const fileContents = JSON.stringify(payload, null, 2);
+  const blob = new Blob([fileContents], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = buildProgressionFilename();
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 0);
+}
+
+function notifyProgressionSaveNeedsChords() {
+  window.alert("Add at least one chord before saving the progression.");
+}
+
+function handleSaveProgression() {
+  const payload = buildProgressionSavePayload();
+  if (!payload) {
+    notifyProgressionSaveNeedsChords();
+    return;
+  }
+
+  downloadProgressionFile(payload);
+}
+
+function getChordsFromLoadedProgression(data) {
+  if (!data || typeof data !== "object") {
+    return [];
+  }
+
+  if (Array.isArray(data.bars)) {
+    return data.bars
+      .map(entry => (typeof entry?.chord === "string" ? entry.chord.trim() : ""))
+      .filter(Boolean);
+  }
+
+  if (Array.isArray(data.chords)) {
+    return data.chords
+      .map(chord => String(chord || "").trim())
+      .filter(Boolean);
+  }
+
+  if (typeof data.progression === "string") {
+    const keyData = appData?.musicData?.[appState.selectedKey];
+    if (!keyData) return [];
+
+    const { parsed } = parseProgression(data.progression, keyData);
+    return extractChordList(parsed);
+  }
+
+  return [];
+}
+
+async function handleLoadProgression(event) {
+  const input = event?.target;
+  const file = input?.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  try {
+    const raw = await file.text();
+    const data = JSON.parse(raw);
+    const chords = getChordsFromLoadedProgression(data);
+
+    if (!chords.length) {
+      throw new Error("No chords found");
+    }
+
+    progressionInput.value = chords.join(" | ");
+
+    if (activeToolPanelId === "suggestionEnginePanel" && appData) {
+      runSuggestions();
+    }
+  } catch (error) {
+    console.error("Could not load progression file:", error);
+    window.alert("Could not load that progression file.");
+  } finally {
+    input.value = "";
+  }
 }
 
 function normalizeMidiList(midiNotes) {
@@ -461,10 +598,6 @@ function refreshSequenceKeyboard() {
           clearTimeout(sequenceKeyboardFlashTimeout);
           sequenceKeyboardFlashTimeout = null;
         }
-        refreshSequenceKeyboard();
-      },
-      onIdentify: () => {
-        identifySequenceKeyboardChord();
         refreshSequenceKeyboard();
       },
       onSave: () => {
@@ -822,6 +955,8 @@ async function init() {
 
     if (suggestBtn) suggestBtn.dataset.tooltip = "Refresh the current suggestions";
     if (playProgressionBtn) playProgressionBtn.dataset.tooltip = "Play all chords in the progression";
+    if (saveProgressionBtn) saveProgressionBtn.dataset.tooltip = "Save the progression as one chord per bar";
+    if (loadProgressionBtn) loadProgressionBtn.dataset.tooltip = "Load a saved progression file";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
     if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
 
@@ -835,6 +970,18 @@ async function init() {
 
     if (playProgressionBtn) {
       playProgressionBtn.addEventListener("click", handlePlayProgression);
+    }
+
+    if (saveProgressionBtn) {
+      saveProgressionBtn.addEventListener("click", handleSaveProgression);
+    }
+
+    if (loadProgressionBtn && loadProgressionInput) {
+      loadProgressionBtn.addEventListener("click", () => {
+        loadProgressionInput.click();
+      });
+
+      loadProgressionInput.addEventListener("change", handleLoadProgression);
     }
 
     console.log("📍 Setting up first-click listener...");
