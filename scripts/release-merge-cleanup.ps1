@@ -4,6 +4,7 @@ param(
     [string]$Remote = "origin",
     [string]$VersionScript = "version:minor",
     [string]$SourceBranch,
+    [Alias("DeleteSourceBranchAfterSuccess")]
     [switch]$DeleteRepoAfterSuccess
 )
 
@@ -108,6 +109,7 @@ function Invoke-CheckedCommand {
         $stderr.TrimEnd("`r", "`n") | Write-Host
     }
 }
+
 function Get-GitOutput {
     param(
         [Parameter(Mandatory = $true)]
@@ -178,13 +180,15 @@ function Ensure-RemoteBranchExists {
     $null = Get-GitOutput -Arguments @("show-ref", "--verify", "--quiet", "refs/remotes/$RemoteName/$BranchName")
 }
 
-function Ensure-BranchMergedIntoHead {
+function Ensure-BranchMergedIntoTarget {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$BranchName
+        [string]$BranchName,
+        [Parameter(Mandatory = $true)]
+        [string]$TargetRef
     )
 
-    $null = Get-GitOutput -Arguments @("merge-base", "--is-ancestor", $BranchName, "HEAD")
+    $null = Get-GitOutput -Arguments @("merge-base", "--is-ancestor", $BranchName, $TargetRef)
 }
 
 function Ensure-LocalAndRemoteMainMatch {
@@ -203,71 +207,127 @@ function Ensure-LocalAndRemoteMainMatch {
     }
 }
 
-function Start-RepoDeletion {
+function Test-LocalBranchExists {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$RepoRoot
+        [string]$BranchName
     )
 
-    $parentDirectory = Split-Path -Path $RepoRoot -Parent
-    $cleanupScriptPath = Join-Path $env:TEMP ("repo-cleanup-{0}.ps1" -f [Guid]::NewGuid().ToString("N"))
-    $cleanupScript = @'
-param(
-    [Parameter(Mandatory = $true)]
-    [string]$TargetPath,
-    [Parameter(Mandatory = $true)]
-    [string]$CleanupScriptPath
-)
-
-Start-Sleep -Seconds 3
-
-if (Test-Path -LiteralPath $TargetPath) {
-    Remove-Item -LiteralPath $TargetPath -Recurse -Force
+    $output = Get-GitOutput -Arguments @("branch", "--list", $BranchName)
+    return -not [string]::IsNullOrWhiteSpace($output)
 }
 
-if (Test-Path -LiteralPath $CleanupScriptPath) {
-    Remove-Item -LiteralPath $CleanupScriptPath -Force -ErrorAction SilentlyContinue
-}
-'@
+function Test-RemoteBranchExists {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RemoteName,
+        [Parameter(Mandatory = $true)]
+        [string]$BranchName
+    )
 
-    Set-Content -LiteralPath $cleanupScriptPath -Value $cleanupScript -Encoding ascii
-    Start-Process -FilePath "powershell.exe" `
-        -WorkingDirectory $parentDirectory `
-        -ArgumentList @(
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            $cleanupScriptPath,
-            "-TargetPath",
-            $RepoRoot,
-            "-CleanupScriptPath",
-            $cleanupScriptPath
-        ) | Out-Null
+    $output = Get-GitOutput -Arguments @("branch", "-r", "--list", "$RemoteName/$BranchName")
+    return -not [string]::IsNullOrWhiteSpace($output)
 }
 
-function Complete-DeleteAfterSuccessFromMain {
+function Resolve-RecentMergedBranch {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$MainBranchName
+    )
+
+    $headMessage = Get-GitOutput -Arguments @("log", "-1", "--pretty=%B", $MainBranchName)
+    $standardMergeMatch = [regex]::Match($headMessage, "Merge branch '([^']+)' into " + [regex]::Escape($MainBranchName))
+    if ($standardMergeMatch.Success) {
+        return $standardMergeMatch.Groups[1].Value
+    }
+
+    $legacyMergeMatch = [regex]::Match($headMessage.Trim(), '^Merge\s+([^\s]+)$')
+    if ($legacyMergeMatch.Success) {
+        return $legacyMergeMatch.Groups[1].Value
+    }
+
+    throw "Unable to infer the merged feature branch from the latest main-branch commit. Pass -SourceBranch explicitly."
+}
+
+function Remove-MergedBranch {
     param(
         [Parameter(Mandatory = $true)]
         [string]$RepoRoot,
         [Parameter(Mandatory = $true)]
         [string]$MainBranchName,
         [Parameter(Mandatory = $true)]
-        [string]$RemoteName
+        [string]$RemoteName,
+        [Parameter(Mandatory = $true)]
+        [string]$BranchName
     )
 
     Write-Host ("Repository: {0}" -f $RepoRoot)
     Write-Host ("Main branch: {0}" -f $MainBranchName)
     Write-Host ("Remote: {0}" -f $RemoteName)
-    Write-Host "DeleteRepoAfterSuccess requested from the main branch, so merge/version steps were skipped."
+    Write-Host ("Branch to delete: {0}" -f $BranchName)
+
+    if ($BranchName -eq $MainBranchName) {
+        throw "Refusing to delete the main branch."
+    }
 
     Invoke-GitMutation -Description "Fetch $RemoteName/$MainBranchName" -Arguments @("fetch", $RemoteName, $MainBranchName)
     Ensure-RemoteBranchExists -RemoteName $RemoteName -BranchName $MainBranchName
     Ensure-LocalAndRemoteMainMatch -MainBranchName $MainBranchName -RemoteName $RemoteName
     Write-Host ("Verified: local {0} and {1}/{0} are in sync." -f $MainBranchName, $RemoteName)
 
-    Start-RepoDeletion -RepoRoot $RepoRoot
-    Write-Host ("Deletion scheduled for {0}" -f $RepoRoot)
+    $activeBranch = Get-GitOutput -Arguments @("branch", "--show-current")
+    if ($activeBranch -ne $MainBranchName) {
+        Invoke-GitMutation -Description "Switch to $MainBranchName" -Arguments @("switch", $MainBranchName)
+    }
+
+    $localBranchExists = Test-LocalBranchExists -BranchName $BranchName
+    $remoteBranchExists = Test-RemoteBranchExists -RemoteName $RemoteName -BranchName $BranchName
+
+    if ($localBranchExists) {
+        Ensure-BranchMergedIntoTarget -BranchName $BranchName -TargetRef $MainBranchName
+        Write-Host ("Verified: {0} is merged into local {1}." -f $BranchName, $MainBranchName)
+    }
+    elseif ($remoteBranchExists) {
+        Ensure-BranchMergedIntoTarget -BranchName "$RemoteName/$BranchName" -TargetRef "$RemoteName/$MainBranchName"
+        Write-Host ("Verified: {0}/{1} is merged into {0}/{2}." -f $RemoteName, $BranchName, $MainBranchName)
+    }
+    else {
+        Write-Host ("Branch {0} was not found locally or on {1}. Nothing to delete." -f $BranchName, $RemoteName)
+        return
+    }
+
+    if ($remoteBranchExists) {
+        Invoke-GitMutation -Description "Delete $RemoteName/$BranchName" -Arguments @("push", $RemoteName, "--delete", $BranchName)
+    }
+    else {
+        Write-Host ("Remote branch {0}/{1} was not found. Skipping remote deletion." -f $RemoteName, $BranchName)
+    }
+
+    if ($localBranchExists) {
+        Invoke-GitMutation -Description "Delete local branch $BranchName" -Arguments @("branch", "-D", $BranchName)
+    }
+    else {
+        Write-Host ("Local branch {0} was not found. Skipping local deletion." -f $BranchName)
+    }
+
+    Invoke-GitMutation -Description "Prune deleted remote refs from $RemoteName" -Arguments @("fetch", $RemoteName, "--prune")
+    Write-Host ("Branch cleanup completed for {0}" -f $BranchName)
+}
+
+function Complete-DeleteAfterSuccess {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$MainBranchName,
+        [Parameter(Mandatory = $true)]
+        [string]$RemoteName,
+        [string]$SourceBranchName
+    )
+
+    $branchToDelete = if ($SourceBranchName) { $SourceBranchName } else { Resolve-RecentMergedBranch -MainBranchName $MainBranchName }
+    Write-Host "DeleteRepoAfterSuccess was provided, so the script will verify main and delete the merged feature branch."
+    Remove-MergedBranch -RepoRoot $RepoRoot -MainBranchName $MainBranchName -RemoteName $RemoteName -BranchName $branchToDelete
 }
 
 $repoRoot = Get-GitOutput -Arguments @("rev-parse", "--show-toplevel")
@@ -279,7 +339,7 @@ Ensure-BranchExists -BranchName $MainBranch
 $currentBranch = Get-GitOutput -Arguments @("branch", "--show-current")
 
 if ($DeleteRepoAfterSuccess -and -not $PSBoundParameters.ContainsKey("SourceBranch") -and $currentBranch -eq $MainBranch) {
-    Complete-DeleteAfterSuccessFromMain -RepoRoot $repoRoot -MainBranchName $MainBranch -RemoteName $Remote
+    Complete-DeleteAfterSuccess -RepoRoot $repoRoot -MainBranchName $MainBranch -RemoteName $Remote
     return
 }
 
@@ -291,7 +351,7 @@ if ([string]::IsNullOrWhiteSpace($branchToMerge)) {
 
 if ($branchToMerge -eq $MainBranch) {
     if ($DeleteRepoAfterSuccess) {
-        Complete-DeleteAfterSuccessFromMain -RepoRoot $repoRoot -MainBranchName $MainBranch -RemoteName $Remote
+        Complete-DeleteAfterSuccess -RepoRoot $repoRoot -MainBranchName $MainBranch -RemoteName $Remote -SourceBranchName $SourceBranch
         return
     }
 
@@ -336,7 +396,7 @@ Invoke-GitMutation -Description "Switch to $MainBranch" -Arguments @("switch", $
 Invoke-GitMutation -Description "Fast-forward local $MainBranch from $Remote/$MainBranch" -Arguments @("merge", "--ff-only", "$Remote/$MainBranch")
 Invoke-GitMutation -Description "Merge $branchToMerge into $MainBranch" -Arguments @("merge", "--no-ff", $branchToMerge, "-m", "Merge branch '$branchToMerge' into $MainBranch")
 
-Ensure-BranchMergedIntoHead -BranchName $branchToMerge
+Ensure-BranchMergedIntoTarget -BranchName $branchToMerge -TargetRef $MainBranch
 Assert-CleanWorkingTree
 Write-Host ("Verified: {0} is merged into local {1}." -f $branchToMerge, $MainBranch)
 
@@ -346,19 +406,8 @@ Ensure-LocalAndRemoteMainMatch -MainBranchName $MainBranch -RemoteName $Remote
 Write-Host ("Verified: local {0} and {1}/{0} are in sync." -f $MainBranch, $Remote)
 
 if ($DeleteRepoAfterSuccess) {
-    Start-RepoDeletion -RepoRoot $repoRoot
-    Write-Host ("Deletion scheduled for {0}" -f $repoRoot)
+    Remove-MergedBranch -RepoRoot $repoRoot -MainBranchName $MainBranch -RemoteName $Remote -BranchName $branchToMerge
 }
 else {
-    Write-Host "DeleteRepoAfterSuccess was not provided, so the local repository was kept."
+    Write-Host "DeleteRepoAfterSuccess was not provided, so the merged feature branch was kept."
 }
-
-
-
-
-
-
-
-
-
-
