@@ -246,6 +246,30 @@ if (Test-Path -LiteralPath $CleanupScriptPath) {
         ) | Out-Null
 }
 
+function Complete-DeleteAfterSuccessFromMain {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$MainBranchName,
+        [Parameter(Mandatory = $true)]
+        [string]$RemoteName
+    )
+
+    Write-Host ("Repository: {0}" -f $RepoRoot)
+    Write-Host ("Main branch: {0}" -f $MainBranchName)
+    Write-Host ("Remote: {0}" -f $RemoteName)
+    Write-Host "DeleteRepoAfterSuccess requested from the main branch, so merge/version steps were skipped."
+
+    Invoke-GitMutation -Description "Fetch $RemoteName/$MainBranchName" -Arguments @("fetch", $RemoteName, $MainBranchName)
+    Ensure-RemoteBranchExists -RemoteName $RemoteName -BranchName $MainBranchName
+    Ensure-LocalAndRemoteMainMatch -MainBranchName $MainBranchName -RemoteName $RemoteName
+    Write-Host ("Verified: local {0} and {1}/{0} are in sync." -f $MainBranchName, $RemoteName)
+
+    Start-RepoDeletion -RepoRoot $RepoRoot
+    Write-Host ("Deletion scheduled for {0}" -f $RepoRoot)
+}
+
 $repoRoot = Get-GitOutput -Arguments @("rev-parse", "--show-toplevel")
 Set-Location -LiteralPath $repoRoot
 
@@ -253,6 +277,12 @@ Assert-CleanWorkingTree
 
 Ensure-BranchExists -BranchName $MainBranch
 $currentBranch = Get-GitOutput -Arguments @("branch", "--show-current")
+
+if ($DeleteRepoAfterSuccess -and -not $PSBoundParameters.ContainsKey("SourceBranch") -and $currentBranch -eq $MainBranch) {
+    Complete-DeleteAfterSuccessFromMain -RepoRoot $repoRoot -MainBranchName $MainBranch -RemoteName $Remote
+    return
+}
+
 $branchToMerge = if ($SourceBranch) { $SourceBranch } else { $currentBranch }
 
 if ([string]::IsNullOrWhiteSpace($branchToMerge)) {
@@ -260,6 +290,11 @@ if ([string]::IsNullOrWhiteSpace($branchToMerge)) {
 }
 
 if ($branchToMerge -eq $MainBranch) {
+    if ($DeleteRepoAfterSuccess) {
+        Complete-DeleteAfterSuccessFromMain -RepoRoot $repoRoot -MainBranchName $MainBranch -RemoteName $Remote
+        return
+    }
+
     throw "Source branch matches the main branch. Run this from the feature branch, or pass -SourceBranch explicitly."
 }
 
@@ -317,6 +352,10 @@ if ($DeleteRepoAfterSuccess) {
 else {
     Write-Host "DeleteRepoAfterSuccess was not provided, so the local repository was kept."
 }
+
+
+
+
 
 
 
