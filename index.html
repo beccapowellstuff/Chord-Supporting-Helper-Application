@@ -28,7 +28,12 @@
           <div id="sequenceKeyboard" class="sequence-keyboard-mount"></div>
           <div class="input-help">Build your chord sequence using the Chord Explorer. Separate chords with commas, pipes, or new lines.</div>
           <textarea id="progression" rows="3" placeholder="Example: C | Am | F" aria-label="Chord Sequence"></textarea>
-          <button id="playProgressionBtn" type="button">Play sequence</button>
+          <div class="sequence-panel-actions">
+            <button id="playProgressionBtn" type="button">Play sequence</button>
+            <button id="saveProgressionBtn" type="button">Save progression</button>
+            <button id="loadProgressionBtn" type="button">Load progression</button>
+          </div>
+          <input id="loadProgressionInput" type="file" accept=".json,application/json" hidden>
         </div>
       </div>
     </div>
@@ -128,7 +133,7 @@
             <p class="tool-panel-description tool-panel-description-inline">Get ideas based on your progression.</p>
             <div class="tool-status tool-status-warning" role="status" aria-live="polite">
               <span class="tool-status-icon" aria-hidden="true">!</span>
-              <span>Suggestion Engine is not working correctly right now.</span>
+              <span>Suggestion Engine is very MVP right now, and not fully working as wanted.</span>
             </div>
             <div class="chord-loader-body suggestion-engine-body">
               <div class="suggestion-engine-controls">

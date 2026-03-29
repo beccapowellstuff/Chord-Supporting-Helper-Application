@@ -139,8 +139,7 @@ export function renderSequenceKeyboard(
     onKeyToggle,
     onPlay,
     onSave,
-    onClear,
-    onIdentify
+    onClear
   } = {}
 ) {
   if (!container) return;
@@ -185,9 +184,9 @@ export function renderSequenceKeyboard(
   const saveButton = document.createElement("button");
   saveButton.type = "button";
   saveButton.className = "sequence-keyboard-action";
-  saveButton.textContent = "Save";
+  saveButton.textContent = "Add";
   saveButton.disabled = !canSave;
-  saveButton.title = canSave ? "Save identified chord to sequence" : "Select a recognised chord to save it";
+  saveButton.title = canSave ? "Add the identified chord to the progression" : "Select a recognised chord to add it";
   saveButton.addEventListener("click", () => {
     if (canSave && onSave) onSave();
   });
@@ -202,16 +201,6 @@ export function renderSequenceKeyboard(
     if (onClear) onClear();
   });
   actions.appendChild(clearButton);
-
-  const identifyButton = document.createElement("button");
-  identifyButton.type = "button";
-  identifyButton.className = "sequence-keyboard-action";
-  identifyButton.textContent = "Identify";
-  identifyButton.title = "Identify the selected notes";
-  identifyButton.addEventListener("click", () => {
-    if (onIdentify) onIdentify();
-  });
-  actions.appendChild(identifyButton);
 
   header.appendChild(actions);
   shell.appendChild(header);
