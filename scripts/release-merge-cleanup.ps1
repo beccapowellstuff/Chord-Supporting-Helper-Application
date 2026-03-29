@@ -48,6 +48,22 @@ function Join-ArgumentDisplay {
     }) -join ' '
 }
 
+function Join-ProcessArgumentString {
+    param(
+        [string[]]$Arguments
+    )
+
+    return ($Arguments | ForEach-Object {
+        $value = [string]$_
+        if ($value -match '[\s"]') {
+            '"' + ($value -replace '(\\*)"', '$1$1\\"') + '"'
+        }
+        else {
+            $value
+        }
+    }) -join ' '
+}
+
 function Invoke-CheckedCommand {
     param(
         [Parameter(Mandatory = $true)]
@@ -56,33 +72,40 @@ function Invoke-CheckedCommand {
         [switch]$CaptureOutput
     )
 
-    $hasNativeErrorPreference = $null -ne (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue)
-    if ($hasNativeErrorPreference) {
-        $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
-        $PSNativeCommandUseErrorActionPreference = $false
-    }
+    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processInfo.FileName = $Command
+    $processInfo.Arguments = Join-ProcessArgumentString -Arguments $Arguments
+    $processInfo.RedirectStandardOutput = $true
+    $processInfo.RedirectStandardError = $true
+    $processInfo.UseShellExecute = $false
+    $processInfo.CreateNoWindow = $true
 
-    try {
-        $output = & $Command @Arguments 2>&1
-        $exitCode = $LASTEXITCODE
-    }
-    finally {
-        if ($hasNativeErrorPreference) {
-            $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
-        }
-    }
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $processInfo
+    $null = $process.Start()
 
-    if ($exitCode -ne 0) {
-        $details = if ($output) { ($output -join [Environment]::NewLine) } else { "(no output)" }
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+
+    $combinedOutput = @($stdout, $stderr) -join ''
+    $combinedOutput = $combinedOutput.TrimEnd("`r", "`n")
+
+    if ($process.ExitCode -ne 0) {
+        $details = if ($combinedOutput) { $combinedOutput } else { "(no output)" }
         throw ("Command failed: {0} {1}{2}{3}" -f $Command, (Join-ArgumentDisplay -Arguments $Arguments), [Environment]::NewLine, $details)
     }
 
     if ($CaptureOutput) {
-        return ($output -join [Environment]::NewLine).Trim()
+        return $combinedOutput.Trim()
     }
 
-    if ($output) {
-        $output | Write-Host
+    if ($stdout) {
+        $stdout.TrimEnd("`r", "`n") | Write-Host
+    }
+
+    if ($stderr) {
+        $stderr.TrimEnd("`r", "`n") | Write-Host
     }
 }
 function Get-GitOutput {
@@ -294,6 +317,7 @@ if ($DeleteRepoAfterSuccess) {
 else {
     Write-Host "DeleteRepoAfterSuccess was not provided, so the local repository was kept."
 }
+
 
 
 
