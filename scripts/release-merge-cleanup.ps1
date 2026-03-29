@@ -10,6 +10,29 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Resolve-ExecutableCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Candidates
+    )
+
+    foreach ($candidate in $Candidates) {
+        $resolvedCommand = Get-Command -Name $candidate -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($resolvedCommand) {
+            if ($resolvedCommand.Path) {
+                return $resolvedCommand.Path
+            }
+
+            return $resolvedCommand.Name
+        }
+    }
+
+    throw ("Unable to resolve command. Tried: {0}" -f ($Candidates -join ", "))
+}
+
+$script:GitCommand = Resolve-ExecutableCommand -Candidates @("git.exe", "git")
+$script:NpmCommand = Resolve-ExecutableCommand -Candidates @("npm.cmd", "npm")
+
 function Join-ArgumentDisplay {
     param(
         [string[]]$Arguments
@@ -25,6 +48,22 @@ function Join-ArgumentDisplay {
     }) -join ' '
 }
 
+function Join-ProcessArgumentString {
+    param(
+        [string[]]$Arguments
+    )
+
+    return ($Arguments | ForEach-Object {
+        $value = [string]$_
+        if ($value -match '[\s"]') {
+            '"' + ($value -replace '(\\*)"', '$1$1\\"') + '"'
+        }
+        else {
+            $value
+        }
+    }) -join ' '
+}
+
 function Invoke-CheckedCommand {
     param(
         [Parameter(Mandatory = $true)]
@@ -33,28 +72,49 @@ function Invoke-CheckedCommand {
         [switch]$CaptureOutput
     )
 
-    $output = & $Command @Arguments 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        $details = if ($output) { ($output -join [Environment]::NewLine) } else { "(no output)" }
+    $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $processInfo.FileName = $Command
+    $processInfo.Arguments = Join-ProcessArgumentString -Arguments $Arguments
+    $processInfo.RedirectStandardOutput = $true
+    $processInfo.RedirectStandardError = $true
+    $processInfo.UseShellExecute = $false
+    $processInfo.CreateNoWindow = $true
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $processInfo
+    $null = $process.Start()
+
+    $stdout = $process.StandardOutput.ReadToEnd()
+    $stderr = $process.StandardError.ReadToEnd()
+    $process.WaitForExit()
+
+    $combinedOutput = @($stdout, $stderr) -join ''
+    $combinedOutput = $combinedOutput.TrimEnd("`r", "`n")
+
+    if ($process.ExitCode -ne 0) {
+        $details = if ($combinedOutput) { $combinedOutput } else { "(no output)" }
         throw ("Command failed: {0} {1}{2}{3}" -f $Command, (Join-ArgumentDisplay -Arguments $Arguments), [Environment]::NewLine, $details)
     }
 
     if ($CaptureOutput) {
-        return ($output -join [Environment]::NewLine).Trim()
+        return $combinedOutput.Trim()
     }
 
-    if ($output) {
-        $output | Write-Host
+    if ($stdout) {
+        $stdout.TrimEnd("`r", "`n") | Write-Host
+    }
+
+    if ($stderr) {
+        $stderr.TrimEnd("`r", "`n") | Write-Host
     }
 }
-
 function Get-GitOutput {
     param(
         [Parameter(Mandatory = $true)]
         [string[]]$Arguments
     )
 
-    return Invoke-CheckedCommand -Command "git" -Arguments $Arguments -CaptureOutput
+    return Invoke-CheckedCommand -Command $script:GitCommand -Arguments $Arguments -CaptureOutput
 }
 
 function Invoke-GitMutation {
@@ -66,7 +126,7 @@ function Invoke-GitMutation {
     )
 
     Write-Host ("-> {0}" -f $Description)
-    Invoke-CheckedCommand -Command "git" -Arguments $Arguments
+    Invoke-CheckedCommand -Command $script:GitCommand -Arguments $Arguments
 }
 
 function Invoke-NpmMutation {
@@ -78,7 +138,7 @@ function Invoke-NpmMutation {
     )
 
     Write-Host ("-> {0}" -f $Description)
-    Invoke-CheckedCommand -Command "npm" -Arguments $Arguments
+    Invoke-CheckedCommand -Command $script:NpmCommand -Arguments $Arguments
 }
 
 function Assert-CleanWorkingTree {
@@ -257,5 +317,9 @@ if ($DeleteRepoAfterSuccess) {
 else {
     Write-Host "DeleteRepoAfterSuccess was not provided, so the local repository was kept."
 }
+
+
+
+
 
 

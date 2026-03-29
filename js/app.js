@@ -171,6 +171,10 @@ function setActiveToolPanel(panelId, options = {}) {
       panel.classList.toggle("tool-panel-active", isActive);
       panel.classList.remove("tool-panel-exiting");
     });
+
+    if (panelId === "suggestionEnginePanel" && appData) {
+      runSuggestions();
+    }
     return;
   }
 
@@ -188,6 +192,10 @@ function setActiveToolPanel(panelId, options = {}) {
     currentPanel.classList.remove("tool-panel-exiting");
     toolPanelTransitionTimeout = null;
   }, TOOL_PANEL_TRANSITION_MS);
+
+  if (panelId === "suggestionEnginePanel" && appData) {
+    runSuggestions();
+  }
 }
 
 function initToolNavigation() {
@@ -713,6 +721,12 @@ function refreshKeyUI() {
   );
 }
 
+function refreshSuggestionsIfReady() {
+  if (appData) {
+    runSuggestions();
+  }
+}
+
 function runSuggestions() {
   const suggestionPayload = getSuggestions({
     musicData: appData.musicData,
@@ -806,14 +820,18 @@ async function init() {
     refreshChordPlaygroundUI();
     updateToolContext();
 
-    suggestBtn.dataset.tooltip = "Suggest the next best chords based on your progression and mood";
+    if (suggestBtn) suggestBtn.dataset.tooltip = "Refresh the current suggestions";
     if (playProgressionBtn) playProgressionBtn.dataset.tooltip = "Play all chords in the progression";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
     if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
 
     initTooltips();
 
-    suggestBtn.addEventListener("click", runSuggestions);
+    feelingSelect.addEventListener("change", refreshSuggestionsIfReady);
+
+    if (suggestBtn) {
+      suggestBtn.addEventListener("click", refreshSuggestionsIfReady);
+    }
 
     if (playProgressionBtn) {
       playProgressionBtn.addEventListener("click", handlePlayProgression);

@@ -495,6 +495,75 @@ function createSuggestionDetail(item, onChordClick, onChordAdd) {
   return detail;
 }
 
+const SUGGESTION_BUCKET_ORDER = [
+  {
+    id: "inKey",
+    title: "In Key",
+    description: "Grounded moves from the current key and mode."
+  },
+  {
+    id: "related",
+    title: "Related",
+    description: "Borrowed or parallel colours that still stay close."
+  },
+  {
+    id: "outside",
+    title: "Out of Key",
+    description: "Bolder chromatic or applied moves."
+  }
+];
+
+function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setActiveCard, getActiveCard) {
+  const card = document.createElement("div");
+  card.className = "suggestion-card";
+  card.dataset.bucket = item.bucket || "inKey";
+
+  const chordBtn = document.createElement("button");
+  chordBtn.className = "suggestion-card-chord";
+  chordBtn.dataset.tooltip = `Play ${formatChordLabel(item.chord)}`;
+  chordBtn.type = "button";
+  appendChordLabelContent(chordBtn, item.chord);
+
+  const showDetail = () => {
+    const activeCard = getActiveCard();
+    if (activeCard) {
+      activeCard.classList.remove("active");
+    }
+    setActiveCard(card);
+    card.classList.add("active");
+    detailHost.innerHTML = "";
+    detailHost.appendChild(createSuggestionDetail(item, onChordClick, onChordAdd));
+  };
+
+  chordBtn.addEventListener("click", event => {
+    event.stopPropagation();
+    showDetail();
+    if (onChordClick) onChordClick(item.chord);
+  });
+
+  const fnLabel = document.createElement("div");
+  fnLabel.className = "suggestion-card-fn";
+  fnLabel.textContent = formatRomanNumeralLabel(item.fn);
+
+  const addBtn = document.createElement("button");
+  addBtn.className = "suggestion-card-add-btn";
+  addBtn.textContent = "+";
+  addBtn.dataset.tooltip = `Add ${formatChordLabel(item.chord)} to progression`;
+  addBtn.type = "button";
+  addBtn.addEventListener("click", event => {
+    event.stopPropagation();
+    showDetail();
+    if (onChordAdd) onChordAdd(item.chord);
+  });
+
+  card.addEventListener("click", showDetail);
+
+  card.appendChild(chordBtn);
+  card.appendChild(fnLabel);
+  card.appendChild(addBtn);
+  return card;
+}
+
 export function populateFeelings(feelingSelect, moodBoosts) {
   feelingSelect.innerHTML = "";
 
@@ -596,56 +665,49 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
 
   let activeCard = null;
 
-  suggestions.forEach(item => {
-    const card = document.createElement("div");
-    card.className = "suggestion-card";
+  SUGGESTION_BUCKET_ORDER.forEach(bucket => {
+    const bucketSuggestions = suggestions.filter(item => (item.bucket || "inKey") === bucket.id);
+    if (!bucketSuggestions.length) {
+      return;
+    }
 
-    const chordBtn = document.createElement("button");
-    chordBtn.className = "suggestion-card-chord";
-    chordBtn.dataset.tooltip = `Play ${formatChordLabel(item.chord)}`;
-    chordBtn.type = "button";
-    appendChordLabelContent(chordBtn, item.chord);
+    const section = document.createElement("section");
+    section.className = "suggestion-bucket";
+    section.dataset.suggestionBucket = bucket.id;
 
-    const showDetail = () => {
-      if (activeCard) {
-        activeCard.classList.remove("active");
-      }
-      activeCard = card;
-      card.classList.add("active");
-      detailHost.innerHTML = "";
-      detailHost.appendChild(createSuggestionDetail(item, onChordClick, onChordAdd));
-    };
+    const header = document.createElement("div");
+    header.className = "suggestion-bucket-header";
 
-    chordBtn.addEventListener("click", event => {
-      event.stopPropagation();
-      showDetail();
-      if (onChordClick) onChordClick(item.chord);
+    const title = document.createElement("div");
+    title.className = "suggestion-bucket-title";
+    title.textContent = bucket.title;
+
+    const description = document.createElement("div");
+    description.className = "suggestion-bucket-description";
+    description.textContent = bucket.description;
+
+    header.appendChild(title);
+    header.appendChild(description);
+    section.appendChild(header);
+
+    const bucketGrid = grid.cloneNode(false);
+    bucketSuggestions.forEach(item => {
+      bucketGrid.appendChild(createSuggestionCard(
+        item,
+        detailHost,
+        onChordClick,
+        onChordAdd,
+        card => {
+          activeCard = card;
+        },
+        () => activeCard
+      ));
     });
 
-    const fnLabel = document.createElement("div");
-    fnLabel.className = "suggestion-card-fn";
-    fnLabel.textContent = formatRomanNumeralLabel(item.fn);
-
-    const addBtn = document.createElement("button");
-    addBtn.className = "suggestion-card-add-btn";
-    addBtn.textContent = "+";
-    addBtn.dataset.tooltip = `Add ${formatChordLabel(item.chord)} to progression`;
-    addBtn.type = "button";
-    addBtn.addEventListener("click", event => {
-      event.stopPropagation();
-      showDetail();
-      if (onChordAdd) onChordAdd(item.chord);
-    });
-
-    card.addEventListener("click", showDetail);
-
-    card.appendChild(chordBtn);
-    card.appendChild(fnLabel);
-    card.appendChild(addBtn);
-    grid.appendChild(card);
+    section.appendChild(bucketGrid);
+    wrapper.appendChild(section);
   });
 
-  wrapper.appendChild(grid);
   wrapper.appendChild(detailHost);
   resultsElement.appendChild(wrapper);
 }

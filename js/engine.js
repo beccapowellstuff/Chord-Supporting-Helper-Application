@@ -4,17 +4,205 @@
  * Responsibilities:
  *   - parseProgression: tokenises a user-typed chord string, canonicalises
  *     each chord, and maps it to a diatonic function if it is in the key
- *   - getSuggestions: scores every candidate chord against the current
- *     progression using cadence patterns, mood boosts, repetition penalties,
- *     and borrowed-chord resolution bonuses; returns the top 6 with reasons
+ *   - getSuggestions: builds theory-driven in-key, related, and out-of-key
+ *     suggestions, then ranks them against the current progression and mood
  *   - All scoring helpers (getCadenceBonus, getPatternBonus,
  *     getRepetitionPenalty, getBorrowedResolutionBonus, buildReasonParts)
  *     are internal to this module
  *
  * Exports: parseProgression, getSuggestions
- * Depends on: chordNotes (normaliseRoot, parseChordName)
+ * Depends on: chordNotes (NOTE_TO_PC, normaliseRoot, parseChordName)
  */
-import { normaliseRoot, parseChordName } from "./chordNotes.js";
+import { NOTE_TO_PC, normaliseRoot, parseChordName } from "./chordNotes.js";
+
+const SHARP_PITCH_CLASSES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+const FLAT_PITCH_CLASSES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+const SUGGESTION_BUCKETS = [
+  {
+    id: "inKey",
+    title: "In Key",
+    description: "Grounded choices from the current key and mode."
+  },
+  {
+    id: "related",
+    title: "Related",
+    description: "Borrowed or parallel colours that still stay close to the centre."
+  },
+  {
+    id: "outside",
+    title: "Out of Key",
+    description: "Bolder applied or chromatic moves with a clear theory reason."
+  }
+];
+
+const MOOD_PROFILES = {
+  Sad: {
+    summary: "Pushes the harmony darker and more reflective.",
+    functionWeights: {
+      I: -3,
+      ii: 5,
+      iii: 4,
+      IV: 1,
+      V: -3,
+      vi: 6,
+      i: 4,
+      "iiÂ°": 2,
+      III: 2,
+      iv: 5,
+      v: 1,
+      VI: 5,
+      VII: 2
+    },
+    relatedRules: [
+      { interval: 5, suffix: "m", label: "iv (parallel minor)", weight: 9, categories: ["major_feel", "dominant_feel"], reason: "Borrowed minor iv is a classic way to darken a major-feel progression." },
+      { interval: 10, suffix: "", label: "bVII", weight: 8, categories: ["major_feel", "dominant_feel"], reason: "Borrowed bVII adds wistful weight and softens the bright major pull." },
+      { interval: 3, suffix: "", label: "bIII", weight: 8, categories: ["major_feel", "dominant_feel"], reason: "Borrowed bIII shifts the colour toward a more introspective space." },
+      { interval: 8, suffix: "", label: "bVI", weight: 7, categories: ["major_feel", "dominant_feel"], reason: "Borrowed bVI gives the progression a broader melancholy colour." },
+      { interval: 0, suffix: "m", label: "i (parallel)", weight: 6, categories: ["major_feel", "dominant_feel"], reason: "The parallel minor tonic keeps the same home note but changes its emotional shade." }
+    ],
+    outsideRules: [
+      { type: "secondaryDominants", targetFunctions: ["ii", "vi", "iii"], suffix: "7", weight: 7, reason: "Applied dominants can pivot toward more reflective in-key targets." },
+      { interval: 1, suffix: "", label: "bII colour", weight: 5, categories: ["major_feel", "dominant_feel"], reason: "Flat-II colour adds ache before resolving back into the key." }
+    ]
+  },
+  Somber: {
+    summary: "Leans toward heavier, darker, and broader colours.",
+    functionWeights: {
+      I: -4,
+      ii: 4,
+      iii: 1,
+      IV: 0,
+      V: -2,
+      vi: 4,
+      i: 5,
+      "iiÂ°": 4,
+      III: 1,
+      iv: 6,
+      v: 2,
+      VI: 6,
+      VII: 4
+    },
+    relatedRules: [
+      { interval: 5, suffix: "m", label: "iv (parallel minor)", weight: 8, categories: ["major_feel", "dominant_feel"], reason: "Borrowed minor iv pulls the progression into a darker, weightier place." },
+      { interval: 8, suffix: "", label: "bVI", weight: 9, categories: ["major_feel", "dominant_feel"], reason: "Borrowed bVI gives a cinematic darkening effect." },
+      { interval: 10, suffix: "", label: "bVII", weight: 8, categories: ["major_feel", "dominant_feel"], reason: "Borrowed bVII keeps the motion open while adding gravity." },
+      { interval: 1, suffix: "", label: "bII", weight: 7, categories: ["major_feel", "dominant_feel"], reason: "Flat-II brings a sombre dramatic edge before any resolution." }
+    ],
+    outsideRules: [
+      { type: "secondaryDominants", targetFunctions: ["iv", "VI", "VII", "ii"], suffix: "7", weight: 6, reason: "Applied dominants can intensify a darker target before the progression settles." },
+      { interval: 6, suffix: "dim", label: "#ivÂ°", weight: 5, reason: "A chromatic diminished chord intensifies the tension without sounding bright." }
+    ]
+  },
+  Dreamy: {
+    summary: "Prefers floating, open movement over direct hard resolution.",
+    functionWeights: {
+      I: 3,
+      ii: 1,
+      iii: 6,
+      IV: 5,
+      V: -1,
+      vi: 4,
+      i: 3,
+      "iiÂ°": -1,
+      III: 4,
+      iv: 2,
+      v: 0,
+      VI: 4,
+      VII: 2
+    },
+    relatedRules: [
+      { interval: 2, suffix: "", label: "II colour", weight: 8, reason: "A major II adds floating modal colour without immediately forcing a cadence." },
+      { interval: 10, suffix: "", label: "bVII", weight: 8, reason: "bVII keeps the harmony open and suspended rather than tightly resolved." },
+      { interval: 3, suffix: "", label: "bIII", weight: 7, categories: ["major_feel", "dominant_feel"], reason: "bIII adds a soft reflective colour that feels less direct than staying purely diatonic." },
+      { interval: 5, suffix: "m", label: "iv (parallel minor)", weight: 6, categories: ["major_feel", "dominant_feel"], reason: "Borrowed minor iv softens a bright centre into something hazier." }
+    ],
+    outsideRules: [
+      { type: "secondaryDominants", targetFunctions: ["iii", "vi"], suffix: "7", weight: 5, reason: "Applied dominants can gently pivot into softer in-key colours." },
+      { interval: 6, suffix: "dim", label: "#ivÂ°", weight: 5, reason: "A light chromatic diminished colour can add shimmer before the next move." }
+    ]
+  },
+  Tense: {
+    summary: "Rewards unstable, dominant, and pressure-building movement.",
+    functionWeights: {
+      I: -4,
+      ii: 3,
+      iii: -1,
+      IV: 1,
+      V: 7,
+      vi: -2,
+      i: -4,
+      "iiÂ°": 6,
+      III: -1,
+      iv: 2,
+      v: 6,
+      VI: 0,
+      VII: 3,
+      "viiÂ°": 7
+    },
+    relatedRules: [
+      { interval: 1, suffix: "", label: "bII", weight: 9, reason: "Flat-II brings immediate pressure and a strong chromatic bite." },
+      { interval: 6, suffix: "dim", label: "#ivÂ°", weight: 8, reason: "A chromatic diminished chord intensifies the pull into a dominant-style move." },
+      { interval: 8, suffix: "", label: "bVI", weight: 5, categories: ["major_feel", "dominant_feel"], reason: "bVI adds darker tension before release." }
+    ],
+    outsideRules: [
+      { type: "secondaryDominants", targetFunctions: ["V", "ii", "vi"], suffix: "7", weight: 9, reason: "Applied dominants are one of the clearest ways to intensify tension." },
+      { interval: 1, suffix: "7", label: "bII7", weight: 7, reason: "A chromatic dominant-style bII chord adds sharp instability." }
+    ]
+  },
+  Hopeful: {
+    summary: "Aims for lift, openness, and forward-moving brightness.",
+    functionWeights: {
+      I: 5,
+      ii: 4,
+      iii: 1,
+      IV: 6,
+      V: 4,
+      vi: 2,
+      i: 1,
+      "iiÂ°": -2,
+      III: 4,
+      iv: -1,
+      v: 0,
+      VI: 3,
+      VII: 2
+    },
+    relatedRules: [
+      { interval: 2, suffix: "", label: "II lift", weight: 8, reason: "A major II adds lift and a brighter push forward." },
+      { interval: 9, suffix: "", label: "VI colour", weight: 6, categories: ["major_feel", "dominant_feel"], reason: "A bright VI chord can make the progression feel more open and optimistic." },
+      { interval: 4, suffix: "", label: "III colour", weight: 6, categories: ["major_feel", "dominant_feel"], reason: "A bright III chord adds colour without sounding heavy." },
+      { interval: 5, suffix: "", label: "IV (parallel major)", weight: 7, categories: ["minor_feel", "other_scales", "diminished_or_unstable"], reason: "Borrowing a major IV brightens a minor-feel centre." }
+    ],
+    outsideRules: [
+      { type: "secondaryDominants", targetFunctions: ["IV", "V", "vi"], suffix: "7", weight: 6, reason: "Applied dominants can create confident forward motion into uplifting targets." }
+    ]
+  },
+  Happy: {
+    summary: "Prefers bright, direct, and energetic movement.",
+    functionWeights: {
+      I: 6,
+      ii: 2,
+      iii: 2,
+      IV: 5,
+      V: 5,
+      vi: 1,
+      i: -1,
+      "iiÂ°": -3,
+      III: 5,
+      iv: -2,
+      v: -1,
+      VI: 4,
+      VII: 1
+    },
+    relatedRules: [
+      { interval: 2, suffix: "", label: "II lift", weight: 7, reason: "A major II adds a bright pop of lift." },
+      { interval: 9, suffix: "", label: "VI colour", weight: 7, categories: ["major_feel", "dominant_feel"], reason: "A bright VI gives the progression an energetic glow." },
+      { interval: 4, suffix: "", label: "III colour", weight: 6, categories: ["major_feel", "dominant_feel"], reason: "A bright III can make the harmony feel more upbeat and direct." }
+    ],
+    outsideRules: [
+      { type: "secondaryDominants", targetFunctions: ["V", "IV", "vi"], suffix: "7", weight: 5, reason: "Applied dominants can add bright propulsion before the next chord lands." }
+    ]
+  }
+};
 
 function normaliseChordToken(token) {
   return String(token || "")
@@ -138,6 +326,171 @@ function buildChromaticCandidatePool(keyData) {
   });
 
   return pool;
+}
+
+function getBucketMeta(bucketId) {
+  return SUGGESTION_BUCKETS.find(bucket => bucket.id === bucketId) || SUGGESTION_BUCKETS[0];
+}
+
+function normaliseFunctionLabel(label) {
+  return String(label || "")
+    .replace(/Â°/g, "Â°")
+    .trim();
+}
+
+function getMoodProfile(feeling) {
+  return MOOD_PROFILES[feeling] || MOOD_PROFILES.Hopeful;
+}
+
+function appliesToCategory(rule, keyData) {
+  if (!Array.isArray(rule?.categories) || !rule.categories.length) {
+    return true;
+  }
+
+  return rule.categories.includes(keyData.category);
+}
+
+function getPitchClass(root) {
+  return NOTE_TO_PC[normaliseRoot(root)] ?? null;
+}
+
+function pitchClassToNote(pitchClass, preferFlats = false) {
+  const noteNames = preferFlats ? FLAT_PITCH_CLASSES : SHARP_PITCH_CLASSES;
+  return noteNames[((pitchClass % 12) + 12) % 12];
+}
+
+function buildRelativeChord(root, semitones, suffix = "", preferFlats = false) {
+  const rootPc = getPitchClass(root);
+  if (rootPc == null) {
+    return null;
+  }
+
+  const targetRoot = pitchClassToNote(rootPc + semitones, preferFlats || semitones === 1 || semitones === 3 || semitones === 8 || semitones === 10);
+  return canonicaliseTypedChord(`${targetRoot}${suffix}`);
+}
+
+function findChordByFunction(keyData, targetFunction) {
+  return keyData.chords.find(chord => keyData.functions[chord] === targetFunction) || null;
+}
+
+function getSecondaryDominantChord(targetChord, suffix = "7") {
+  const targetRoot = getChordRoot(targetChord);
+  const targetPc = getPitchClass(targetRoot);
+  if (targetPc == null) {
+    return null;
+  }
+
+  const dominantRoot = pitchClassToNote(targetPc + 7, targetRoot.includes("b"));
+  return canonicaliseTypedChord(`${dominantRoot}${suffix}`);
+}
+
+function pushUniqueSuggestionEntry(entries, entry) {
+  if (!entry?.chord) {
+    return;
+  }
+
+  const existingIndex = entries.findIndex(item => chordsEquivalent(item.chord, entry.chord));
+  if (existingIndex === -1) {
+    entries.push(entry);
+    return;
+  }
+
+  if ((entry.score || 0) > (entries[existingIndex].score || 0)) {
+    entries[existingIndex] = entry;
+  }
+}
+
+function isChordBlockedByBuckets(chord, buckets) {
+  return buckets.some(bucket =>
+    bucket.some(entry => chordsEquivalent(entry.chord, chord))
+  );
+}
+
+function buildInKeyCandidates({ keyData, lastParsedChord }) {
+  const lastChord = lastParsedChord?.diatonicChord || lastParsedChord?.original || keyData.chords[0];
+  const transitionCandidates = keyData.transitions[lastChord] || [];
+  const ordered = [
+    ...transitionCandidates,
+    ...keyData.chords.filter(chord => !transitionCandidates.some(item => chordsEquivalent(item, chord)))
+  ];
+
+  return ordered.filter((candidate, index, array) =>
+    array.findIndex(item => chordsEquivalent(item, candidate)) === index
+  );
+}
+
+function buildRelatedCandidates({ keyData, profile }) {
+  const candidates = [];
+
+  profile.relatedRules.forEach(rule => {
+    if (!appliesToCategory(rule, keyData)) {
+      return;
+    }
+
+    const chord = buildRelativeChord(keyData.root, rule.interval, rule.suffix, true);
+    if (!chord) {
+      return;
+    }
+
+    pushUniqueSuggestionEntry(candidates, {
+      chord,
+      fn: rule.label,
+      bucket: "related",
+      ruleWeight: rule.weight || 0,
+      ruleReason: rule.reason || ""
+    });
+  });
+
+  return candidates;
+}
+
+function buildOutsideCandidates({ keyData, profile }) {
+  const candidates = [];
+
+  profile.outsideRules.forEach(rule => {
+    if (rule.type === "secondaryDominants") {
+      rule.targetFunctions.forEach(targetFunction => {
+        const targetChord = findChordByFunction(keyData, targetFunction);
+        if (!targetChord) {
+          return;
+        }
+
+        const chord = getSecondaryDominantChord(targetChord, rule.suffix || "7");
+        if (!chord) {
+          return;
+        }
+
+        pushUniqueSuggestionEntry(candidates, {
+          chord,
+          fn: `V/${targetFunction}`,
+          bucket: "outside",
+          ruleWeight: rule.weight || 0,
+          ruleReason: `${rule.reason || ""} Targets ${targetFunction}.`.trim(),
+          targetFunction
+        });
+      });
+      return;
+    }
+
+    if (!appliesToCategory(rule, keyData)) {
+      return;
+    }
+
+    const chord = buildRelativeChord(keyData.root, rule.interval, rule.suffix, true);
+    if (!chord) {
+      return;
+    }
+
+    pushUniqueSuggestionEntry(candidates, {
+      chord,
+      fn: rule.label,
+      bucket: "outside",
+      ruleWeight: rule.weight || 0,
+      ruleReason: rule.reason || ""
+    });
+  });
+
+  return candidates;
 }
 
 function getRecentUniqueCount(chords) {
@@ -265,13 +618,32 @@ function getBorrowedResolutionBonus(lastParsedChord, candidate, keyData) {
   return 0;
 }
 
+function getMoodFunctionWeight(profile, candidateFn, boostedFunctions) {
+  if (!candidateFn) return 0;
+
+  const normalized = normaliseFunctionLabel(candidateFn);
+  const boosted = boostedFunctions.includes(candidateFn) || boostedFunctions.includes(normalized) ? 2 : 0;
+  return (profile.functionWeights?.[candidateFn] || profile.functionWeights?.[normalized] || 0) + boosted;
+}
+
+function buildScoreBreakdown(parts) {
+  return parts
+    .map(part => `${part.value >= 0 ? "+" : ""}${part.value} ${part.label}`)
+    .join(", ");
+}
+
 function buildReasonParts({
   lastChord,
   candidate,
   candidateFn,
+  bucket,
+  bucketTitle,
+  profileSummary,
+  theoryReason,
   cadenceBonus,
   patternBonus,
   moodMatched,
+  moodWeight,
   borrowedResolutionBonus,
   functionDescriptions,
   moodReasonText,
@@ -286,8 +658,16 @@ function buildReasonParts({
     parts.push(`Flows naturally from ${lastChord}.`);
   }
 
+  if (bucketTitle) {
+    parts.push(`${bucketTitle} suggestion.`);
+  }
+
   if (cameAfterBorrowedChord) {
     parts.push("The previous chord sits outside the selected key, so this tries to steer the progression back into a stable path.");
+  }
+
+  if (theoryReason) {
+    parts.push(theoryReason);
   }
 
   if (cadenceBonus >= 5) {
@@ -314,6 +694,10 @@ function buildReasonParts({
 
   if (moodMatched && moodReasonText[feeling]) {
     parts.push(moodReasonText[feeling]);
+  }
+
+  if (!moodMatched && moodWeight > 0 && profileSummary) {
+    parts.push(profileSummary);
   }
 
   if (candidate === lastChord) {
@@ -354,6 +738,126 @@ export function parseProgression(input, keyData) {
   return { parsed, invalid };
 }
 
+function createInKeySuggestion({
+  candidate,
+  parsed,
+  romanHistory,
+  profile,
+  boostedFunctions,
+  lastParsedChord,
+  lastDisplayChord,
+  keyData,
+  functionDescriptions,
+  moodReasonText,
+  feeling
+}) {
+  const diatonicMatch = findMatchingDiatonicChord(candidate, keyData);
+  const candidateDisplay = diatonicMatch?.diatonicChord || candidate;
+  const candidateFn = diatonicMatch?.function || null;
+  const cadenceBonus = candidateFn ? getCadenceBonus(romanHistory, candidateFn) : 0;
+  const patternBonus = candidateFn ? getPatternBonus(parsed, candidateDisplay, romanHistory, candidateFn) : 0;
+  const moodWeight = getMoodFunctionWeight(profile, candidateFn, boostedFunctions);
+  const repetitionPenalty = getRepetitionPenalty(parsed, candidateDisplay);
+  const borrowedResolutionBonus = getBorrowedResolutionBonus(lastParsedChord, candidateDisplay, keyData);
+  const score = 12 + moodWeight + cadenceBonus + patternBonus + borrowedResolutionBonus - repetitionPenalty;
+  const scoreBreakdown = buildScoreBreakdown([
+    { value: 12, label: "base" },
+    { value: moodWeight, label: "mood" },
+    { value: cadenceBonus, label: "cadence" },
+    { value: patternBonus, label: "pattern" },
+    { value: borrowedResolutionBonus, label: "borrowed return" },
+    { value: -repetitionPenalty, label: "repeat" }
+  ]);
+
+  return {
+    chord: candidateDisplay,
+    fn: candidateFn || "in key",
+    score,
+    inKey: true,
+    bucket: "inKey",
+    reason: buildReasonParts({
+      lastChord: lastDisplayChord,
+      candidate: candidateDisplay,
+      candidateFn,
+      bucket: "inKey",
+      bucketTitle: getBucketMeta("inKey").title,
+      profileSummary: profile.summary,
+      theoryReason: "",
+      cadenceBonus,
+      patternBonus,
+      moodMatched: moodWeight > 0,
+      moodWeight,
+      borrowedResolutionBonus,
+      functionDescriptions,
+      moodReasonText,
+      feeling,
+      scoreBreakdown,
+      cameAfterBorrowedChord: Boolean(lastParsedChord && !lastParsedChord.inKey),
+      isOutsideKeyCandidate: false
+    })
+  };
+}
+
+function createBucketSuggestion({
+  entry,
+  parsed,
+  profile,
+  lastParsedChord,
+  lastDisplayChord,
+  keyData,
+  functionDescriptions,
+  moodReasonText,
+  feeling
+}) {
+  const repetitionPenalty = getRepetitionPenalty(parsed, entry.chord);
+  const diatonicMatch = findMatchingDiatonicChord(entry.chord, keyData);
+  const candidateFn = diatonicMatch?.function || null;
+  const targetWeight = entry.targetFunction
+    ? (profile.functionWeights?.[entry.targetFunction] || 0)
+    : 0;
+  const score = 10 + (entry.ruleWeight || 0) + Math.max(0, targetWeight) - repetitionPenalty;
+  const scoreBreakdown = buildScoreBreakdown([
+    { value: 10, label: "base" },
+    { value: entry.ruleWeight || 0, label: "theory" },
+    { value: Math.max(0, targetWeight), label: "target" },
+    { value: -repetitionPenalty, label: "repeat" }
+  ]);
+
+  return {
+    chord: entry.chord,
+    fn: entry.fn,
+    score,
+    inKey: Boolean(diatonicMatch),
+    bucket: entry.bucket,
+    reason: buildReasonParts({
+      lastChord: lastDisplayChord,
+      candidate: entry.chord,
+      candidateFn,
+      bucket: entry.bucket,
+      bucketTitle: getBucketMeta(entry.bucket).title,
+      profileSummary: profile.summary,
+      theoryReason: entry.ruleReason,
+      cadenceBonus: 0,
+      patternBonus: 0,
+      moodMatched: true,
+      moodWeight: entry.ruleWeight || 0,
+      borrowedResolutionBonus: 0,
+      functionDescriptions,
+      moodReasonText,
+      feeling,
+      scoreBreakdown,
+      cameAfterBorrowedChord: Boolean(lastParsedChord && !lastParsedChord.inKey),
+      isOutsideKeyCandidate: !diatonicMatch
+    })
+  };
+}
+
+function selectTopBucketSuggestions(candidates, limit = 3) {
+  return candidates
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
 export function getSuggestions({
   musicData,
   moodBoosts,
@@ -375,96 +879,78 @@ export function getSuggestions({
 
   const { parsed, invalid } = parseProgression(progression, keyData);
   const boostedFunctions = moodBoosts[feeling] || [];
+  const profile = getMoodProfile(feeling);
   const lastParsedChord = parsed.at(-1);
   const lastDisplayChord = lastParsedChord?.original || keyData.chords[0];
-  const lastChord = lastParsedChord?.diatonicChord || lastParsedChord?.original || keyData.chords[0];
+  const romanHistory = parsed.map(item => item.function).filter(Boolean);
 
-  const romanHistory = parsed
-    .map(item => item.function)
-    .filter(Boolean);
-
-  const baseCandidates = lastParsedChord?.inKey
-    ? (keyData.transitions[lastChord] || keyData.chords)
-    : keyData.chords;
-
-  const chromaticPool = buildChromaticCandidatePool(keyData);
-
-  const candidatePool = [
-    ...baseCandidates,
-    ...chromaticPool.filter(candidate => {
-      const quality = getChordQuality(candidate);
-      const sameQualityAsLast = lastParsedChord
-        ? getChordQuality(lastParsedChord.original) === quality
-        : true;
-
-      const sameRootAsLast = lastParsedChord
-        ? normaliseRoot(getChordRoot(candidate)) === normaliseRoot(getChordRoot(lastParsedChord.original))
-        : false;
-
-      return !sameRootAsLast && sameQualityAsLast;
-    }).slice(0, 8)
-  ].filter((candidate, index, array) =>
-    array.findIndex(item => chordsEquivalent(item, candidate)) === index
+  const inKeySuggestions = selectTopBucketSuggestions(
+    buildInKeyCandidates({ keyData, lastParsedChord }).map(candidate =>
+      createInKeySuggestion({
+        candidate,
+        parsed,
+        romanHistory,
+        profile,
+        boostedFunctions,
+        lastParsedChord,
+        lastDisplayChord,
+        keyData,
+        functionDescriptions,
+        moodReasonText,
+        feeling
+      })
+    ),
+    3
   );
 
-  const suggestions = candidatePool
-    .map(candidate => {
-      const diatonicMatch = findMatchingDiatonicChord(candidate, keyData);
-      const candidateDisplay = diatonicMatch || candidate;
-      const candidateFn = diatonicMatch ? keyData.functions[diatonicMatch] : null;
-      const isOutsideKeyCandidate = !diatonicMatch;
-
-      const baseScore = diatonicMatch ? 3 : 1;
-      const moodBonus = candidateFn && boostedFunctions.includes(candidateFn) ? 3 : 0;
-      const cadenceBonus = candidateFn ? getCadenceBonus(romanHistory, candidateFn) : 0;
-      const patternBonus = candidateFn
-        ? getPatternBonus(parsed, candidateDisplay, romanHistory, candidateFn)
-        : 0;
-      const repetitionPenalty = getRepetitionPenalty(parsed, candidateDisplay);
-      const borrowedResolutionBonus = getBorrowedResolutionBonus(lastParsedChord, candidateDisplay, keyData);
-      const outsideKeyPenalty = isOutsideKeyCandidate ? 1 : 0;
-
-      const score =
-        baseScore +
-        moodBonus +
-        cadenceBonus +
-        patternBonus +
-        borrowedResolutionBonus -
-        repetitionPenalty -
-        outsideKeyPenalty;
-
-      const scoreBreakdown =
-        `${baseScore}+${moodBonus}+${cadenceBonus}+${patternBonus}+${borrowedResolutionBonus}-${repetitionPenalty}-${outsideKeyPenalty}`;
-
-      return {
-        chord: candidateDisplay,
-        fn: candidateFn || "outside key",
-        score,
-        inKey: !isOutsideKeyCandidate,
-        reason: buildReasonParts({
-          lastChord: lastDisplayChord,
-          candidate: candidateDisplay,
-          candidateFn,
-          cadenceBonus,
-          patternBonus,
-          moodMatched: Boolean(candidateFn && boostedFunctions.includes(candidateFn)),
-          borrowedResolutionBonus,
+  const relatedSuggestions = selectTopBucketSuggestions(
+    buildRelatedCandidates({ keyData, profile })
+      .filter(entry => !isChordBlockedByBuckets(entry.chord, [inKeySuggestions]))
+      .map(entry =>
+        createBucketSuggestion({
+          entry,
+          parsed,
+          profile,
+          lastParsedChord,
+          lastDisplayChord,
+          keyData,
           functionDescriptions,
           moodReasonText,
-          feeling,
-          scoreBreakdown,
-          cameAfterBorrowedChord: Boolean(lastParsedChord && !lastParsedChord.inKey),
-          isOutsideKeyCandidate
+          feeling
         })
-      };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6);
+      ),
+    3
+  );
+
+  const outsideSuggestions = selectTopBucketSuggestions(
+    buildOutsideCandidates({ keyData, profile })
+      .filter(entry => !isChordBlockedByBuckets(entry.chord, [inKeySuggestions, relatedSuggestions]))
+      .map(entry =>
+        createBucketSuggestion({
+          entry,
+          parsed,
+          profile,
+          lastParsedChord,
+          lastDisplayChord,
+          keyData,
+          functionDescriptions,
+          moodReasonText,
+          feeling
+        })
+      ),
+    3
+  );
+
+  const suggestions = [
+    ...inKeySuggestions,
+    ...relatedSuggestions,
+    ...outsideSuggestions
+  ];
 
   return {
     suggestions,
     parsedProgression: parsed,
     invalidChords: invalid,
-    lastChord
+    lastChord: lastParsedChord?.diatonicChord || lastParsedChord?.original || keyData.chords[0]
   };
 }
