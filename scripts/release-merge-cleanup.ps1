@@ -56,8 +56,23 @@ function Invoke-CheckedCommand {
         [switch]$CaptureOutput
     )
 
-    $output = & $Command @Arguments 2>&1
-    if ($LASTEXITCODE -ne 0) {
+    $hasNativeErrorPreference = $null -ne (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue)
+    if ($hasNativeErrorPreference) {
+        $previousNativeErrorPreference = $PSNativeCommandUseErrorActionPreference
+        $PSNativeCommandUseErrorActionPreference = $false
+    }
+
+    try {
+        $output = & $Command @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        if ($hasNativeErrorPreference) {
+            $PSNativeCommandUseErrorActionPreference = $previousNativeErrorPreference
+        }
+    }
+
+    if ($exitCode -ne 0) {
         $details = if ($output) { ($output -join [Environment]::NewLine) } else { "(no output)" }
         throw ("Command failed: {0} {1}{2}{3}" -f $Command, (Join-ArgumentDisplay -Arguments $Arguments), [Environment]::NewLine, $details)
     }
@@ -70,7 +85,6 @@ function Invoke-CheckedCommand {
         $output | Write-Host
     }
 }
-
 function Get-GitOutput {
     param(
         [Parameter(Mandatory = $true)]
@@ -280,6 +294,8 @@ if ($DeleteRepoAfterSuccess) {
 else {
     Write-Host "DeleteRepoAfterSuccess was not provided, so the local repository was kept."
 }
+
+
 
 
 
