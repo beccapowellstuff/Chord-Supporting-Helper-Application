@@ -133,17 +133,15 @@
             <div class="chord-loader-body suggestion-engine-body">
               <div class="suggestion-engine-controls">
                 <div class="suggestion-engine-feeling">
-                  <label for="feeling">Feeling</label>
-                  <select id="feeling"></select>
+                  <span class="suggestion-engine-feeling-label">Feeling</span>
+                  <span class="suggestion-engine-feeling-subtitle">Choose the direction you want the progression to lean toward.</span>
                 </div>
-
-                <div class="suggest-actions">
-                  <button id="suggestBtn" type="button">Suggest next chords</button>
-                  <label class="suggest-toggle" for="autoSuggestToggle">
-                    <input id="autoSuggestToggle" type="checkbox">
-                    <span>Auto-refresh suggestions when adding chords</span>
-                  </label>
-                </div>
+                <select id="feeling" aria-label="Feeling"></select>
+                <button id="suggestBtn" class="suggest-refresh-btn" type="button">Refresh</button>
+                <label class="suggest-toggle" for="autoSuggestToggle">
+                  <input id="autoSuggestToggle" type="checkbox">
+                  <span>Auto-refresh suggestions when adding chords</span>
+                </label>
               </div>
 
               <ul id="results">
