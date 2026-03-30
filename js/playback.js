@@ -111,14 +111,18 @@ function getPlaybackEntry(entry) {
     return {
       chord: entry,
       durationBeats: 4,
-      sustain: false
+      sustain: false,
+      voicingMidiNotes: []
     };
   }
 
   return {
     chord: entry?.chord || "",
     durationBeats: Math.max(1, Number(entry?.durationBeats) || 4),
-    sustain: Boolean(entry?.sustain)
+    sustain: Boolean(entry?.sustain),
+    voicingMidiNotes: Array.isArray(entry?.voicing?.midiNotes)
+      ? entry.voicing.midiNotes.map(value => Number(value)).filter(Number.isFinite)
+      : []
   };
 }
 
@@ -164,7 +168,9 @@ export async function playProgression(chords, tempo = 120, onChordStart = null, 
       return;
     }
 
-    const voicing = resolveChordVoicing(chord, true, previousVoicing);
+    const voicing = entry.voicingMidiNotes.length
+      ? [...entry.voicingMidiNotes]
+      : resolveChordVoicing(chord, true, previousVoicing);
     previousVoicing = voicing;
 
     if (entry.sustain) {

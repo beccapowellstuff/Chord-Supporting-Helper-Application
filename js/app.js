@@ -124,6 +124,7 @@ let lockedSequenceChordName = "";
 let sequenceKeyboardFlashTimeout = null;
 const SEQUENCE_KEYBOARD_MIN_MIDI = 48; // C3
 const SEQUENCE_KEYBOARD_MAX_MIDI = 95; // B6
+const PLAYBACK_MIN_MIDI = 36; // C2
 const TOOL_PANEL_TRANSITION_MS = 180;
 let activeToolPanelId = "keyExplorerPanel";
 let toolPanelTransitionTimeout = null;
@@ -411,13 +412,14 @@ function refreshProgressionItemsForSelectedKey() {
   setProgressionItems(refreshedItems, { preserveSelection: true });
 }
 
-function appendChordToProgression(chordName) {
+function appendChordToProgression(chordName, overrides = {}) {
   const friendlyChordName = getFriendlyChordName(chordName);
   const nextItems = appendProgressionItem(
     appState.progressionItems,
     friendlyChordName,
     getCurrentKeyData(),
-    getCurrentSequenceSettings()
+    getCurrentSequenceSettings(),
+    overrides
   );
   const selectedId = nextItems.at(-1)?.id || null;
 
@@ -428,7 +430,7 @@ function appendChordToProgression(chordName) {
   }
 }
 
-function updateSelectedProgressionChord(chordName) {
+function updateSelectedProgressionChord(chordName, overrides = {}) {
   const selectedId = appState.selectedProgressionItemId;
   if (!selectedId) {
     return;
@@ -439,7 +441,8 @@ function updateSelectedProgressionChord(chordName) {
     item.id === selectedId
       ? {
           ...item,
-          chord: friendlyChordName
+          chord: friendlyChordName,
+          ...overrides
         }
       : item
   );
@@ -625,6 +628,25 @@ function getVisibleSequenceKeyboardNotes(midiNotes) {
       midi => midi >= SEQUENCE_KEYBOARD_MIN_MIDI && midi <= SEQUENCE_KEYBOARD_MAX_MIDI
     )
   );
+}
+
+function getIdentifiedSequenceVoicing() {
+  const midiNotes = normalizeMidiList(identifiedSequenceChord?.playedMidiNotes);
+  if (!midiNotes.length) {
+    return null;
+  }
+
+  const bassMidi = midiNotes[0];
+  const doubledBassMidi = Number.isFinite(bassMidi) ? bassMidi - 12 : null;
+  const voicingMidiNotes = normalizeMidiList([
+    ...(Number.isFinite(doubledBassMidi) && doubledBassMidi >= PLAYBACK_MIN_MIDI ? [doubledBassMidi] : []),
+    ...midiNotes
+  ]);
+
+  return {
+    source: "keyboard",
+    midiNotes: voicingMidiNotes
+  };
 }
 
 function getVisibleSequenceKeyboardChordDisplay(chordName) {
@@ -834,12 +856,16 @@ function refreshSequenceKeyboard() {
       },
       onSave: () => {
         if (identifiedSequenceChord?.canonicalName) {
-          appendChordToProgression(identifiedSequenceChord.canonicalName);
+          appendChordToProgression(identifiedSequenceChord.canonicalName, {
+            voicing: getIdentifiedSequenceVoicing()
+          });
         }
       },
       onUpdate: () => {
         if (identifiedSequenceChord?.canonicalName && appState.selectedProgressionItemId) {
-          updateSelectedProgressionChord(identifiedSequenceChord.canonicalName);
+          updateSelectedProgressionChord(identifiedSequenceChord.canonicalName, {
+            voicing: getIdentifiedSequenceVoicing()
+          });
         }
       },
       onDelete: () => {
@@ -898,9 +924,23 @@ function showSequenceKeyboardChord(chordName, durationSeconds = 1.0) {
   setSequenceKeyboardNotes(midiNotes, durationSeconds, chordName);
 }
 
+function showSequenceKeyboardVoicing(midiNotes, chordName = "", durationSeconds = 1.0) {
+  const normalizedMidi = normalizeMidiList(midiNotes);
+  if (!normalizedMidi.length) {
+    return;
+  }
+
+  setSequenceKeyboardNotes(normalizedMidi, durationSeconds, chordName);
+}
+
 async function playChordWithSequenceKeyboard(chordName, duration = 1.0) {
   showSequenceKeyboardChord(chordName, duration);
   await playChord(chordName, duration);
+}
+
+async function playVoicingWithSequenceKeyboard(midiNotes, chordName = "", duration = 1.0) {
+  showSequenceKeyboardVoicing(midiNotes, chordName, duration);
+  await playMidiNotes(midiNotes, duration);
 }
 
 async function previewProgressionItemSelection(selectedId) {
@@ -918,7 +958,11 @@ async function previewProgressionItemSelection(selectedId) {
   try {
     appState.playingProgressionItemId = selectedItem.id;
     renderProgressionBuilderUI();
-    await playChordWithSequenceKeyboard(selectedItem.chord, previewDuration);
+    if (selectedItem.voicing?.midiNotes?.length) {
+      await playVoicingWithSequenceKeyboard(selectedItem.voicing.midiNotes, selectedItem.chord, previewDuration);
+    } else {
+      await playChordWithSequenceKeyboard(selectedItem.chord, previewDuration);
+    }
   } catch (error) {
     console.warn("Could not preview progression chord:", error);
   } finally {

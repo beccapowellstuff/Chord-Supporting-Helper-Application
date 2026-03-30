@@ -8,6 +8,7 @@ export const DEFAULT_TIME_SIGNATURE = "4/4";
 const DEFAULT_DURATION_BEATS = 4;
 const MIN_DURATION_BEATS = 1;
 const MAX_DURATION_BEATS = 8;
+const MIN_CUSTOM_VOICING_MIDI = 36;
 const SUPPORTED_TIME_SIGNATURES = new Set(["2/4", "3/4", "4/4"]);
 
 function createProgressionItemId() {
@@ -63,6 +64,33 @@ function normalizeSustain(sustain, fallback = false) {
   return sustain === "true" || sustain === 1 || sustain === "1";
 }
 
+function normalizeVoicing(voicing, fallback = null) {
+  const rawMidiNotes = Array.isArray(voicing)
+    ? voicing
+    : Array.isArray(voicing?.midiNotes)
+      ? voicing.midiNotes
+      : null;
+
+  if (!rawMidiNotes) {
+    return fallback;
+  }
+
+  const midiNotes = [...new Set(
+    rawMidiNotes
+      .map(value => Number(value))
+      .filter(value => Number.isFinite(value) && value >= MIN_CUSTOM_VOICING_MIDI)
+  )].sort((a, b) => a - b);
+
+  if (!midiNotes.length) {
+    return fallback;
+  }
+
+  return {
+    source: typeof voicing?.source === "string" ? voicing.source : "keyboard",
+    midiNotes
+  };
+}
+
 function getExistingDurationBeats(existingItem, sequenceSettings = {}) {
   if (existingItem?.durationBeats != null) {
     return normalizeDurationBeats(existingItem.durationBeats, getDefaultDurationBeats(sequenceSettings));
@@ -102,6 +130,7 @@ function buildProgressionItem(chord, keyData, existingItem = null, overrides = {
     suffix: parsedChord?.suffix || "",
     durationBeats,
     sustain: normalizeSustain(overrides.sustain, normalizeSustain(existingItem?.sustain, false)),
+    voicing: normalizeVoicing(overrides.voicing, normalizeVoicing(existingItem?.voicing, null)),
     inKey: Boolean(chordAnalysis?.inKey),
     function: chordAnalysis?.function || null,
     diatonicChord: chordAnalysis?.diatonicChord || null
@@ -125,8 +154,8 @@ export function rebuildProgressionItems(items, keyData, sequenceSettings = {}) {
     .filter(item => item.chord);
 }
 
-export function appendProgressionItem(items, chord, keyData, sequenceSettings = {}) {
-  const nextItem = buildProgressionItem(chord, keyData, null, {}, sequenceSettings);
+export function appendProgressionItem(items, chord, keyData, sequenceSettings = {}, overrides = {}) {
+  const nextItem = buildProgressionItem(chord, keyData, null, overrides, sequenceSettings);
   return [...(Array.isArray(items) ? items : []), nextItem];
 }
 
@@ -169,7 +198,8 @@ export function buildProgressionSavePayload(items, selectedKey, sequenceSettings
       position: index + 1,
       chord: item.chord,
       durationBeats: normalizeDurationBeats(item.durationBeats, getDefaultDurationBeats(sequenceSettings)),
-      sustain: normalizeSustain(item.sustain, false)
+      sustain: normalizeSustain(item.sustain, false),
+      voicing: normalizeVoicing(item.voicing, null)
     }))
   };
 }
@@ -201,7 +231,8 @@ export function importProgressionFromSavedData(data, keyData, existingItems = []
 
         return buildProgressionItem(chord, keyData, existingItems[index], {
           durationBeats: entry?.durationBeats,
-          sustain: entry?.sustain
+          sustain: entry?.sustain,
+          voicing: entry?.voicing
         }, sequenceSettings);
       })
       .filter(Boolean);
@@ -219,7 +250,8 @@ export function importProgressionFromSavedData(data, keyData, existingItems = []
 
         return buildProgressionItem(chord, keyData, existingItems[index], {
           duration: entry?.duration,
-          sustain: entry?.sustain
+          sustain: entry?.sustain,
+          voicing: entry?.voicing
         }, sequenceSettings);
       })
       .filter(Boolean);

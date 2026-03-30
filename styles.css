@@ -679,6 +679,10 @@ body {
   padding-bottom: 7px;
 }
 
+.progression-text-shell-hidden {
+  display: none;
+}
+
 .progression-text-shell .input-help {
   margin-bottom: 6px;
 }
