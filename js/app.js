@@ -12,7 +12,7 @@
  * Depends on: dataLoader, engine, ui, rootSelector, synth, chordNotes, playback
  */
 import { loadAllData } from "./dataLoader.js";
-import { getSuggestions, parseProgression } from "./engine.js";
+import { getSuggestions } from "./engine.js";
 import {
   populateFeelings,
   populateModeSelect,
@@ -30,7 +30,8 @@ import {
   initSoundFont,
   playMidiNote,
   playMidiNotes,
-  ensureAudioContext
+  ensureAudioContext,
+  stopAllPlayback
 } from "./synth.js";
 import {
   noteToMidi,
@@ -41,6 +42,22 @@ import {
   pitchClassToDisplayNote
 } from "./chordNotes.js";
 import { ensureAudioReady, playChord, playProgression } from "./playback.js";
+import {
+  appendProgressionItem,
+  buildProgressionSavePayload,
+  DEFAULT_TEMPO_BPM,
+  DEFAULT_TIME_SIGNATURE,
+  getBeatsPerBar,
+  importProgressionFromSavedData,
+  importProgressionFromText,
+  normalizeTempoBpm,
+  normalizeTimeSignature,
+  progressionItemsToChords,
+  progressionItemsToText,
+  rebuildProgressionItems,
+  renderProgressionBlocks,
+  renderProgressionEditor
+} from "./progressionBuilder.js";
 
 document.addEventListener(
   "pointerdown",
@@ -66,6 +83,10 @@ const playProgressionBtn = document.getElementById("playProgressionBtn");
 const saveProgressionBtn = document.getElementById("saveProgressionBtn");
 const loadProgressionBtn = document.getElementById("loadProgressionBtn");
 const loadProgressionInput = document.getElementById("loadProgressionInput");
+const progressionBlocks = document.getElementById("progressionBlocks");
+const progressionEditor = document.getElementById("progressionEditor");
+const sequenceTempoBpmInput = document.getElementById("sequenceTempoBpm");
+const sequenceTimeSignatureSelect = document.getElementById("sequenceTimeSignature");
 const results = document.getElementById("results");
 const rootContainer = document.getElementById("rootContainer");
 const keyInfo = document.getElementById("keyInfo");
@@ -83,7 +104,16 @@ const appState = {
   selectedKey: "C Ionian",
   selectedChordRoot: "C",
   selectedBassRoot: "C",
-  keyChordSet: null
+  keyChordSet: null,
+  sequenceTempoBpm: DEFAULT_TEMPO_BPM,
+  sequenceTimeSignature: DEFAULT_TIME_SIGNATURE,
+  progressionItems: [],
+  selectedProgressionItemId: null,
+  editingProgressionItemId: null,
+  editingProgressionAnchorRect: null,
+  playingProgressionItemId: null,
+  isPlayingProgression: false,
+  progressionInvalidTokens: []
 };
 window.appState = appState;
 let sequenceKeyboardMidiNotes = [];
@@ -97,8 +127,8 @@ const SEQUENCE_KEYBOARD_MAX_MIDI = 95; // B6
 const TOOL_PANEL_TRANSITION_MS = 180;
 let activeToolPanelId = "keyExplorerPanel";
 let toolPanelTransitionTimeout = null;
-const PROGRESSION_FILE_TYPE = "chordcanvas-progression";
-const PROGRESSION_FILE_VERSION = 1;
+let progressionPreviewToken = 0;
+let activeProgressionPlaybackSession = null;
 
 function updateKeyChordSet() {
   if (!appData || !appState.selectedKey) {
@@ -215,73 +245,290 @@ function initToolNavigation() {
   setActiveToolPanel("keyExplorerPanel", { immediate: true });
 }
 
-function detectSeparator(text) {
-  if (!text) return ",";
-  if (text.includes("|")) return "|";
-  if (text.includes("\n")) return "\n";
-  if (text.includes(",")) return ",";
-  return ",";
+function getCurrentKeyData() {
+  return appData?.musicData?.[appState.selectedKey] || null;
+}
+
+function syncProgressionTextFromState() {
+  const nextText = progressionItemsToText(appState.progressionItems);
+  if (progressionInput.value !== nextText) {
+    progressionInput.value = nextText;
+  }
+}
+
+function getCurrentSequenceSettings() {
+  return {
+    tempoBpm: appState.sequenceTempoBpm,
+    timeSignature: appState.sequenceTimeSignature
+  };
+}
+
+function getProgressionBlockAnchorRect(itemId, fallbackRect = null) {
+  const block = progressionBlocks?.querySelector(`[data-progression-block-id="${itemId}"]`);
+  const rect = block?.getBoundingClientRect?.();
+  if (rect && rect.width > 0 && rect.height > 0) {
+    return {
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      width: rect.width,
+      height: rect.height
+    };
+  }
+
+  if (fallbackRect?.width > 0 && fallbackRect?.height > 0) {
+    return fallbackRect;
+  }
+
+  return null;
+}
+
+function renderProgressionBuilderUI() {
+  if (sequenceTempoBpmInput) {
+    sequenceTempoBpmInput.value = String(appState.sequenceTempoBpm);
+  }
+
+  if (sequenceTimeSignatureSelect) {
+    sequenceTimeSignatureSelect.value = appState.sequenceTimeSignature;
+  }
+
+  renderProgressionBlocks(
+    progressionBlocks,
+    appState.progressionItems,
+    appState.selectedProgressionItemId,
+    appState.playingProgressionItemId,
+    getBeatsPerBar(appState.sequenceTimeSignature),
+    selectedId => {
+      appState.selectedProgressionItemId = selectedId;
+      renderProgressionBuilderUI();
+      void previewProgressionItemSelection(selectedId);
+    },
+    (editingId, anchorRect) => {
+      appState.selectedProgressionItemId = editingId;
+      appState.editingProgressionItemId = editingId;
+      renderProgressionBuilderUI();
+      appState.editingProgressionAnchorRect = getProgressionBlockAnchorRect(editingId, anchorRect);
+      renderProgressionBuilderUI();
+    }
+  );
+
+  const selectedIndex = appState.progressionItems.findIndex(item => item.id === appState.selectedProgressionItemId);
+  const selectedItem = selectedIndex >= 0 ? appState.progressionItems[selectedIndex] : null;
+  const editingIndex = appState.progressionItems.findIndex(item => item.id === appState.editingProgressionItemId);
+  const editingItem = editingIndex >= 0 ? appState.progressionItems[editingIndex] : null;
+
+  renderProgressionEditor(
+    progressionEditor,
+    editingItem,
+    editingIndex >= 0 ? editingIndex : 0,
+    appState.progressionItems.length,
+    {
+      onDurationBeatsChange: nextDurationBeats => {
+        updateSelectedProgressionDurationBeats(nextDurationBeats);
+      },
+      onSustainChange: nextSustain => {
+        updateSelectedProgressionSustain(nextSustain);
+      },
+      anchorRect: appState.editingProgressionAnchorRect,
+      onClose: () => {
+        appState.editingProgressionItemId = null;
+        appState.editingProgressionAnchorRect = null;
+        renderProgressionBuilderUI();
+      }
+    }
+  );
+
+  if (playProgressionBtn) {
+    playProgressionBtn.textContent = appState.isPlayingProgression ? "Stop" : "Play sequence";
+    playProgressionBtn.dataset.tooltip = appState.isPlayingProgression
+      ? "Stop progression playback"
+      : "Play all chords in the progression";
+  }
+}
+
+function setProgressionItems(items, options = {}) {
+  const {
+    selectedId = null,
+    preserveSelection = false,
+    syncText = true
+  } = options;
+
+  const nextItems = Array.isArray(items) ? items : [];
+  const availableIds = new Set(nextItems.map(item => item.id));
+
+  let nextSelectedId = null;
+  if (selectedId && availableIds.has(selectedId)) {
+    nextSelectedId = selectedId;
+  } else if (preserveSelection && availableIds.has(appState.selectedProgressionItemId)) {
+    nextSelectedId = appState.selectedProgressionItemId;
+  } else if (nextItems.length) {
+    nextSelectedId = nextItems[0].id;
+  }
+
+  appState.progressionItems = nextItems;
+  appState.selectedProgressionItemId = nextSelectedId;
+  if (!availableIds.has(appState.editingProgressionItemId)) {
+    appState.editingProgressionItemId = null;
+    appState.editingProgressionAnchorRect = null;
+  }
+
+  if (syncText) {
+    syncProgressionTextFromState();
+  }
+
+  renderProgressionBuilderUI();
+}
+
+function importProgressionTextToState(text, options = {}) {
+  const keyData = getCurrentKeyData();
+  if (!keyData) return;
+
+  const { items, invalid } = importProgressionFromText(
+    text,
+    keyData,
+    appState.progressionItems,
+    getCurrentSequenceSettings()
+  );
+  appState.progressionInvalidTokens = invalid;
+  setProgressionItems(items, {
+    selectedId: options.selectedId || null,
+    preserveSelection: options.preserveSelection || false
+  });
+}
+
+function refreshProgressionItemsForSelectedKey() {
+  if (!appState.progressionItems.length) {
+    renderProgressionBuilderUI();
+    return;
+  }
+
+  const refreshedItems = rebuildProgressionItems(
+    appState.progressionItems,
+    getCurrentKeyData(),
+    getCurrentSequenceSettings()
+  );
+  setProgressionItems(refreshedItems, { preserveSelection: true });
 }
 
 function appendChordToProgression(chordName) {
   const friendlyChordName = getFriendlyChordName(chordName);
-  const currentValue = progressionInput.value.trim();
-  const separator = detectSeparator(currentValue);
+  const nextItems = appendProgressionItem(
+    appState.progressionItems,
+    friendlyChordName,
+    getCurrentKeyData(),
+    getCurrentSequenceSettings()
+  );
+  const selectedId = nextItems.at(-1)?.id || null;
 
-  if (currentValue) {
-    progressionInput.value = currentValue + " " + separator + " " + friendlyChordName;
-  } else {
-    progressionInput.value = friendlyChordName;
-  }
+  setProgressionItems(nextItems, { selectedId });
 
   if (autoSuggestToggle?.checked && appData) {
     runSuggestions();
   }
 }
 
-function extractChordList(parsedProgression) {
-  if (!Array.isArray(parsedProgression)) return [];
+function updateSelectedProgressionChord(chordName) {
+  const selectedId = appState.selectedProgressionItemId;
+  if (!selectedId) {
+    return;
+  }
 
-  return parsedProgression
-    .map(item => {
-      if (typeof item === "string") return item;
-      if (item && typeof item.original === "string") return item.original;
-      return null;
-    })
-    .filter(Boolean);
+  const friendlyChordName = getFriendlyChordName(chordName);
+  const nextItems = appState.progressionItems.map(item =>
+    item.id === selectedId
+      ? {
+          ...item,
+          chord: friendlyChordName
+        }
+      : item
+  );
+  const rebuiltItems = rebuildProgressionItems(nextItems, getCurrentKeyData(), getCurrentSequenceSettings());
+
+  setProgressionItems(rebuiltItems, {
+    selectedId,
+    preserveSelection: true
+  });
+
+  if (autoSuggestToggle?.checked && appData) {
+    runSuggestions();
+  }
+}
+
+function updateSelectedProgressionDurationBeats(durationBeats) {
+  const selectedId = appState.selectedProgressionItemId;
+  if (!selectedId) {
+    return;
+  }
+
+  const nextItems = appState.progressionItems.map(item =>
+    item.id === selectedId
+      ? {
+          ...item,
+          durationBeats
+        }
+      : item
+  );
+  const rebuiltItems = rebuildProgressionItems(nextItems, getCurrentKeyData(), getCurrentSequenceSettings());
+
+  setProgressionItems(rebuiltItems, {
+    selectedId,
+    preserveSelection: true
+  });
+}
+
+function updateSelectedProgressionSustain(sustain) {
+  const selectedId = appState.selectedProgressionItemId;
+  if (!selectedId) {
+    return;
+  }
+
+  const nextItems = appState.progressionItems.map(item =>
+    item.id === selectedId
+      ? {
+          ...item,
+          sustain
+        }
+      : item
+  );
+  const rebuiltItems = rebuildProgressionItems(nextItems, getCurrentKeyData(), getCurrentSequenceSettings());
+
+  setProgressionItems(rebuiltItems, {
+    selectedId,
+    preserveSelection: true
+  });
+}
+
+function deleteSelectedProgressionChord() {
+  const selectedId = appState.selectedProgressionItemId;
+  if (!selectedId) {
+    return;
+  }
+
+  const selectedIndex = appState.progressionItems.findIndex(item => item.id === selectedId);
+  if (selectedIndex < 0) {
+    return;
+  }
+
+  const nextItems = appState.progressionItems.filter(item => item.id !== selectedId);
+  const fallbackSelection =
+    nextItems[selectedIndex]?.id ||
+    nextItems[selectedIndex - 1]?.id ||
+    null;
+
+  if (appState.editingProgressionItemId === selectedId) {
+    appState.editingProgressionItemId = null;
+    appState.editingProgressionAnchorRect = null;
+  }
+  setProgressionItems(nextItems, { selectedId: fallbackSelection });
+
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+    runSuggestions();
+  }
 }
 
 function getProgressionChordList() {
-  const keyData = appData?.musicData?.[appState.selectedKey];
-  if (!keyData) return [];
-
-  const { parsed } = parseProgression(progressionInput.value, keyData);
-  return extractChordList(parsed);
-}
-
-function buildProgressionSavePayload() {
-  const chords = getProgressionChordList();
-  if (!chords.length) {
-    return null;
-  }
-
-  const [root = "C", ...modeParts] = String(appState.selectedKey || "").split(" ");
-  const mode = modeParts.join(" ") || "Ionian";
-
-  return {
-    type: PROGRESSION_FILE_TYPE,
-    version: PROGRESSION_FILE_VERSION,
-    savedAt: new Date().toISOString(),
-    key: {
-      name: appState.selectedKey,
-      root,
-      mode
-    },
-    bars: chords.map((chord, index) => ({
-      bar: index + 1,
-      chord
-    }))
-  };
+  return progressionItemsToChords(appState.progressionItems);
 }
 
 function buildProgressionFilename() {
@@ -316,41 +563,17 @@ function notifyProgressionSaveNeedsChords() {
 }
 
 function handleSaveProgression() {
-  const payload = buildProgressionSavePayload();
+  const payload = buildProgressionSavePayload(
+    appState.progressionItems,
+    appState.selectedKey,
+    getCurrentSequenceSettings()
+  );
   if (!payload) {
     notifyProgressionSaveNeedsChords();
     return;
   }
 
   downloadProgressionFile(payload);
-}
-
-function getChordsFromLoadedProgression(data) {
-  if (!data || typeof data !== "object") {
-    return [];
-  }
-
-  if (Array.isArray(data.bars)) {
-    return data.bars
-      .map(entry => (typeof entry?.chord === "string" ? entry.chord.trim() : ""))
-      .filter(Boolean);
-  }
-
-  if (Array.isArray(data.chords)) {
-    return data.chords
-      .map(chord => String(chord || "").trim())
-      .filter(Boolean);
-  }
-
-  if (typeof data.progression === "string") {
-    const keyData = appData?.musicData?.[appState.selectedKey];
-    if (!keyData) return [];
-
-    const { parsed } = parseProgression(data.progression, keyData);
-    return extractChordList(parsed);
-  }
-
-  return [];
 }
 
 async function handleLoadProgression(event) {
@@ -364,13 +587,20 @@ async function handleLoadProgression(event) {
   try {
     const raw = await file.text();
     const data = JSON.parse(raw);
-    const chords = getChordsFromLoadedProgression(data);
+    const {
+      items,
+      invalid,
+      sequenceSettings
+    } = importProgressionFromSavedData(data, getCurrentKeyData(), appState.progressionItems);
 
-    if (!chords.length) {
+    if (!items.length) {
       throw new Error("No chords found");
     }
 
-    progressionInput.value = chords.join(" | ");
+    appState.sequenceTempoBpm = normalizeTempoBpm(sequenceSettings?.tempoBpm);
+    appState.sequenceTimeSignature = normalizeTimeSignature(sequenceSettings?.timeSignature);
+    appState.progressionInvalidTokens = invalid;
+    setProgressionItems(items, { selectedId: null });
 
     if (activeToolPanelId === "suggestionEnginePanel" && appData) {
       runSuggestions();
@@ -536,6 +766,8 @@ function refreshSequenceKeyboard() {
       flashMidiNotes: sequenceKeyboardFlashMidiNotes,
       chordLabel: getSequenceKeyboardLabel(),
       canSave: Boolean(identifiedSequenceChord),
+      canUpdate: Boolean(identifiedSequenceChord && appState.selectedProgressionItemId),
+      canDelete: Boolean(appState.selectedProgressionItemId),
       canPlay: sequenceKeyboardMidiNotes.length > 0
     },
     {
@@ -604,6 +836,16 @@ function refreshSequenceKeyboard() {
         if (identifiedSequenceChord?.canonicalName) {
           appendChordToProgression(identifiedSequenceChord.canonicalName);
         }
+      },
+      onUpdate: () => {
+        if (identifiedSequenceChord?.canonicalName && appState.selectedProgressionItemId) {
+          updateSelectedProgressionChord(identifiedSequenceChord.canonicalName);
+        }
+      },
+      onDelete: () => {
+        if (appState.selectedProgressionItemId) {
+          deleteSelectedProgressionChord();
+        }
       }
     }
   );
@@ -659,6 +901,32 @@ function showSequenceKeyboardChord(chordName, durationSeconds = 1.0) {
 async function playChordWithSequenceKeyboard(chordName, duration = 1.0) {
   showSequenceKeyboardChord(chordName, duration);
   await playChord(chordName, duration);
+}
+
+async function previewProgressionItemSelection(selectedId) {
+  const selectedItem = appState.progressionItems.find(item => item.id === selectedId);
+  if (!selectedItem?.chord) {
+    return;
+  }
+
+  const previewToken = ++progressionPreviewToken;
+  const fullPreviewDuration = (selectedItem.durationBeats || 1) * (60 / appState.sequenceTempoBpm);
+  const previewDuration = selectedItem.sustain
+    ? Math.max(0.45, Math.min(4.2, fullPreviewDuration))
+    : Math.max(0.45, Math.min(2.4, fullPreviewDuration * 0.9));
+
+  try {
+    appState.playingProgressionItemId = selectedItem.id;
+    renderProgressionBuilderUI();
+    await playChordWithSequenceKeyboard(selectedItem.chord, previewDuration);
+  } catch (error) {
+    console.warn("Could not preview progression chord:", error);
+  } finally {
+    if (previewToken === progressionPreviewToken) {
+      appState.playingProgressionItemId = null;
+      renderProgressionBuilderUI();
+    }
+  }
 }
 
 function refreshChordPlaygroundUI() {
@@ -754,6 +1022,7 @@ function refreshKeyUI() {
     async newKey => {
       appState.selectedKey = newKey;
       updateKeyChordSet();
+      refreshProgressionItemsForSelectedKey();
       const rootNote = newKey.split(" ")[0] || "C";
       appState.selectedChordRoot = rootNote;
       appState.selectedBassRoot = rootNote;
@@ -867,7 +1136,7 @@ function runSuggestions() {
     functionDescriptions: appData.functionDescriptions,
     moodReasonText: appData.moodReasonText,
     selectedKey: appState.selectedKey,
-    progression: progressionInput.value,
+    progression: progressionItemsToText(appState.progressionItems),
     feeling: feelingSelect.value
   });
 
@@ -888,21 +1157,45 @@ function runSuggestions() {
 }
 
 async function handlePlayProgression() {
-  const keyData = appData?.musicData?.[appState.selectedKey];
-  if (!keyData) return;
+  if (appState.isPlayingProgression) {
+    if (activeProgressionPlaybackSession) {
+      activeProgressionPlaybackSession.cancelled = true;
+    }
+    stopAllPlayback();
+    appState.isPlayingProgression = false;
+    appState.playingProgressionItemId = null;
+    renderProgressionBuilderUI();
+    return;
+  }
 
-  const { parsed } = parseProgression(progressionInput.value, keyData);
-  const chordList = extractChordList(parsed);
+  const progressionItems = [...appState.progressionItems];
+  if (!progressionItems.length) return;
 
-  if (!chordList.length) return;
+  const playbackSession = { cancelled: false };
+  activeProgressionPlaybackSession = playbackSession;
+  appState.isPlayingProgression = true;
+  renderProgressionBuilderUI();
 
   try {
+    let playbackIndex = 0;
     await ensureAudioReady();
-    await playProgression(chordList, 90, async (chord, durationSeconds) => {
+    await playProgression(progressionItems, appState.sequenceTempoBpm, async (chord, durationSeconds) => {
+      const activeItem = progressionItems[playbackIndex];
+      appState.playingProgressionItemId = activeItem?.id || null;
+      renderProgressionBuilderUI();
       showSequenceKeyboardChord(chord, durationSeconds);
-    });
+      playbackIndex += 1;
+    }, () => playbackSession.cancelled);
   } catch (error) {
     console.error("Could not play progression:", error);
+  } finally {
+    if (activeProgressionPlaybackSession === playbackSession) {
+      activeProgressionPlaybackSession = null;
+    }
+
+    appState.isPlayingProgression = false;
+    appState.playingProgressionItemId = null;
+    renderProgressionBuilderUI();
   }
 }
 
@@ -943,26 +1236,48 @@ async function init() {
         }
 
         updateKeyChordSet();
+        refreshProgressionItemsForSelectedKey();
         refreshKeyUI();
         refreshChordPlaygroundUI();
       });
     }
 
+    importProgressionTextToState(progressionInput.value);
     refreshKeyUI();
+    renderProgressionBuilderUI();
     refreshSequenceKeyboard();
     refreshChordPlaygroundUI();
     updateToolContext();
 
     if (suggestBtn) suggestBtn.dataset.tooltip = "Refresh the current suggestions";
     if (playProgressionBtn) playProgressionBtn.dataset.tooltip = "Play all chords in the progression";
-    if (saveProgressionBtn) saveProgressionBtn.dataset.tooltip = "Save the progression as one chord per bar";
+    if (saveProgressionBtn) saveProgressionBtn.dataset.tooltip = "Save the progression with tempo, time signature, and beat lengths";
     if (loadProgressionBtn) loadProgressionBtn.dataset.tooltip = "Load a saved progression file";
+    if (sequenceTempoBpmInput) sequenceTempoBpmInput.dataset.tooltip = "Set the playback tempo for the chord sequence";
+    if (sequenceTimeSignatureSelect) sequenceTimeSignatureSelect.dataset.tooltip = "Set the default beats per bar for new chord blocks";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
     if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
 
     initTooltips();
 
     feelingSelect.addEventListener("change", refreshSuggestionsIfReady);
+    progressionInput.addEventListener("input", () => {
+      importProgressionTextToState(progressionInput.value, { preserveSelection: false });
+    });
+
+    if (sequenceTempoBpmInput) {
+      sequenceTempoBpmInput.addEventListener("change", () => {
+        appState.sequenceTempoBpm = normalizeTempoBpm(sequenceTempoBpmInput.value);
+        renderProgressionBuilderUI();
+      });
+    }
+
+    if (sequenceTimeSignatureSelect) {
+      sequenceTimeSignatureSelect.addEventListener("change", () => {
+        appState.sequenceTimeSignature = normalizeTimeSignature(sequenceTimeSignatureSelect.value);
+        renderProgressionBuilderUI();
+      });
+    }
 
     if (suggestBtn) {
       suggestBtn.addEventListener("click", refreshSuggestionsIfReady);

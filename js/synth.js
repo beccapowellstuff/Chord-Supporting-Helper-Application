@@ -98,6 +98,41 @@ export async function playMidiNotes(midiNumbers, duration = 1.0) {
   }
 }
 
+export async function startHeldMidiNotes(midiNumbers) {
+  if (!synth) {
+    await initSoundFont();
+  }
+
+  if (!synth || !isReady) {
+    console.log("Sampler not ready yet");
+    return [];
+  }
+
+  try {
+    const noteNames = midiNumbers.map(midi =>
+      clampNoteToRange(midiToNoteName(midi))
+    );
+
+    synth.triggerAttack(noteNames, Tone.now(), 0.45);
+    return noteNames;
+  } catch (error) {
+    console.error("âœ— Failed to start held notes:", error);
+    return [];
+  }
+}
+
+export function releaseHeldMidiNotes(noteNames) {
+  if (!synth || !isReady || !Array.isArray(noteNames) || !noteNames.length) {
+    return;
+  }
+
+  try {
+    synth.triggerRelease(noteNames, Tone.now());
+  } catch (error) {
+    console.error("âœ— Failed to release held notes:", error);
+  }
+}
+
 export async function ensureAudioContext() {
   try {
     if (!synth) {
@@ -107,6 +142,16 @@ export async function ensureAudioContext() {
     }
   } catch (error) {
     console.error("✗ Failed to start audio context:", error);
+  }
+}
+
+export function stopAllPlayback() {
+  try {
+    if (synth && typeof synth.releaseAll === "function") {
+      synth.releaseAll();
+    }
+  } catch (error) {
+    console.warn("Could not stop sampler playback:", error);
   }
 }
 

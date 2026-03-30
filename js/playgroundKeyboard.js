@@ -133,12 +133,16 @@ export function renderSequenceKeyboard(
     flashMidiNotes = [],
     chordLabel = "No notes selected",
     canSave = false,
+    canUpdate = false,
+    canDelete = false,
     canPlay = false
   },
   {
     onKeyToggle,
     onPlay,
     onSave,
+    onUpdate,
+    onDelete,
     onClear
   } = {}
 ) {
@@ -191,6 +195,32 @@ export function renderSequenceKeyboard(
     if (canSave && onSave) onSave();
   });
   actions.appendChild(saveButton);
+
+  const updateButton = document.createElement("button");
+  updateButton.type = "button";
+  updateButton.className = "sequence-keyboard-action";
+  updateButton.textContent = "Update";
+  updateButton.disabled = !canUpdate;
+  updateButton.title = canUpdate
+    ? "Replace the selected progression chord with the recognised chord"
+    : "Select a progression chord and a recognised keyboard chord to update it";
+  updateButton.addEventListener("click", () => {
+    if (canUpdate && onUpdate) onUpdate();
+  });
+  actions.appendChild(updateButton);
+
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "sequence-keyboard-action";
+  deleteButton.textContent = "Delete";
+  deleteButton.disabled = !canDelete;
+  deleteButton.title = canDelete
+    ? "Delete the selected progression chord"
+    : "Select a progression chord to delete it";
+  deleteButton.addEventListener("click", () => {
+    if (canDelete && onDelete) onDelete();
+  });
+  actions.appendChild(deleteButton);
 
   const clearButton = document.createElement("button");
   clearButton.type = "button";

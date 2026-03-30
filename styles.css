@@ -335,6 +335,354 @@ body {
   margin-bottom: 0;
 }
 
+.progression-builder-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+  margin-top: 10px;
+}
+
+.progression-builder-primary,
+.progression-text-shell {
+  background: rgba(255, 255, 255, 0.58);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+
+.progression-builder-primary {
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.progression-section-label,
+.progression-text-label {
+  display: block;
+  margin: 0 0 4px;
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.progression-sequence-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: end;
+  margin-top: 8px;
+}
+
+.progression-sequence-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+}
+
+.progression-sequence-setting-label {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.progression-sequence-setting input,
+.progression-sequence-setting select {
+  width: auto;
+  min-width: 82px;
+  margin: 0;
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.progression-sequence-setting input {
+  max-width: 92px;
+}
+
+.progression-blocks {
+  overflow: visible;
+  margin-top: 6px;
+  min-height: 58px;
+  padding-bottom: 0;
+}
+
+.progression-blocks-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.progression-blocks-empty {
+  min-width: 100%;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.progression-block {
+  --progression-beat-width: 24px;
+  width: auto;
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 clamp(52px, calc(22px + (var(--progression-duration-beats, 4) * var(--progression-beat-width))), 214px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px;
+  min-height: 44px;
+  padding: 5px 7px;
+  background: linear-gradient(180deg, #fffafc, #fff4f8);
+  border: 1px solid rgba(200, 95, 143, 0.24);
+  border-radius: 8px;
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(90, 35, 60, 0.03);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.progression-block-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.progression-block-marker {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 1px;
+  background: rgba(110, 91, 103, 0.42);
+  transform: translateX(-0.5px);
+}
+
+.progression-block-marker-bar {
+  width: 2px;
+  background: rgba(110, 91, 103, 0.72);
+}
+
+.progression-block > :not(.progression-block-markers) {
+  position: relative;
+  z-index: 1;
+}
+
+.progression-block:hover {
+  transform: translateY(-1px);
+  border-color: rgba(200, 95, 143, 0.42);
+  box-shadow: 0 5px 12px rgba(90, 35, 60, 0.07);
+}
+
+.progression-block-selected {
+  background: linear-gradient(180deg, #fde9f2, #f8e2ec);
+  border-color: rgba(169, 70, 115, 0.7);
+  box-shadow: 0 4px 10px rgba(169, 70, 115, 0.1);
+}
+
+.progression-block-playing {
+  background: linear-gradient(180deg, #fff6d8, #ffeab1);
+  border-color: rgba(202, 152, 34, 0.78);
+  box-shadow: 0 0 0 2px rgba(248, 206, 95, 0.28), 0 5px 12px rgba(168, 121, 18, 0.12);
+}
+
+.progression-block-selected.progression-block-playing {
+  background: linear-gradient(180deg, #ffe9db, #ffd8bd);
+  border-color: rgba(186, 104, 63, 0.84);
+  box-shadow: 0 0 0 2px rgba(255, 194, 143, 0.34), 0 5px 12px rgba(169, 70, 115, 0.12);
+}
+
+.progression-block-chord {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.progression-block-meta {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.progression-block-duration {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.progression-editor-modal-root {
+  display: none;
+}
+
+.progression-editor-modal-root-active {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+
+.progression-editor-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progression-editor-modal {
+  position: fixed;
+  width: min(430px, 100%);
+  background: linear-gradient(180deg, rgba(255, 251, 253, 0.98), rgba(255, 244, 248, 0.96));
+  border: 1px solid rgba(200, 95, 143, 0.22);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 14px 36px rgba(90, 35, 60, 0.18);
+  z-index: 1;
+}
+
+.progression-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.progression-editor-title {
+  color: var(--accent-dark);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.progression-editor-note,
+.progression-editor-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.progression-editor-close {
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(200, 95, 143, 0.22);
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--accent-dark);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.progression-editor-close:hover {
+  background: rgba(244, 216, 230, 0.92);
+}
+
+.progression-editor-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.progression-editor-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.progression-editor-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.progression-editor-field {
+  border: 1px solid rgba(200, 95, 143, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 4px 7px;
+}
+
+.progression-editor-field-select {
+  display: block;
+  margin: 0;
+  padding-bottom: 6px;
+}
+
+.progression-editor-field-checkbox {
+  display: block;
+  margin: 0;
+}
+
+.progression-editor-field-label {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.progression-editor-field-value {
+  margin-top: 1px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.progression-editor-select {
+  width: auto;
+  min-width: 64px;
+  margin: 2px 0 0;
+  padding: 4px 22px 4px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+}
+
+.progression-editor-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.progression-editor-checkbox {
+  width: 14px;
+  min-width: 14px;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+}
+
+.progression-editor-checkbox-value {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.progression-text-shell {
+  margin-top: 8px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.progression-text-shell .input-help {
+  margin-bottom: 6px;
+}
+
 .sequence-panel-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2268,6 +2616,14 @@ textarea {
 
   textarea {
     min-height: 96px;
+  }
+
+  .progression-builder-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .progression-editor-fields {
+    grid-template-columns: 1fr;
   }
 
   .sequence-panel-actions button {
