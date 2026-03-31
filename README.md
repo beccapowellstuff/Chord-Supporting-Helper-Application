@@ -170,11 +170,13 @@ These link to the retroactive version summary file:
 
 ## Vibe Coding Note
 
-This project is being built in public, iteratively, and with a lot of active experimentation.
+This project is being built with AI support as part of a vibe-coding workflow, and that is intentional rather than hidden.
 
-Some parts are polished. Some parts are still rough. Some parts have been redesigned multiple times while the right workflow emerged.
+I do have programming experience, though my experience in Javascript and CSS is not great. I am using AI to help write, refactor, debug, and iterate on parts of this project much faster than I could alone, especially since I work full time and have many many other hobbies (ADHD is fun like that). Sometimes it means parts of the code are rough, in transition, or being actively reworked as the right workflow emerges.
 
-That is part of the project rather than something hidden from it.
+So:
+- if you are interested in vibe coding, this project may be useful or interesting to follow
+- if you strongly dislike AI-assisted development, you should know up front that AI is part of how this project is being built
 
 ## Contributing
 
