@@ -21,7 +21,7 @@ The goal is not to write music for you. The goal is to support the writing proce
 ## What Works Right Now
 
 - Interactive key selection
-  - Circle of Fifths root picker
+  - visual key root selector
   - mode switching
   - relative and parallel key display
   - diatonic chord and Roman numeral reference
@@ -60,7 +60,7 @@ The goal is not to write music for you. The goal is to support the writing proce
   - active chord highlighting during playback
   - custom stored voicings used during preview and sequence playback
 
-- Suggestion Engine
+- Suggestion Engine (Still in Alpha)
   - theory-first, non-AI suggestion path
   - mood/feeling input
   - progression-aware parsing
@@ -99,7 +99,7 @@ Right-click `index.html` and choose `Open with Live Server`.
 
 ## Quick Workflow
 
-1. Pick a key and mode.
+1. Pick a key root and mode.
 2. Explore the theory panel and chord options.
 3. Use the keyboard or chord explorer to add chords to the `Chord Sequence`.
 4. Click blocks to preview them, or drag to reorder the progression.
@@ -148,6 +148,8 @@ ChordCanvas is being built around a few principles:
 - keep progression building hands-on and visual
 - allow AI later only as an optional extra, not the core workflow
 - support experimentation without turning into a full DAW
+
+The app still uses circle-of-fifths style theory relationships in the background, but the current key picker is not presented as a literal circle UI anymore. In the docs, it is better described as a visual key selector.
 
 ## Release Milestones
 
