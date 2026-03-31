@@ -1,10 +1,11 @@
 import { parseProgression } from "./engine.js";
-import { parseChordName } from "./chordNotes.js";
+import { parseChordName, pitchClassToDisplayNote } from "./chordNotes.js";
 import { formatChordLabel } from "./ui.js";
 
 let nextProgressionItemId = 1;
 export const DEFAULT_TEMPO_BPM = 120;
 export const DEFAULT_TIME_SIGNATURE = "4/4";
+export const DEFAULT_NOTE_VOLUME = "normal";
 const DEFAULT_DURATION_BEATS = 4;
 const MIN_DURATION_BEATS = 1;
 const MAX_DURATION_BEATS = 8;
@@ -64,30 +65,59 @@ function normalizeSustain(sustain, fallback = false) {
   return sustain === "true" || sustain === 1 || sustain === "1";
 }
 
-function normalizeVoicing(voicing, fallback = null) {
-  const rawMidiNotes = Array.isArray(voicing)
-    ? voicing
-    : Array.isArray(voicing?.midiNotes)
-      ? voicing.midiNotes
-      : null;
+function normalizeNoteVolume(volume, fallback = DEFAULT_NOTE_VOLUME) {
+  const value = String(volume || "").trim().toLowerCase();
+  if (value === "soft" || value === "normal" || value === "strong") {
+    return value;
+  }
 
-  if (!rawMidiNotes) {
+  return fallback;
+}
+
+function normalizeVoicing(voicing, fallback = null) {
+  const rawNotes = Array.isArray(voicing)
+    ? voicing
+    : Array.isArray(voicing?.notes)
+      ? voicing.notes
+      : Array.isArray(voicing?.midiNotes)
+        ? voicing.midiNotes
+        : null;
+
+  if (!rawNotes) {
     return fallback;
   }
 
-  const midiNotes = [...new Set(
-    rawMidiNotes
-      .map(value => Number(value))
-      .filter(value => Number.isFinite(value) && value >= MIN_CUSTOM_VOICING_MIDI)
-  )].sort((a, b) => a - b);
+  const notesByMidi = new Map();
 
-  if (!midiNotes.length) {
+  rawNotes.forEach(rawNote => {
+    const midi = Number(
+      typeof rawNote === "object" && rawNote !== null
+        ? rawNote.midi
+        : rawNote
+    );
+
+    if (!Number.isFinite(midi) || midi < MIN_CUSTOM_VOICING_MIDI || notesByMidi.has(midi)) {
+      return;
+    }
+
+    notesByMidi.set(midi, {
+      midi,
+      volume: normalizeNoteVolume(
+        typeof rawNote === "object" && rawNote !== null ? rawNote.volume : DEFAULT_NOTE_VOLUME,
+        DEFAULT_NOTE_VOLUME
+      )
+    });
+  });
+
+  const notes = [...notesByMidi.values()].sort((a, b) => a.midi - b.midi);
+
+  if (!notes.length) {
     return fallback;
   }
 
   return {
     source: typeof voicing?.source === "string" ? voicing.source : "keyboard",
-    midiNotes
+    notes
   };
 }
 
@@ -183,7 +213,7 @@ export function buildProgressionSavePayload(items, selectedKey, sequenceSettings
 
   return {
     type: "chordcanvas-progression",
-    version: 2,
+    version: 3,
     savedAt: new Date().toISOString(),
     key: {
       name: selectedKey,
@@ -466,6 +496,47 @@ function buildEditorCheckboxField(label, checked, onChange) {
   return field;
 }
 
+function formatMidiNoteLabel(midi) {
+  if (!Number.isFinite(midi)) {
+    return "";
+  }
+
+  const pitchClass = ((midi % 12) + 12) % 12;
+  const noteName = pitchClassToDisplayNote(pitchClass);
+  const octave = Math.floor(midi / 12) - 1;
+  return noteName ? `${noteName}${octave}` : String(midi);
+}
+
+function buildVoicingNoteRow(note, noteIndex, onVolumeChange) {
+  const row = document.createElement("div");
+  row.className = "progression-editor-voicing-row";
+
+  const noteLabel = document.createElement("div");
+  noteLabel.className = "progression-editor-voicing-note";
+  noteLabel.textContent = formatMidiNoteLabel(note?.midi);
+  row.appendChild(noteLabel);
+
+  const select = document.createElement("select");
+  select.className = "progression-editor-voicing-select";
+
+  ["soft", "normal", "strong"].forEach(volume => {
+    const option = document.createElement("option");
+    option.value = volume;
+    option.textContent = volume.charAt(0).toUpperCase() + volume.slice(1);
+    option.selected = normalizeNoteVolume(note?.volume) === volume;
+    select.appendChild(option);
+  });
+
+  select.addEventListener("change", event => {
+    if (onVolumeChange) {
+      onVolumeChange(noteIndex, event.target.value);
+    }
+  });
+
+  row.appendChild(select);
+  return row;
+}
+
 export function renderProgressionEditor(container, selectedItem, selectedIndex, totalItems, options = {}) {
   if (!container) return;
 
@@ -530,6 +601,27 @@ export function renderProgressionEditor(container, selectedItem, selectedIndex, 
   );
   summary.appendChild(fields);
   shell.appendChild(summary);
+
+  if (selectedItem.voicing?.notes?.length) {
+    const voicingSection = document.createElement("div");
+    voicingSection.className = "progression-editor-voicing";
+
+    const voicingTitle = document.createElement("div");
+    voicingTitle.className = "progression-editor-field-label";
+    voicingTitle.textContent = "Voicing Notes";
+    voicingSection.appendChild(voicingTitle);
+
+    const voicingRows = document.createElement("div");
+    voicingRows.className = "progression-editor-voicing-rows";
+    selectedItem.voicing.notes.forEach((note, noteIndex) => {
+      voicingRows.appendChild(
+        buildVoicingNoteRow(note, noteIndex, options.onVoicingNoteVolumeChange)
+      );
+    });
+
+    voicingSection.appendChild(voicingRows);
+    shell.appendChild(voicingSection);
+  }
 
   container.appendChild(shell);
 

@@ -30,6 +30,7 @@ import {
   initSoundFont,
   playMidiNote,
   playMidiNotes,
+  playMidiNoteSpecs,
   ensureAudioContext,
   stopAllPlayback
 } from "./synth.js";
@@ -331,6 +332,9 @@ function renderProgressionBuilderUI() {
       onSustainChange: nextSustain => {
         updateSelectedProgressionSustain(nextSustain);
       },
+      onVoicingNoteVolumeChange: (noteIndex, nextVolume) => {
+        updateSelectedProgressionVoicingNoteVolume(noteIndex, nextVolume);
+      },
       anchorRect: appState.editingProgressionAnchorRect,
       onClose: () => {
         appState.editingProgressionItemId = null;
@@ -502,6 +506,40 @@ function updateSelectedProgressionSustain(sustain) {
   });
 }
 
+function updateSelectedProgressionVoicingNoteVolume(noteIndex, volume) {
+  const selectedId = appState.selectedProgressionItemId;
+  if (!selectedId) {
+    return;
+  }
+
+  const nextItems = appState.progressionItems.map(item =>
+    item.id !== selectedId
+      ? item
+      : {
+          ...item,
+          voicing: item.voicing?.notes?.length
+            ? {
+                ...item.voicing,
+                notes: item.voicing.notes.map((note, index) =>
+                  index === noteIndex
+                    ? {
+                        ...note,
+                        volume
+                      }
+                    : note
+                )
+              }
+            : item.voicing
+        }
+  );
+  const rebuiltItems = rebuildProgressionItems(nextItems, getCurrentKeyData(), getCurrentSequenceSettings());
+
+  setProgressionItems(rebuiltItems, {
+    selectedId,
+    preserveSelection: true
+  });
+}
+
 function deleteSelectedProgressionChord() {
   const selectedId = appState.selectedProgressionItemId;
   if (!selectedId) {
@@ -630,6 +668,20 @@ function getVisibleSequenceKeyboardNotes(midiNotes) {
   );
 }
 
+function normalizeVoicingNotes(voicing) {
+  if (!Array.isArray(voicing?.notes)) {
+    return [];
+  }
+
+  return voicing.notes
+    .map(note => ({
+      midi: Number(note?.midi),
+      volume: typeof note?.volume === "string" ? note.volume : "normal"
+    }))
+    .filter(note => Number.isFinite(note.midi))
+    .sort((a, b) => a.midi - b.midi);
+}
+
 function getIdentifiedSequenceVoicing() {
   const midiNotes = normalizeMidiList(identifiedSequenceChord?.playedMidiNotes);
   if (!midiNotes.length) {
@@ -645,7 +697,10 @@ function getIdentifiedSequenceVoicing() {
 
   return {
     source: "keyboard",
-    midiNotes: voicingMidiNotes
+    notes: voicingMidiNotes.map(midi => ({
+      midi,
+      volume: "normal"
+    }))
   };
 }
 
@@ -925,7 +980,11 @@ function showSequenceKeyboardChord(chordName, durationSeconds = 1.0) {
 }
 
 function showSequenceKeyboardVoicing(midiNotes, chordName = "", durationSeconds = 1.0) {
-  const normalizedMidi = normalizeMidiList(midiNotes);
+  const normalizedMidi = Array.isArray(midiNotes)
+    ? normalizeMidiList(
+        midiNotes.map(note => (typeof note === "object" && note !== null ? note.midi : note))
+      )
+    : [];
   if (!normalizedMidi.length) {
     return;
   }
@@ -938,9 +997,9 @@ async function playChordWithSequenceKeyboard(chordName, duration = 1.0) {
   await playChord(chordName, duration);
 }
 
-async function playVoicingWithSequenceKeyboard(midiNotes, chordName = "", duration = 1.0) {
-  showSequenceKeyboardVoicing(midiNotes, chordName, duration);
-  await playMidiNotes(midiNotes, duration);
+async function playVoicingWithSequenceKeyboard(voicingNotes, chordName = "", duration = 1.0) {
+  showSequenceKeyboardVoicing(voicingNotes, chordName, duration);
+  await playMidiNoteSpecs(normalizeVoicingNotes({ notes: voicingNotes }), duration);
 }
 
 async function previewProgressionItemSelection(selectedId) {
@@ -958,8 +1017,12 @@ async function previewProgressionItemSelection(selectedId) {
   try {
     appState.playingProgressionItemId = selectedItem.id;
     renderProgressionBuilderUI();
-    if (selectedItem.voicing?.midiNotes?.length) {
-      await playVoicingWithSequenceKeyboard(selectedItem.voicing.midiNotes, selectedItem.chord, previewDuration);
+    if (selectedItem.voicing?.notes?.length) {
+      await playVoicingWithSequenceKeyboard(
+        selectedItem.voicing.notes,
+        selectedItem.chord,
+        previewDuration
+      );
     } else {
       await playChordWithSequenceKeyboard(selectedItem.chord, previewDuration);
     }
@@ -1227,7 +1290,11 @@ async function handlePlayProgression() {
       const activeItem = progressionItems[playbackIndex];
       appState.playingProgressionItemId = activeItem?.id || null;
       renderProgressionBuilderUI();
-      showSequenceKeyboardChord(chord, durationSeconds);
+      if (activeItem?.voicing?.notes?.length) {
+        showSequenceKeyboardVoicing(activeItem.voicing.notes, chord, durationSeconds);
+      } else {
+        showSequenceKeyboardChord(chord, durationSeconds);
+      }
       playbackIndex += 1;
     }, () => playbackSession.cancelled);
   } catch (error) {

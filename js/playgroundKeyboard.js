@@ -1,6 +1,7 @@
 import { DISPLAY_CHROMATIC, NOTE_TO_PC, noteToMidi, pitchClassToDisplayNote } from "./chordNotes.js";
 
 const KEYBOARD_OCTAVES = [3, 4, 5, 6];
+const BASS_LANE_OCTAVE = 2;
 const WHITE_PITCH_CLASSES = new Set([0, 2, 4, 5, 7, 9, 11]);
 const BLACK_KEY_AFTER_WHITE_INDEXES = [0, 1, 3, 4, 5];
 
@@ -48,6 +49,26 @@ function buildKeyboardLayout() {
 }
 
 const KEYBOARD_LAYOUT = buildKeyboardLayout();
+
+function buildBassLaneLayout() {
+  const keys = [];
+
+  for (let pitchClass = 0; pitchClass < 12; pitchClass += 1) {
+    const noteLabel = pitchClassToDisplayNote(pitchClass);
+    const midi = noteToMidi(noteLabel, BASS_LANE_OCTAVE);
+    if (midi == null) continue;
+
+    keys.push({
+      midi,
+      noteLabel,
+      pitchClass
+    });
+  }
+
+  return keys;
+}
+
+const BASS_LANE_KEYS = buildBassLaneLayout();
 
 function buildCompactRootButton(note, title, selectedNote, onSelect) {
   const button = document.createElement("button");
@@ -278,6 +299,40 @@ export function renderSequenceKeyboard(
   pianoStage.appendChild(blacks);
   piano.appendChild(pianoStage);
   shell.appendChild(piano);
+
+  const bassLane = document.createElement("div");
+  bassLane.className = "sequence-bass-lane";
+
+  const bassLaneLabel = document.createElement("div");
+  bassLaneLabel.className = "sequence-bass-lane-label";
+  bassLaneLabel.textContent = "Bass";
+  bassLane.appendChild(bassLaneLabel);
+
+  const bassActiveSet = new Set(
+    activeMidiNotes.filter(midi => BASS_LANE_KEYS.some(key => key.midi === midi))
+  );
+  const bassFlashSet = new Set(
+    flashMidiNotes.filter(midi => BASS_LANE_KEYS.some(key => key.midi === midi))
+  );
+
+  const bassKeys = document.createElement("div");
+  bassKeys.className = "sequence-bass-keys";
+
+  BASS_LANE_KEYS.forEach(key => {
+    bassKeys.appendChild(
+      buildSequenceKey(
+        key.midi,
+        key.noteLabel,
+        "sequence-bass-key",
+        bassActiveSet,
+        bassFlashSet,
+        onKeyToggle
+      )
+    );
+  });
+
+  bassLane.appendChild(bassKeys);
+  shell.appendChild(bassLane);
 
   container.appendChild(shell);
 

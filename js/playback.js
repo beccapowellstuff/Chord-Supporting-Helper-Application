@@ -14,8 +14,10 @@
 import { buildVoicings, distance, getAscendingRootVoicing } from "./chordVoicing.js";
 import {
   ensureAudioContext,
+  playMidiNoteSpecs,
   playMidiNotes,
   releaseHeldMidiNotes,
+  startHeldMidiNoteSpecs,
   startHeldMidiNotes,
   stopAllPlayback
 } from "./synth.js";
@@ -112,7 +114,7 @@ function getPlaybackEntry(entry) {
       chord: entry,
       durationBeats: 4,
       sustain: false,
-      voicingMidiNotes: []
+      voicingNotes: []
     };
   }
 
@@ -120,8 +122,13 @@ function getPlaybackEntry(entry) {
     chord: entry?.chord || "",
     durationBeats: Math.max(1, Number(entry?.durationBeats) || 4),
     sustain: Boolean(entry?.sustain),
-    voicingMidiNotes: Array.isArray(entry?.voicing?.midiNotes)
-      ? entry.voicing.midiNotes.map(value => Number(value)).filter(Number.isFinite)
+    voicingNotes: Array.isArray(entry?.voicing?.notes)
+      ? entry.voicing.notes
+        .map(note => ({
+          midi: Number(note?.midi),
+          volume: typeof note?.volume === "string" ? note.volume : "normal"
+        }))
+        .filter(note => Number.isFinite(note.midi))
       : []
   };
 }
@@ -168,13 +175,17 @@ export async function playProgression(chords, tempo = 120, onChordStart = null, 
       return;
     }
 
-    const voicing = entry.voicingMidiNotes.length
-      ? [...entry.voicingMidiNotes]
+    const voicing = entry.voicingNotes.length
+      ? entry.voicingNotes.map(note => note.midi)
       : resolveChordVoicing(chord, true, previousVoicing);
     previousVoicing = voicing;
 
-    if (entry.sustain) {
+    if (entry.sustain && entry.voicingNotes.length) {
+      activeHeldNotes = await startHeldMidiNoteSpecs(entry.voicingNotes);
+    } else if (entry.sustain) {
       activeHeldNotes = await startHeldMidiNotes(voicing);
+    } else if (entry.voicingNotes.length) {
+      await playMidiNoteSpecs(entry.voicingNotes, chordPlaybackSeconds);
     } else if (voicing.length) {
       await playMidiNotes(voicing, chordPlaybackSeconds);
     }
