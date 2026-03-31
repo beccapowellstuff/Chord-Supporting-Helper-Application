@@ -126,7 +126,7 @@ function getPlaybackEntry(entry) {
       ? entry.voicing.notes
         .map(note => ({
           midi: Number(note?.midi),
-          volume: typeof note?.volume === "string" ? note.volume : "normal"
+          velocity: Number(note?.velocity)
         }))
         .filter(note => Number.isFinite(note.midi))
       : []

@@ -45,19 +45,24 @@ import {
 import { ensureAudioReady, playChord, playProgression } from "./playback.js";
 import {
   appendProgressionItem,
+  BASIC_VOICING_MODE,
   buildProgressionSavePayload,
+  DEFAULT_NOTE_VELOCITY,
   DEFAULT_TEMPO_BPM,
   DEFAULT_TIME_SIGNATURE,
   getBeatsPerBar,
   importProgressionFromSavedData,
   importProgressionFromText,
+  normalizeMidiVelocity,
   normalizeTempoBpm,
+  normalizeVoicingMode,
   normalizeTimeSignature,
   progressionItemsToChords,
   progressionItemsToText,
   rebuildProgressionItems,
   renderProgressionBlocks,
-  renderProgressionEditor
+  renderProgressionEditor,
+  velocityPresetToMidi
 } from "./progressionBuilder.js";
 
 document.addEventListener(
@@ -81,6 +86,7 @@ const feelingSelect = document.getElementById("feeling");
 const suggestBtn = document.getElementById("suggestBtn");
 const autoSuggestToggle = document.getElementById("autoSuggestToggle");
 const playProgressionBtn = document.getElementById("playProgressionBtn");
+const playFromSelectedBtn = document.getElementById("playFromSelectedBtn");
 const saveProgressionBtn = document.getElementById("saveProgressionBtn");
 const loadProgressionBtn = document.getElementById("loadProgressionBtn");
 const loadProgressionInput = document.getElementById("loadProgressionInput");
@@ -131,6 +137,7 @@ let activeToolPanelId = "keyExplorerPanel";
 let toolPanelTransitionTimeout = null;
 let progressionPreviewToken = 0;
 let activeProgressionPlaybackSession = null;
+let activeProgressionPlaybackMode = null;
 
 function updateKeyChordSet() {
   if (!appData || !appState.selectedKey) {
@@ -312,6 +319,9 @@ function renderProgressionBuilderUI() {
       renderProgressionBuilderUI();
       appState.editingProgressionAnchorRect = getProgressionBlockAnchorRect(editingId, anchorRect);
       renderProgressionBuilderUI();
+    },
+    (draggedId, targetId, placement) => {
+      moveProgressionItem(draggedId, targetId, placement);
     }
   );
 
@@ -332,8 +342,14 @@ function renderProgressionBuilderUI() {
       onSustainChange: nextSustain => {
         updateSelectedProgressionSustain(nextSustain);
       },
-      onVoicingNoteVolumeChange: (noteIndex, nextVolume) => {
-        updateSelectedProgressionVoicingNoteVolume(noteIndex, nextVolume);
+      onVoicingModeChange: nextMode => {
+        updateSelectedProgressionVoicingMode(nextMode);
+      },
+      onVoicingNotePresetChange: (noteIndex, nextPreset) => {
+        updateSelectedProgressionVoicingNotePreset(noteIndex, nextPreset);
+      },
+      onVoicingNoteVelocityChange: (noteIndex, nextVelocity) => {
+        updateSelectedProgressionVoicingNoteVelocity(noteIndex, nextVelocity);
       },
       anchorRect: appState.editingProgressionAnchorRect,
       onClose: () => {
@@ -345,10 +361,21 @@ function renderProgressionBuilderUI() {
   );
 
   if (playProgressionBtn) {
-    playProgressionBtn.textContent = appState.isPlayingProgression ? "Stop" : "Play sequence";
-    playProgressionBtn.dataset.tooltip = appState.isPlayingProgression
+    const isAllPlaybackActive = appState.isPlayingProgression && activeProgressionPlaybackMode === "all";
+    playProgressionBtn.textContent = isAllPlaybackActive ? "Stop" : "Play sequence";
+    playProgressionBtn.disabled = appState.isPlayingProgression && !isAllPlaybackActive;
+    playProgressionBtn.dataset.tooltip = isAllPlaybackActive
       ? "Stop progression playback"
       : "Play all chords in the progression";
+  }
+
+  if (playFromSelectedBtn) {
+    const isFromPlaybackActive = appState.isPlayingProgression && activeProgressionPlaybackMode === "selected";
+    playFromSelectedBtn.textContent = isFromPlaybackActive ? "Stop" : "Play from";
+    playFromSelectedBtn.disabled = (appState.isPlayingProgression && !isFromPlaybackActive) || (!appState.isPlayingProgression && !appState.selectedProgressionItemId);
+    playFromSelectedBtn.dataset.tooltip = isFromPlaybackActive
+      ? "Stop progression playback"
+      : "Play the progression from the selected chord";
   }
 }
 
@@ -434,6 +461,42 @@ function appendChordToProgression(chordName, overrides = {}) {
   }
 }
 
+function moveProgressionItem(draggedId, targetId, placement = "before") {
+  if (!draggedId || !targetId || draggedId === targetId) {
+    return;
+  }
+
+  const currentItems = [...appState.progressionItems];
+  const draggedIndex = currentItems.findIndex(item => item.id === draggedId);
+  const targetIndex = currentItems.findIndex(item => item.id === targetId);
+
+  if (draggedIndex < 0 || targetIndex < 0) {
+    return;
+  }
+
+  const [movedItem] = currentItems.splice(draggedIndex, 1);
+  const targetIndexAfterRemoval = currentItems.findIndex(item => item.id === targetId);
+  const insertionIndex = placement === "after"
+    ? targetIndexAfterRemoval + 1
+    : targetIndexAfterRemoval;
+
+  currentItems.splice(Math.max(0, insertionIndex), 0, movedItem);
+
+  setProgressionItems(currentItems, {
+    selectedId: movedItem.id,
+    preserveSelection: true
+  });
+
+  if (appState.editingProgressionItemId === movedItem.id) {
+    appState.editingProgressionAnchorRect = getProgressionBlockAnchorRect(movedItem.id, appState.editingProgressionAnchorRect);
+    renderProgressionBuilderUI();
+  }
+
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+    runSuggestions();
+  }
+}
+
 function updateSelectedProgressionChord(chordName, overrides = {}) {
   const selectedId = appState.selectedProgressionItemId;
   if (!selectedId) {
@@ -506,7 +569,39 @@ function updateSelectedProgressionSustain(sustain) {
   });
 }
 
-function updateSelectedProgressionVoicingNoteVolume(noteIndex, volume) {
+function updateSelectedProgressionVoicingMode(mode) {
+  const selectedId = appState.selectedProgressionItemId;
+  if (!selectedId) {
+    return;
+  }
+
+  const nextMode = normalizeVoicingMode(mode, BASIC_VOICING_MODE);
+  const nextItems = appState.progressionItems.map(item =>
+    item.id !== selectedId
+      ? item
+      : {
+          ...item,
+          voicing: item.voicing?.notes?.length
+            ? {
+                ...item.voicing,
+                velocityMode: nextMode
+              }
+            : item.voicing
+        }
+  );
+  const rebuiltItems = rebuildProgressionItems(nextItems, getCurrentKeyData(), getCurrentSequenceSettings());
+
+  setProgressionItems(rebuiltItems, {
+    selectedId,
+    preserveSelection: true
+  });
+}
+
+function updateSelectedProgressionVoicingNotePreset(noteIndex, preset) {
+  updateSelectedProgressionVoicingNoteVelocity(noteIndex, velocityPresetToMidi(preset));
+}
+
+function updateSelectedProgressionVoicingNoteVelocity(noteIndex, velocity) {
   const selectedId = appState.selectedProgressionItemId;
   if (!selectedId) {
     return;
@@ -520,11 +615,12 @@ function updateSelectedProgressionVoicingNoteVolume(noteIndex, volume) {
           voicing: item.voicing?.notes?.length
             ? {
                 ...item.voicing,
+                velocityMode: normalizeVoicingMode(item.voicing?.velocityMode, BASIC_VOICING_MODE),
                 notes: item.voicing.notes.map((note, index) =>
                   index === noteIndex
                     ? {
                         ...note,
-                        volume
+                        velocity: normalizeMidiVelocity(velocity, note?.velocity ?? DEFAULT_NOTE_VELOCITY)
                       }
                     : note
                 )
@@ -676,7 +772,10 @@ function normalizeVoicingNotes(voicing) {
   return voicing.notes
     .map(note => ({
       midi: Number(note?.midi),
-      volume: typeof note?.volume === "string" ? note.volume : "normal"
+      velocity: normalizeMidiVelocity(
+        note?.velocity ?? velocityPresetToMidi(note?.volume),
+        DEFAULT_NOTE_VELOCITY
+      )
     }))
     .filter(note => Number.isFinite(note.midi))
     .sort((a, b) => a.midi - b.midi);
@@ -697,9 +796,10 @@ function getIdentifiedSequenceVoicing() {
 
   return {
     source: "keyboard",
+    velocityMode: BASIC_VOICING_MODE,
     notes: voicingMidiNotes.map(midi => ({
       midi,
-      volume: "normal"
+      velocity: DEFAULT_NOTE_VELOCITY
     }))
   };
 }
@@ -1263,31 +1363,55 @@ function runSuggestions() {
   renderSuggestions(results, suggestionPayload, appData.musicData, appState.selectedKey, onSuggestedChordClick, onSuggestedChordAdd);
 }
 
-async function handlePlayProgression() {
+function stopActiveProgressionPlayback() {
+  if (activeProgressionPlaybackSession) {
+    activeProgressionPlaybackSession.cancelled = true;
+  }
+  stopAllPlayback();
+  appState.isPlayingProgression = false;
+  appState.playingProgressionItemId = null;
+  activeProgressionPlaybackMode = null;
+  renderProgressionBuilderUI();
+}
+
+async function handlePlayProgression(startMode = "all") {
+  if (appState.isPlayingProgression && activeProgressionPlaybackMode === startMode) {
+    stopActiveProgressionPlayback();
+    return;
+  }
+
   if (appState.isPlayingProgression) {
-    if (activeProgressionPlaybackSession) {
-      activeProgressionPlaybackSession.cancelled = true;
-    }
-    stopAllPlayback();
-    appState.isPlayingProgression = false;
-    appState.playingProgressionItemId = null;
-    renderProgressionBuilderUI();
+    stopActiveProgressionPlayback();
     return;
   }
 
   const progressionItems = [...appState.progressionItems];
   if (!progressionItems.length) return;
 
+  const startIndex = startMode === "selected"
+    ? progressionItems.findIndex(item => item.id === appState.selectedProgressionItemId)
+    : 0;
+
+  if (startIndex < 0) {
+    if (activeProgressionPlaybackSession) {
+      activeProgressionPlaybackSession.cancelled = true;
+    }
+    return;
+  }
+
+  const playbackItems = progressionItems.slice(startIndex);
+
   const playbackSession = { cancelled: false };
   activeProgressionPlaybackSession = playbackSession;
+  activeProgressionPlaybackMode = startMode;
   appState.isPlayingProgression = true;
   renderProgressionBuilderUI();
 
   try {
     let playbackIndex = 0;
     await ensureAudioReady();
-    await playProgression(progressionItems, appState.sequenceTempoBpm, async (chord, durationSeconds) => {
-      const activeItem = progressionItems[playbackIndex];
+    await playProgression(playbackItems, appState.sequenceTempoBpm, async (chord, durationSeconds) => {
+      const activeItem = playbackItems[playbackIndex];
       appState.playingProgressionItemId = activeItem?.id || null;
       renderProgressionBuilderUI();
       if (activeItem?.voicing?.notes?.length) {
@@ -1306,6 +1430,7 @@ async function handlePlayProgression() {
 
     appState.isPlayingProgression = false;
     appState.playingProgressionItemId = null;
+    activeProgressionPlaybackMode = null;
     renderProgressionBuilderUI();
   }
 }
@@ -1362,6 +1487,7 @@ async function init() {
 
     if (suggestBtn) suggestBtn.dataset.tooltip = "Refresh the current suggestions";
     if (playProgressionBtn) playProgressionBtn.dataset.tooltip = "Play all chords in the progression";
+    if (playFromSelectedBtn) playFromSelectedBtn.dataset.tooltip = "Play the progression from the selected chord";
     if (saveProgressionBtn) saveProgressionBtn.dataset.tooltip = "Save the progression with tempo, time signature, and beat lengths";
     if (loadProgressionBtn) loadProgressionBtn.dataset.tooltip = "Load a saved progression file";
     if (sequenceTempoBpmInput) sequenceTempoBpmInput.dataset.tooltip = "Set the playback tempo for the chord sequence";
@@ -1395,7 +1521,15 @@ async function init() {
     }
 
     if (playProgressionBtn) {
-      playProgressionBtn.addEventListener("click", handlePlayProgression);
+      playProgressionBtn.addEventListener("click", () => {
+        void handlePlayProgression("all");
+      });
+    }
+
+    if (playFromSelectedBtn) {
+      playFromSelectedBtn.addEventListener("click", () => {
+        void handlePlayProgression("selected");
+      });
     }
 
     if (saveProgressionBtn) {

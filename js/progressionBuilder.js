@@ -5,7 +5,9 @@ import { formatChordLabel } from "./ui.js";
 let nextProgressionItemId = 1;
 export const DEFAULT_TEMPO_BPM = 120;
 export const DEFAULT_TIME_SIGNATURE = "4/4";
-export const DEFAULT_NOTE_VOLUME = "normal";
+export const DEFAULT_NOTE_VELOCITY = 84;
+export const BASIC_VOICING_MODE = "basic";
+export const ADVANCED_VOICING_MODE = "advanced";
 const DEFAULT_DURATION_BEATS = 4;
 const MIN_DURATION_BEATS = 1;
 const MAX_DURATION_BEATS = 8;
@@ -65,13 +67,56 @@ function normalizeSustain(sustain, fallback = false) {
   return sustain === "true" || sustain === 1 || sustain === "1";
 }
 
-function normalizeNoteVolume(volume, fallback = DEFAULT_NOTE_VOLUME) {
-  const value = String(volume || "").trim().toLowerCase();
-  if (value === "soft" || value === "normal" || value === "strong") {
-    return value;
+export function velocityPresetToMidi(level) {
+  const value = String(level || "").trim().toLowerCase();
+  if (value === "soft") {
+    return 56;
   }
 
-  return fallback;
+  if (value === "strong") {
+    return 112;
+  }
+
+  return DEFAULT_NOTE_VELOCITY;
+}
+
+export function midiVelocityToPreset(velocity) {
+  const normalizedVelocity = normalizeMidiVelocity(velocity);
+  const presetEntries = [
+    ["soft", velocityPresetToMidi("soft")],
+    ["normal", velocityPresetToMidi("normal")],
+    ["strong", velocityPresetToMidi("strong")]
+  ];
+  let closestPreset = "normal";
+  let closestDistance = Number.POSITIVE_INFINITY;
+
+  presetEntries.forEach(([preset, presetVelocity]) => {
+    const distance = Math.abs(normalizedVelocity - presetVelocity);
+    if (distance < closestDistance) {
+      closestPreset = preset;
+      closestDistance = distance;
+    }
+  });
+
+  return closestPreset;
+}
+
+export function normalizeMidiVelocity(velocity, fallback = DEFAULT_NOTE_VELOCITY) {
+  const numericVelocity = Number(velocity);
+  if (!Number.isFinite(numericVelocity)) {
+    return fallback;
+  }
+
+  return Math.max(0, Math.min(127, Math.round(numericVelocity)));
+}
+
+export function normalizeVoicingMode(mode, fallback = BASIC_VOICING_MODE) {
+  const value = String(mode || "").trim().toLowerCase();
+  if (value === ADVANCED_VOICING_MODE) {
+    return ADVANCED_VOICING_MODE;
+  }
+
+  return BASIC_VOICING_MODE;
 }
 
 function normalizeVoicing(voicing, fallback = null) {
@@ -88,6 +133,10 @@ function normalizeVoicing(voicing, fallback = null) {
   }
 
   const notesByMidi = new Map();
+  const velocityMode = normalizeVoicingMode(
+    voicing?.velocityMode,
+    normalizeVoicingMode(fallback?.velocityMode, BASIC_VOICING_MODE)
+  );
 
   rawNotes.forEach(rawNote => {
     const midi = Number(
@@ -102,9 +151,11 @@ function normalizeVoicing(voicing, fallback = null) {
 
     notesByMidi.set(midi, {
       midi,
-      volume: normalizeNoteVolume(
-        typeof rawNote === "object" && rawNote !== null ? rawNote.volume : DEFAULT_NOTE_VOLUME,
-        DEFAULT_NOTE_VOLUME
+      velocity: normalizeMidiVelocity(
+        typeof rawNote === "object" && rawNote !== null
+          ? rawNote.velocity ?? velocityPresetToMidi(rawNote.volume)
+          : DEFAULT_NOTE_VELOCITY,
+        DEFAULT_NOTE_VELOCITY
       )
     });
   });
@@ -117,6 +168,7 @@ function normalizeVoicing(voicing, fallback = null) {
 
   return {
     source: typeof voicing?.source === "string" ? voicing.source : "keyboard",
+    velocityMode,
     notes
   };
 }
@@ -213,7 +265,7 @@ export function buildProgressionSavePayload(items, selectedKey, sequenceSettings
 
   return {
     type: "chordcanvas-progression",
-    version: 3,
+    version: 4,
     savedAt: new Date().toISOString(),
     key: {
       name: selectedKey,
@@ -324,7 +376,7 @@ function formatBeatLabel(durationBeats) {
   return `${durationBeats} beat${durationBeats === 1 ? "" : "s"}`;
 }
 
-export function renderProgressionBlocks(container, items, selectedId, playingId, beatsPerBar, onSelect, onEdit) {
+export function renderProgressionBlocks(container, items, selectedId, playingId, beatsPerBar, onSelect, onEdit, onMove) {
   if (!container) return;
 
   container.innerHTML = "";
@@ -339,11 +391,25 @@ export function renderProgressionBlocks(container, items, selectedId, playingId,
 
   const track = document.createElement("div");
   track.className = "progression-blocks-track";
+  let draggedItemId = null;
+
+  function clearDropIndicators() {
+    track.querySelectorAll(".progression-block-drop-before, .progression-block-drop-after, .progression-block-dragging")
+      .forEach(block => {
+        block.classList.remove("progression-block-drop-before", "progression-block-drop-after", "progression-block-dragging");
+      });
+  }
+
+  function getDropPlacement(target, clientX) {
+    const rect = target.getBoundingClientRect();
+    return clientX <= rect.left + (rect.width / 2) ? "before" : "after";
+  }
 
   items.forEach(item => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "progression-block";
+    button.draggable = true;
     button.dataset.progressionBlockId = item.id;
     button.dataset.progressionChord = item.chord;
     button.dataset.duration = String(item.durationBeats);
@@ -407,6 +473,56 @@ export function renderProgressionBlocks(container, items, selectedId, playingId,
             : null
         );
       }
+    });
+
+    button.addEventListener("dragstart", event => {
+      draggedItemId = item.id;
+      button.classList.add("progression-block-dragging");
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", item.id);
+      }
+    });
+
+    button.addEventListener("dragover", event => {
+      if (!draggedItemId || draggedItemId === item.id) {
+        return;
+      }
+
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "move";
+      }
+
+      clearDropIndicators();
+      const placement = getDropPlacement(button, event.clientX);
+      button.classList.add(placement === "before" ? "progression-block-drop-before" : "progression-block-drop-after");
+    });
+
+    button.addEventListener("dragleave", event => {
+      if (!button.contains(event.relatedTarget)) {
+        button.classList.remove("progression-block-drop-before", "progression-block-drop-after");
+      }
+    });
+
+    button.addEventListener("drop", event => {
+      if (!draggedItemId || draggedItemId === item.id) {
+        clearDropIndicators();
+        return;
+      }
+
+      event.preventDefault();
+      const placement = getDropPlacement(button, event.clientX);
+      clearDropIndicators();
+
+      if (onMove) {
+        onMove(draggedItemId, item.id, placement);
+      }
+    });
+
+    button.addEventListener("dragend", () => {
+      draggedItemId = null;
+      clearDropIndicators();
     });
 
     track.appendChild(button);
@@ -507,7 +623,7 @@ function formatMidiNoteLabel(midi) {
   return noteName ? `${noteName}${octave}` : String(midi);
 }
 
-function buildVoicingNoteRow(note, noteIndex, onVolumeChange) {
+function buildVoicingNoteRow(note, noteIndex, options = {}) {
   const row = document.createElement("div");
   row.className = "progression-editor-voicing-row";
 
@@ -516,6 +632,29 @@ function buildVoicingNoteRow(note, noteIndex, onVolumeChange) {
   noteLabel.textContent = formatMidiNoteLabel(note?.midi);
   row.appendChild(noteLabel);
 
+  row.appendChild(buildVoicingNoteValueControl(note, noteIndex, options));
+  return row;
+}
+
+function buildVoicingNoteValueControl(note, noteIndex, options = {}) {
+  const velocityMode = normalizeVoicingMode(options.velocityMode, BASIC_VOICING_MODE);
+
+  if (velocityMode === ADVANCED_VOICING_MODE) {
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "0";
+    input.max = "127";
+    input.step = "1";
+    input.className = "progression-editor-voicing-input";
+    input.value = String(normalizeMidiVelocity(note?.velocity));
+    input.addEventListener("change", event => {
+      if (options.onVelocityChange) {
+        options.onVelocityChange(noteIndex, event.target.value);
+      }
+    });
+    return input;
+  }
+
   const select = document.createElement("select");
   select.className = "progression-editor-voicing-select";
 
@@ -523,18 +662,17 @@ function buildVoicingNoteRow(note, noteIndex, onVolumeChange) {
     const option = document.createElement("option");
     option.value = volume;
     option.textContent = volume.charAt(0).toUpperCase() + volume.slice(1);
-    option.selected = normalizeNoteVolume(note?.volume) === volume;
+    option.selected = midiVelocityToPreset(note?.velocity) === volume;
     select.appendChild(option);
   });
 
   select.addEventListener("change", event => {
-    if (onVolumeChange) {
-      onVolumeChange(noteIndex, event.target.value);
+    if (options.onPresetChange) {
+      options.onPresetChange(noteIndex, event.target.value);
     }
   });
 
-  row.appendChild(select);
-  return row;
+  return select;
 }
 
 export function renderProgressionEditor(container, selectedItem, selectedIndex, totalItems, options = {}) {
@@ -606,16 +744,43 @@ export function renderProgressionEditor(container, selectedItem, selectedIndex, 
     const voicingSection = document.createElement("div");
     voicingSection.className = "progression-editor-voicing";
 
+    const voicingHeader = document.createElement("div");
+    voicingHeader.className = "progression-editor-voicing-header";
+
     const voicingTitle = document.createElement("div");
     voicingTitle.className = "progression-editor-field-label";
     voicingTitle.textContent = "Voicing Notes";
-    voicingSection.appendChild(voicingTitle);
+    voicingHeader.appendChild(voicingTitle);
+
+    const currentVoicingMode = normalizeVoicingMode(selectedItem.voicing?.velocityMode);
+    const voicingMode = document.createElement("button");
+    voicingMode.type = "button";
+    voicingMode.className = "progression-editor-voicing-mode-toggle";
+    voicingMode.textContent = currentVoicingMode === ADVANCED_VOICING_MODE ? "Advanced" : "Basic";
+    voicingMode.setAttribute("aria-pressed", String(currentVoicingMode === ADVANCED_VOICING_MODE));
+    if (currentVoicingMode === ADVANCED_VOICING_MODE) {
+      voicingMode.classList.add("progression-editor-voicing-mode-toggle-active");
+    }
+    voicingMode.addEventListener("click", () => {
+      if (options.onVoicingModeChange) {
+        options.onVoicingModeChange(
+          currentVoicingMode === ADVANCED_VOICING_MODE ? BASIC_VOICING_MODE : ADVANCED_VOICING_MODE
+        );
+      }
+    });
+    voicingHeader.appendChild(voicingMode);
+
+    voicingSection.appendChild(voicingHeader);
 
     const voicingRows = document.createElement("div");
     voicingRows.className = "progression-editor-voicing-rows";
     selectedItem.voicing.notes.forEach((note, noteIndex) => {
       voicingRows.appendChild(
-        buildVoicingNoteRow(note, noteIndex, options.onVoicingNoteVolumeChange)
+        buildVoicingNoteRow(note, noteIndex, {
+          velocityMode: selectedItem.voicing?.velocityMode,
+          onPresetChange: options.onVoicingNotePresetChange,
+          onVelocityChange: options.onVoicingNoteVelocityChange
+        })
       );
     });
 

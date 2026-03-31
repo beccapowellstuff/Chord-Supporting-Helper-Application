@@ -9,16 +9,13 @@ let reverb = null;
 let filter = null;
 let limiter = null;
 
-function getNoteVelocity(volume = "normal") {
-  if (volume === "soft") {
-    return 0.3375;
-  }
+function getNoteVelocity(velocity = 84) {
+  const midiVelocity = Number(velocity);
+  const normalizedVelocity = Number.isFinite(midiVelocity)
+    ? Math.max(0, Math.min(127, Math.round(midiVelocity)))
+    : 84;
 
-  if (volume === "strong") {
-    return 0.5625;
-  }
-
-  return 0.45;
+  return normalizedVelocity / 127;
 }
 
 export async function initSoundFont() {
@@ -129,7 +126,7 @@ export async function playMidiNoteSpecs(noteSpecs, duration = 1.0) {
       }
 
       const noteName = clampNoteToRange(midiToNoteName(midi));
-      synth.triggerAttackRelease(noteName, duration, now, getNoteVelocity(noteSpec?.volume));
+      synth.triggerAttackRelease(noteName, duration, now, getNoteVelocity(noteSpec?.velocity));
     });
   } catch (error) {
     console.error("âœ— Failed to play note specs:", error);
@@ -181,7 +178,7 @@ export async function startHeldMidiNoteSpecs(noteSpecs) {
 
       const noteName = clampNoteToRange(midiToNoteName(midi));
       noteNames.push(noteName);
-      synth.triggerAttack(noteName, now, getNoteVelocity(noteSpec?.volume));
+      synth.triggerAttack(noteName, now, getNoteVelocity(noteSpec?.velocity));
     });
 
     return noteNames;
