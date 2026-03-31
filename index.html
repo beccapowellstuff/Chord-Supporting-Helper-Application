@@ -26,8 +26,37 @@
         <div class="sequence-panel-title">Progression Builder</div>
         <div class="sequence-panel-body">
           <div id="sequenceKeyboard" class="sequence-keyboard-mount"></div>
-          <div class="input-help">Build your chord sequence using the Chord Explorer. Separate chords with commas, pipes, or new lines.</div>
-          <textarea id="progression" rows="3" placeholder="Example: C | Am | F" aria-label="Chord Sequence"></textarea>
+          <div class="progression-builder-shell">
+            <div class="progression-builder-primary">
+              <div class="progression-sequence-header">
+                <div class="progression-sequence-heading">
+                  <div class="progression-section-label">Chord Sequence</div>
+                  <div class="input-help">Select a chord block to audition it, or double-click to edit it.</div>
+                </div>
+                <div class="progression-sequence-meta">
+                  <label class="progression-sequence-setting" for="sequenceTempoBpm">
+                    <span class="progression-sequence-setting-label">Tempo</span>
+                    <input id="sequenceTempoBpm" type="number" min="40" max="240" step="1" value="120" aria-label="Sequence tempo in beats per minute">
+                  </label>
+                  <label class="progression-sequence-setting" for="sequenceTimeSignature">
+                    <span class="progression-sequence-setting-label">Time Signature</span>
+                    <select id="sequenceTimeSignature" aria-label="Sequence time signature">
+                      <option value="4/4" selected>4/4</option>
+                      <option value="3/4">3/4</option>
+                      <option value="2/4">2/4</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div id="progressionBlocks" class="progression-blocks" aria-label="Progression blocks"></div>
+            </div>
+          </div>
+          <div id="progressionEditor" class="progression-editor-modal-root" aria-live="polite"></div>
+          <div class="progression-text-shell progression-text-shell-hidden" aria-hidden="true">
+            <label class="progression-text-label" for="progression">Text Import / Summary</label>
+            <div class="input-help">Paste progression text when needed. The chord blocks above remain the main view.</div>
+            <textarea id="progression" rows="2" placeholder="Example: C | Am | F" aria-label="Chord Sequence"></textarea>
+          </div>
           <div class="sequence-panel-actions">
             <button id="playProgressionBtn" type="button">Play sequence</button>
             <button id="saveProgressionBtn" type="button">Save progression</button>

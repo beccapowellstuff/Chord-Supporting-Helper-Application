@@ -9,6 +9,18 @@ let reverb = null;
 let filter = null;
 let limiter = null;
 
+function getNoteVelocity(volume = "normal") {
+  if (volume === "soft") {
+    return 0.3375;
+  }
+
+  if (volume === "strong") {
+    return 0.5625;
+  }
+
+  return 0.45;
+}
+
 export async function initSoundFont() {
   if (isInitialized && synth) {
     return synth;
@@ -59,7 +71,7 @@ export async function initSoundFont() {
   }
 }
 
-export async function playMidiNote(midiNumber, duration = 1.0) {
+export async function playMidiNote(midiNumber, duration = 1.0, velocity = 0.45) {
   if (!synth) {
     await initSoundFont();
   }
@@ -71,13 +83,13 @@ export async function playMidiNote(midiNumber, duration = 1.0) {
 
   try {
     const noteName = clampNoteToRange(midiToNoteName(midiNumber));
-    synth.triggerAttackRelease(noteName, duration, Tone.now(), 0.45);
+    synth.triggerAttackRelease(noteName, duration, Tone.now(), velocity);
   } catch (error) {
     console.error("✗ Failed to play note:", error);
   }
 }
 
-export async function playMidiNotes(midiNumbers, duration = 1.0) {
+export async function playMidiNotes(midiNumbers, duration = 1.0, velocity = 0.45) {
   if (!synth) {
     await initSoundFont();
   }
@@ -92,9 +104,102 @@ export async function playMidiNotes(midiNumbers, duration = 1.0) {
       clampNoteToRange(midiToNoteName(midi))
     );
 
-    synth.triggerAttackRelease(noteNames, duration, Tone.now(), 0.45);
+    synth.triggerAttackRelease(noteNames, duration, Tone.now(), velocity);
   } catch (error) {
     console.error("✗ Failed to play notes:", error);
+  }
+}
+
+export async function playMidiNoteSpecs(noteSpecs, duration = 1.0) {
+  if (!synth) {
+    await initSoundFont();
+  }
+
+  if (!synth || !isReady) {
+    console.log("Sampler not ready yet");
+    return;
+  }
+
+  try {
+    const now = Tone.now();
+    noteSpecs.forEach(noteSpec => {
+      const midi = Number(noteSpec?.midi);
+      if (!Number.isFinite(midi)) {
+        return;
+      }
+
+      const noteName = clampNoteToRange(midiToNoteName(midi));
+      synth.triggerAttackRelease(noteName, duration, now, getNoteVelocity(noteSpec?.volume));
+    });
+  } catch (error) {
+    console.error("âœ— Failed to play note specs:", error);
+  }
+}
+
+export async function startHeldMidiNotes(midiNumbers, velocity = 0.45) {
+  if (!synth) {
+    await initSoundFont();
+  }
+
+  if (!synth || !isReady) {
+    console.log("Sampler not ready yet");
+    return [];
+  }
+
+  try {
+    const noteNames = midiNumbers.map(midi =>
+      clampNoteToRange(midiToNoteName(midi))
+    );
+
+    synth.triggerAttack(noteNames, Tone.now(), velocity);
+    return noteNames;
+  } catch (error) {
+    console.error("âœ— Failed to start held notes:", error);
+    return [];
+  }
+}
+
+export async function startHeldMidiNoteSpecs(noteSpecs) {
+  if (!synth) {
+    await initSoundFont();
+  }
+
+  if (!synth || !isReady) {
+    console.log("Sampler not ready yet");
+    return [];
+  }
+
+  try {
+    const now = Tone.now();
+    const noteNames = [];
+
+    noteSpecs.forEach(noteSpec => {
+      const midi = Number(noteSpec?.midi);
+      if (!Number.isFinite(midi)) {
+        return;
+      }
+
+      const noteName = clampNoteToRange(midiToNoteName(midi));
+      noteNames.push(noteName);
+      synth.triggerAttack(noteName, now, getNoteVelocity(noteSpec?.volume));
+    });
+
+    return noteNames;
+  } catch (error) {
+    console.error("Ã¢Å“â€” Failed to start held note specs:", error);
+    return [];
+  }
+}
+
+export function releaseHeldMidiNotes(noteNames) {
+  if (!synth || !isReady || !Array.isArray(noteNames) || !noteNames.length) {
+    return;
+  }
+
+  try {
+    synth.triggerRelease(noteNames, Tone.now());
+  } catch (error) {
+    console.error("âœ— Failed to release held notes:", error);
   }
 }
 
@@ -107,6 +212,16 @@ export async function ensureAudioContext() {
     }
   } catch (error) {
     console.error("✗ Failed to start audio context:", error);
+  }
+}
+
+export function stopAllPlayback() {
+  try {
+    if (synth && typeof synth.releaseAll === "function") {
+      synth.releaseAll();
+    }
+  } catch (error) {
+    console.warn("Could not stop sampler playback:", error);
   }
 }
 

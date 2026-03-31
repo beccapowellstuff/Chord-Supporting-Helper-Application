@@ -12,10 +12,43 @@
  * Depends on: chordNotes, chordVoicing, synth
  */
 import { buildVoicings, distance, getAscendingRootVoicing } from "./chordVoicing.js";
-import { ensureAudioContext, playMidiNotes } from "./synth.js";
+import {
+  ensureAudioContext,
+  playMidiNoteSpecs,
+  playMidiNotes,
+  releaseHeldMidiNotes,
+  startHeldMidiNoteSpecs,
+  startHeldMidiNotes,
+  stopAllPlayback
+} from "./synth.js";
 
 export async function ensureAudioReady() {
   await ensureAudioContext();
+}
+
+function resolveChordVoicing(chordName, useSmoothing = false, previousVoicing = null) {
+  if (!chordName) return [];
+
+  if (useSmoothing && previousVoicing) {
+    const options = buildVoicings(chordName);
+    if (!options.length) return [];
+
+    let voicing = options[0];
+    let bestScore = distance(previousVoicing, options[0]);
+
+    for (const option of options.slice(1)) {
+      const optionScore = distance(previousVoicing, option);
+      if (optionScore < bestScore) {
+        voicing = option;
+        bestScore = optionScore;
+      }
+    }
+
+    return voicing;
+  }
+
+  const options = buildVoicings(chordName);
+  return options[0] || [];
 }
 
 export async function playSoundChord(chordName, duration = 1.0, useSmoothing = false, previousVoicing = null) {
@@ -23,27 +56,7 @@ export async function playSoundChord(chordName, duration = 1.0, useSmoothing = f
 
   try {
     await ensureAudioReady();
-
-    let voicing;
-    if (useSmoothing && previousVoicing) {
-      const options = buildVoicings(chordName);
-      if (!options.length) return { voicing: [] };
-
-      voicing = options[0];
-      let bestScore = distance(previousVoicing, options[0]);
-
-      for (const option of options.slice(1)) {
-        const optionScore = distance(previousVoicing, option);
-        if (optionScore < bestScore) {
-          voicing = option;
-          bestScore = optionScore;
-        }
-      }
-    } else {
-      const options = buildVoicings(chordName);
-      if (!options.length) return { voicing: [] };
-      voicing = options[0];
-    }
+    const voicing = resolveChordVoicing(chordName, useSmoothing, previousVoicing);
 
     if (voicing.length) {
       await playMidiNotes(voicing, duration);
@@ -69,18 +82,125 @@ export async function playChord(chordName, duration = 1.0) {
   }
 }
 
-export async function playProgression(chords, tempo = 90, onChordStart = null) {
+function waitForChordWindow(durationMs, shouldStop = null) {
+  return new Promise(resolve => {
+    const stepMs = 40;
+    let elapsedMs = 0;
+
+    function tick() {
+      if (shouldStop?.()) {
+        resolve(true);
+        return;
+      }
+
+      if (elapsedMs >= durationMs) {
+        resolve(false);
+        return;
+      }
+
+      const remainingMs = durationMs - elapsedMs;
+      const delayMs = Math.min(stepMs, remainingMs);
+      elapsedMs += delayMs;
+      setTimeout(tick, delayMs);
+    }
+
+    tick();
+  });
+}
+
+function getPlaybackEntry(entry) {
+  if (typeof entry === "string") {
+    return {
+      chord: entry,
+      durationBeats: 4,
+      sustain: false,
+      voicingNotes: []
+    };
+  }
+
+  return {
+    chord: entry?.chord || "",
+    durationBeats: Math.max(1, Number(entry?.durationBeats) || 4),
+    sustain: Boolean(entry?.sustain),
+    voicingNotes: Array.isArray(entry?.voicing?.notes)
+      ? entry.voicing.notes
+        .map(note => ({
+          midi: Number(note?.midi),
+          volume: typeof note?.volume === "string" ? note.volume : "normal"
+        }))
+        .filter(note => Number.isFinite(note.midi))
+      : []
+  };
+}
+
+export async function playProgression(chords, tempo = 120, onChordStart = null, shouldStop = null) {
   if (!chords.length) return;
 
-  const msPerChord = (60 / tempo) * 2 * 1000;
+  const normalizedTempo = Math.max(40, Number(tempo) || 120);
+  const secondsPerBeat = 60 / normalizedTempo;
   let previousVoicing = null;
+  let activeHeldNotes = [];
 
-  for (const chord of chords) {
-    if (onChordStart) {
-      await onChordStart(chord, (msPerChord / 1000) * 0.9);
+  for (const rawEntry of chords) {
+    const entry = getPlaybackEntry(rawEntry);
+    const chord = entry.chord;
+    const chordDurationSeconds = entry.durationBeats * secondsPerBeat;
+    const chordPlaybackSeconds = entry.sustain
+      ? chordDurationSeconds
+      : chordDurationSeconds * 0.9;
+    const chordWindowMs = chordDurationSeconds * 1000;
+
+    if (shouldStop?.()) {
+      if (activeHeldNotes.length) {
+        releaseHeldMidiNotes(activeHeldNotes);
+      }
+      stopAllPlayback();
+      return;
     }
-    const { voicing } = await playSoundChord(chord, (msPerChord / 1000) * 0.9, true, previousVoicing);
+
+    if (activeHeldNotes.length) {
+      releaseHeldMidiNotes(activeHeldNotes);
+      activeHeldNotes = [];
+    }
+
+    if (onChordStart) {
+      await onChordStart(chord, chordPlaybackSeconds);
+    }
+
+    if (shouldStop?.()) {
+      if (activeHeldNotes.length) {
+        releaseHeldMidiNotes(activeHeldNotes);
+      }
+      stopAllPlayback();
+      return;
+    }
+
+    const voicing = entry.voicingNotes.length
+      ? entry.voicingNotes.map(note => note.midi)
+      : resolveChordVoicing(chord, true, previousVoicing);
     previousVoicing = voicing;
-    await new Promise(resolve => setTimeout(resolve, msPerChord));
+
+    if (entry.sustain && entry.voicingNotes.length) {
+      activeHeldNotes = await startHeldMidiNoteSpecs(entry.voicingNotes);
+    } else if (entry.sustain) {
+      activeHeldNotes = await startHeldMidiNotes(voicing);
+    } else if (entry.voicingNotes.length) {
+      await playMidiNoteSpecs(entry.voicingNotes, chordPlaybackSeconds);
+    } else if (voicing.length) {
+      await playMidiNotes(voicing, chordPlaybackSeconds);
+    }
+
+    const wasStopped = await waitForChordWindow(chordWindowMs, shouldStop);
+    if (wasStopped) {
+      if (activeHeldNotes.length) {
+        releaseHeldMidiNotes(activeHeldNotes);
+      }
+      stopAllPlayback();
+      return;
+    }
+  }
+
+  if (activeHeldNotes.length) {
+    releaseHeldMidiNotes(activeHeldNotes);
   }
 }
