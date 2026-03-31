@@ -420,6 +420,24 @@ body {
   max-width: 92px;
 }
 
+.progression-sequence-demo-btn {
+  width: auto;
+  min-width: 0;
+  align-self: end;
+  margin: 0 0 1px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--accent-dark);
+  border: 1px solid rgba(200, 95, 143, 0.22);
+}
+
+.progression-sequence-demo-btn:hover {
+  background: rgba(244, 216, 230, 0.92);
+}
+
 .progression-blocks {
   overflow: visible;
   margin-top: 6px;
@@ -436,7 +454,9 @@ body {
 }
 
 .progression-blocks-empty {
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 1px dashed var(--border);
   border-radius: 10px;
   padding: 12px;
@@ -495,6 +515,32 @@ body {
   transform: translateY(-1px);
   border-color: rgba(200, 95, 143, 0.42);
   box-shadow: 0 5px 12px rgba(90, 35, 60, 0.07);
+}
+
+.progression-block-dragging {
+  opacity: 0.55;
+  transform: scale(0.98);
+}
+
+.progression-block-drop-before::before,
+.progression-block-drop-after::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 999px;
+  background: rgba(200, 95, 143, 0.92);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+  z-index: 2;
+}
+
+.progression-block-drop-before::before {
+  left: 0;
+}
+
+.progression-block-drop-after::after {
+  right: 0;
 }
 
 .progression-block-selected {
@@ -697,6 +743,13 @@ body {
   margin-top: 8px;
 }
 
+.progression-editor-voicing-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .progression-editor-voicing-rows {
   display: flex;
   flex-direction: column;
@@ -728,6 +781,44 @@ body {
   font-size: 11px;
   font-weight: 700;
   border-radius: 6px;
+}
+
+.progression-editor-voicing-mode-toggle,
+.progression-editor-voicing-input {
+  width: auto;
+  margin: 0;
+  padding: 4px 24px 4px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+}
+
+.progression-editor-voicing-mode-toggle {
+  min-width: 94px;
+  padding: 4px 9px;
+  margin-bottom: 0;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--accent-dark);
+  border: 1px solid rgba(200, 95, 143, 0.24);
+}
+
+.progression-editor-voicing-mode-toggle:hover {
+  background: rgba(244, 216, 230, 0.92);
+}
+
+.progression-editor-voicing-mode-toggle-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent-dark);
+}
+
+.progression-editor-voicing-mode-toggle-active:hover {
+  background: var(--accent-dark);
+}
+
+.progression-editor-voicing-input {
+  min-width: 76px;
+  padding-right: 7px;
 }
 
 .progression-text-shell {
