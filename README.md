@@ -155,18 +155,7 @@ The app still uses circle-of-fifths style theory relationships in the background
 
 These link to the retroactive version summary file:
 
-- [v0.12.0](./VERSION_CHANGES.md#v0-12-0)
-- [v0.11.0](./VERSION_CHANGES.md#v0-11-0)
-- [v0.10.0](./VERSION_CHANGES.md#v0-10-0)
-- [v0.9.0](./VERSION_CHANGES.md#v0-9-0)
-- [v0.8.0](./VERSION_CHANGES.md#v0-8-0)
-- [v0.7.0](./VERSION_CHANGES.md#v0-7-0)
-- [v0.6.0](./VERSION_CHANGES.md#v0-6-0)
-- [v0.5.0](./VERSION_CHANGES.md#v0-5-0)
-- [v0.4.0](./VERSION_CHANGES.md#v0-4-0)
-- [v0.3.0](./VERSION_CHANGES.md#v0-3-0)
-- [v0.2.0](./VERSION_CHANGES.md#v0-2-0)
-- [v0.1.0](./VERSION_CHANGES.md#v0-1-0)
+- [v0.12.0](./VERSION_CHANGES.md)
 
 ## Vibe Coding Note
 
