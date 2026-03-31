@@ -420,6 +420,24 @@ body {
   max-width: 92px;
 }
 
+.progression-sequence-demo-btn {
+  width: auto;
+  min-width: 0;
+  align-self: end;
+  margin: 0 0 1px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--accent-dark);
+  border: 1px solid rgba(200, 95, 143, 0.22);
+}
+
+.progression-sequence-demo-btn:hover {
+  background: rgba(244, 216, 230, 0.92);
+}
+
 .progression-blocks {
   overflow: visible;
   margin-top: 6px;
@@ -436,7 +454,9 @@ body {
 }
 
 .progression-blocks-empty {
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   border: 1px dashed var(--border);
   border-radius: 10px;
   padding: 12px;
@@ -516,11 +536,11 @@ body {
 }
 
 .progression-block-drop-before::before {
-  left: -2px;
+  left: 0;
 }
 
 .progression-block-drop-after::after {
-  right: -2px;
+  right: 0;
 }
 
 .progression-block-selected {

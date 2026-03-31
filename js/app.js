@@ -87,6 +87,7 @@ const suggestBtn = document.getElementById("suggestBtn");
 const autoSuggestToggle = document.getElementById("autoSuggestToggle");
 const playProgressionBtn = document.getElementById("playProgressionBtn");
 const playFromSelectedBtn = document.getElementById("playFromSelectedBtn");
+const loadDemoProgressionBtn = document.getElementById("loadDemoProgressionBtn");
 const saveProgressionBtn = document.getElementById("saveProgressionBtn");
 const loadProgressionBtn = document.getElementById("loadProgressionBtn");
 const loadProgressionInput = document.getElementById("loadProgressionInput");
@@ -713,6 +714,27 @@ function handleSaveProgression() {
   downloadProgressionFile(payload);
 }
 
+function applyLoadedProgressionData(data) {
+  const {
+    items,
+    invalid,
+    sequenceSettings
+  } = importProgressionFromSavedData(data, getCurrentKeyData(), appState.progressionItems);
+
+  if (!items.length) {
+    throw new Error("No chords found");
+  }
+
+  appState.sequenceTempoBpm = normalizeTempoBpm(sequenceSettings?.tempoBpm);
+  appState.sequenceTimeSignature = normalizeTimeSignature(sequenceSettings?.timeSignature);
+  appState.progressionInvalidTokens = invalid;
+  setProgressionItems(items, { selectedId: null });
+
+  if (activeToolPanelId === "suggestionEnginePanel" && appData) {
+    runSuggestions();
+  }
+}
+
 async function handleLoadProgression(event) {
   const input = event?.target;
   const file = input?.files?.[0];
@@ -724,29 +746,27 @@ async function handleLoadProgression(event) {
   try {
     const raw = await file.text();
     const data = JSON.parse(raw);
-    const {
-      items,
-      invalid,
-      sequenceSettings
-    } = importProgressionFromSavedData(data, getCurrentKeyData(), appState.progressionItems);
-
-    if (!items.length) {
-      throw new Error("No chords found");
-    }
-
-    appState.sequenceTempoBpm = normalizeTempoBpm(sequenceSettings?.tempoBpm);
-    appState.sequenceTimeSignature = normalizeTimeSignature(sequenceSettings?.timeSignature);
-    appState.progressionInvalidTokens = invalid;
-    setProgressionItems(items, { selectedId: null });
-
-    if (activeToolPanelId === "suggestionEnginePanel" && appData) {
-      runSuggestions();
-    }
+    applyLoadedProgressionData(data);
   } catch (error) {
     console.error("Could not load progression file:", error);
     window.alert("Could not load that progression file.");
   } finally {
     input.value = "";
+  }
+}
+
+async function handleLoadDemoProgression() {
+  try {
+    const response = await fetch(new URL("../c-ionian-progression.json", import.meta.url));
+    if (!response.ok) {
+      throw new Error(`Failed to load demo progression: ${response.status}`);
+    }
+
+    const data = await response.json();
+    applyLoadedProgressionData(data);
+  } catch (error) {
+    console.error("Could not load demo progression:", error);
+    window.alert("Could not load the demo progression.");
   }
 }
 
@@ -1488,6 +1508,7 @@ async function init() {
     if (suggestBtn) suggestBtn.dataset.tooltip = "Refresh the current suggestions";
     if (playProgressionBtn) playProgressionBtn.dataset.tooltip = "Play all chords in the progression";
     if (playFromSelectedBtn) playFromSelectedBtn.dataset.tooltip = "Play the progression from the selected chord";
+    if (loadDemoProgressionBtn) loadDemoProgressionBtn.dataset.tooltip = "Load the bundled C Ionian demo progression";
     if (saveProgressionBtn) saveProgressionBtn.dataset.tooltip = "Save the progression with tempo, time signature, and beat lengths";
     if (loadProgressionBtn) loadProgressionBtn.dataset.tooltip = "Load a saved progression file";
     if (sequenceTempoBpmInput) sequenceTempoBpmInput.dataset.tooltip = "Set the playback tempo for the chord sequence";
@@ -1529,6 +1550,12 @@ async function init() {
     if (playFromSelectedBtn) {
       playFromSelectedBtn.addEventListener("click", () => {
         void handlePlayProgression("selected");
+      });
+    }
+
+    if (loadDemoProgressionBtn) {
+      loadDemoProgressionBtn.addEventListener("click", () => {
+        void handleLoadDemoProgression();
       });
     }
 
