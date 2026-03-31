@@ -1,13 +1,16 @@
-# ChordCanvas
+# Vibe Chording
 
-ChordCanvas is a browser-based music idea tool for building chord progressions, exploring keys, and shaping harmonic direction without handing authorship over to AI.
+Vibe Chording is a browser-based music idea tool for building chord progressions, exploring keys, and shaping harmonic direction without handing authorship over to AI.
 
 Current version: [v0.12.0](./VERSION_CHANGES.md#v0-12-0)  
 Full history: [Version Changes](./VERSION_CHANGES.md)
 
+Public-facing product name: `Vibe Chording`  
+Current repository name: `Chord-Supporting-Helper-Application`
+
 ## What It Does
 
-ChordCanvas helps you:
+Vibe Chording helps you:
 
 - pick a key and mode visually
 - explore the diatonic chords and theory behind that key
@@ -71,7 +74,7 @@ The goal is not to write music for you. The goal is to support the writing proce
 
 ### Live Demo
 
-**[Open ChordCanvas on GitHub Pages](https://beccapowellstuff.github.io/Chord-Supporting-Helper-Application/)**
+**[Open Vibe Chording on GitHub Pages](https://beccapowellstuff.github.io/Chord-Supporting-Helper-Application/)**
 
 ### Run Locally
 
@@ -131,7 +134,7 @@ The app is still intentionally lightweight. The core files are:
 
 ## Browser Support
 
-ChordCanvas is built with standard web technologies and should work in modern Chrome, Firefox, Safari, and Edge.
+Vibe Chording is built with standard web technologies and should work in modern Chrome, Firefox, Safari, and Edge.
 
 Notes:
 
@@ -141,7 +144,7 @@ Notes:
 
 ## Design Philosophy
 
-ChordCanvas is being built around a few principles:
+Vibe Chording is being built around a few principles:
 
 - help the musician, do not replace the musician
 - make theory usable, not intimidating
@@ -179,4 +182,4 @@ Useful feedback includes:
 
 ## Summary
 
-ChordCanvas is a progression-focused music support tool for people who want help with harmony, direction, and exploration while still making the creative decisions themselves.
+Vibe Chording is a progression-focused music support tool for people who want help with harmony, direction, and exploration while still making the creative decisions themselves.

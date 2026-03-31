@@ -264,7 +264,7 @@ export function buildProgressionSavePayload(items, selectedKey, sequenceSettings
   const mode = modeParts.join(" ") || "Ionian";
 
   return {
-    type: "chordcanvas-progression",
+    type: "vibe-chording-progression",
     version: 4,
     savedAt: new Date().toISOString(),
     key: {

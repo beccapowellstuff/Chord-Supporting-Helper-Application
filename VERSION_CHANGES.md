@@ -1,6 +1,6 @@
 # Version Changes
 
-This file is a retroactive milestone summary for ChordCanvas from `v0.1.0` through `v0.12.0`.
+This file is a retroactive milestone summary for Vibe Chording from `v0.1.0` through `v0.12.0`.
 
 The early entries were reconstructed from the project’s development history and are meant to reflect the main release-level changes, not every individual commit.
 
@@ -91,7 +91,7 @@ The early entries were reconstructed from the project’s development history an
 
 ## <a id="v0-1-0"></a>v0.1.0
 
-- Initial ChordCanvas foundation.
+- Initial foundation for what is now Vibe Chording.
 - Added interactive key selection.
 - Added the Circle of Fifths-driven starting workflow.
 - Established the browser-based music-theory tool concept and core UI shell.
