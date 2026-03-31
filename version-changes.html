@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChordCanvas Version Changes</title>
+  <link rel="icon" type="image/png" href="./graphics/chordcanvas-favicon.png">
+  <link rel="shortcut icon" href="./graphics/chordcanvas-favicon.png">
+  <link rel="apple-touch-icon" href="./graphics/chordcanvas-favicon.png">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #fff7fa;
+      --panel: rgba(255, 255, 255, 0.82);
+      --panel-strong: #ffffff;
+      --border: rgba(200, 95, 143, 0.22);
+      --text: #4d3040;
+      --muted: #7a5a69;
+      --accent: #c85f8f;
+      --accent-dark: #a33f6e;
+      --shadow: 0 18px 42px rgba(90, 35, 60, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255, 219, 233, 0.8), transparent 34%),
+        linear-gradient(180deg, #fffafc 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .page {
+      width: min(980px, calc(100vw - 32px));
+      margin: 28px auto 48px;
+    }
+
+    .hero {
+      background: linear-gradient(180deg, rgba(255, 247, 251, 0.96), rgba(255, 240, 246, 0.92));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 24px 24px 20px;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent-dark);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.05;
+    }
+
+    .intro {
+      margin: 0;
+      max-width: 720px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .jump-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .jump-links a,
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.88);
+      color: var(--accent-dark);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .jump-links a:hover,
+    .back-link:hover {
+      background: rgba(244, 216, 230, 0.92);
+    }
+
+    .release-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .release-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 18px 20px;
+    }
+
+    .release-card h2 {
+      margin: 0 0 10px;
+      color: var(--accent-dark);
+      font-size: 24px;
+    }
+
+    .release-card p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .release-card ul {
+      margin: 0;
+      padding-left: 20px;
+      line-height: 1.6;
+    }
+
+    .footer {
+      margin-top: 18px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <p class="eyebrow">ChordCanvas</p>
+      <h1>Version Changes</h1>
+      <p class="intro">
+        This page is the browser-friendly release history for ChordCanvas. The earlier entries are retroactive milestone summaries, designed to show how the app grew from a theory reference into a progression-focused builder and playback tool.
+      </p>
+      <div class="jump-links">
+        <a href="#v0-12-0">v0.12.0</a>
+        <a href="#v0-11-0">v0.11.0</a>
+        <a href="#v0-10-0">v0.10.0</a>
+        <a href="#v0-9-0">v0.9.0</a>
+        <a href="#v0-8-0">v0.8.0</a>
+        <a href="#v0-7-0">v0.7.0</a>
+        <a href="#v0-6-0">v0.6.0</a>
+        <a href="#v0-5-0">v0.5.0</a>
+        <a href="#v0-4-0">v0.4.0</a>
+        <a href="#v0-3-0">v0.3.0</a>
+        <a href="#v0-2-0">v0.2.0</a>
+        <a href="#v0-1-0">v0.1.0</a>
+      </div>
+    </section>
+
+    <section class="release-list">
+      <article class="release-card" id="v0-12-0">
+        <h2>v0.12.0</h2>
+        <ul>
+          <li>Added a bundled demo progression loader.</li>
+          <li>Added `Play from` so playback can start at the selected chord.</li>
+          <li>Added drag-and-drop chord reordering in the `Chord Sequence`.</li>
+          <li>Refined note-level velocity editing with `Basic` and `Advanced` modes.</li>
+          <li>Updated documentation to match the current product.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-11-0">
+        <h2>v0.11.0</h2>
+        <ul>
+          <li>Added custom voicing capture from the on-screen keyboard.</li>
+          <li>Added doubled bass playback for keyboard-captured voicings.</li>
+          <li>Added compact bass-lane display beneath the main keyboard.</li>
+          <li>Added per-note dynamics editing for stored voicings.</li>
+          <li>Added click-to-preview and double-click-to-edit behavior for chord blocks.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-10-0">
+        <h2>v0.10.0</h2>
+        <ul>
+          <li>Added sequence save/load using JSON files.</li>
+          <li>Added custom sequence playback controls including stop behavior.</li>
+          <li>Added active chord highlighting during playback.</li>
+          <li>Added keyboard-based `Add`, `Update`, and `Delete` actions for the builder.</li>
+          <li>Improved progression-builder workflow and playback integration.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-9-0">
+        <h2>v0.9.0</h2>
+        <ul>
+          <li>Switched progression editing toward a visual block-based builder.</li>
+          <li>Added selected chord editing via a compact edit view.</li>
+          <li>Added chord audition directly from the progression sequence.</li>
+          <li>Improved sequence playback flow and builder interaction design.</li>
+          <li>Reduced dependence on text-first editing.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-8-0">
+        <h2>v0.8.0</h2>
+        <ul>
+          <li>Introduced beat-based chord durations instead of simple bar labels.</li>
+          <li>Added tempo and time-signature controls.</li>
+          <li>Added duration-based chord widths in the sequence.</li>
+          <li>Added beat divider markers and bar-boundary visual cues.</li>
+          <li>Moved the builder closer to a compact sequence workflow.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-7-0">
+        <h2>v0.7.0</h2>
+        <ul>
+          <li>Replaced the primary progression textarea workflow with visual chord blocks.</li>
+          <li>Added single-selection behavior for progression items.</li>
+          <li>Added a dedicated chord editor path for selected sequence items.</li>
+          <li>Preserved compatibility with existing pasted or loaded text progressions.</li>
+          <li>Established the structured progression-item model used by later features.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-6-0">
+        <h2>v0.6.0</h2>
+        <ul>
+          <li>Fixed major standard Suggestion Engine rendering issues.</li>
+          <li>Corrected `[object Object]` suggestion-card bugs.</li>
+          <li>Improved progression parsing for standard theory-based suggestions.</li>
+          <li>Added regression coverage around progression-based suggestions.</li>
+          <li>Stabilised the non-AI suggestion path before larger builder work.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-5-0">
+        <h2>v0.5.0</h2>
+        <ul>
+          <li>Added progression input and early progression playback support.</li>
+          <li>Improved chord recognition and keyboard-driven progression entry.</li>
+          <li>Added friendlier keyboard actions and cleaner progression workflow labels.</li>
+          <li>Began separating exploration, progression, and suggestion workflows.</li>
+          <li>Continued moving the app from single-chord use toward progression support.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-4-0">
+        <h2>v0.4.0</h2>
+        <ul>
+          <li>Added audio playback for chords and basic harmonic exploration.</li>
+          <li>Added chord exploration controls and UI refinements.</li>
+          <li>Expanded the app beyond static theory reference into interactive use.</li>
+          <li>Improved the writing workflow around hearing chord choices quickly.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-3-0">
+        <h2>v0.3.0</h2>
+        <ul>
+          <li>Added the first working suggestion-engine flow.</li>
+          <li>Added feeling-based chord suggestions.</li>
+          <li>Added progression parsing foundations for theory-aware suggestions.</li>
+          <li>Began shaping the app around “what could come next?” rather than only theory display.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-2-0">
+        <h2>v0.2.0</h2>
+        <ul>
+          <li>Expanded key and mode support.</li>
+          <li>Added richer theory views including diatonic chord context and Roman numerals.</li>
+          <li>Improved the visual theory panel and key-awareness of the app.</li>
+          <li>Made the tool more useful as a reference and exploration aid.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-1-0">
+        <h2>v0.1.0</h2>
+        <ul>
+          <li>Initial ChordCanvas foundation.</li>
+          <li>Added interactive key selection.</li>
+          <li>Added the Circle of Fifths-driven starting workflow.</li>
+          <li>Established the browser-based music-theory tool concept and core UI shell.</li>
+        </ul>
+      </article>
+    </section>
+
+    <div class="footer">
+      <a class="back-link" href="./index.html">Back to ChordCanvas</a>
+    </div>
+  </div>
+</body>
+</html>

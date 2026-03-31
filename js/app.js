@@ -1229,10 +1229,18 @@ async function loadVersionLabel() {
     }
 
     const packageData = await response.json();
-    appVersion.textContent = packageData.version || "unknown";
+    const version = packageData.version || "unknown";
+    appVersion.textContent = version;
+    if (version !== "unknown") {
+      const versionAnchor = `v${String(version).replace(/\./g, "-")}`;
+      appVersion.href = `./version-changes.html#${versionAnchor}`;
+    } else {
+      appVersion.href = "./version-changes.html";
+    }
   } catch (error) {
     console.warn("Could not load app version:", error);
     appVersion.textContent = "unknown";
+    appVersion.href = "./version-changes.html";
   }
 }
 
