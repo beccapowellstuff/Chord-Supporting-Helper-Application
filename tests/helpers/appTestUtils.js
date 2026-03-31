@@ -49,7 +49,7 @@ export async function gotoApp(page) {
   await page.waitForFunction(() => {
     return Boolean(window.appState && Array.isArray(window.appState.keyChordSet) && window.appState.keyChordSet.length === 7);
   });
-  await expect(page.locator(".app-brand-image")).toBeVisible();
+  await expect(page.locator(".app-brand-logo")).toBeVisible();
 }
 
 export async function selectMode(page, modeId) {

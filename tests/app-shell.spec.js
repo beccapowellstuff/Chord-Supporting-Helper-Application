@@ -4,7 +4,7 @@ import { gotoApp, openTool } from "./helpers/appTestUtils.js";
 test("loads the main app shell with builder and tool navigation", async ({ page }) => {
   await gotoApp(page);
 
-  await expect(page).toHaveTitle("ChordCanvas");
+  await expect(page).toHaveTitle("Vibe Chording");
   await expect(page.locator(".sequence-panel-title")).toHaveText("Progression Builder");
   await expect(page.getByRole("button", { name: "Key Explorer" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Chord Explorer" })).toHaveAttribute("aria-pressed", "false");

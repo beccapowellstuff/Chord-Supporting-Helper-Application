@@ -26,7 +26,8 @@ test("lets you build, auto-recognise, add, and clear a chord from the sequence k
   await expect(page.locator("#progression")).toHaveValue("C");
   await expect(page.locator(".progression-block")).toHaveCount(1);
   await expect(page.locator(".progression-block").first()).toHaveAttribute("data-progression-chord", "C");
-  await expect(page.locator("#progressionEditor")).toContainText("Selected item 1 of 1");
+  await expect(page.locator(".progression-block-selected")).toHaveCount(1);
+  await expect(page.locator("#progressionEditor .progression-editor-modal")).toHaveCount(0);
 
   await clearButton.click();
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("No notes selected");
@@ -51,12 +52,14 @@ test("renders text progressions as selectable visual blocks and updates the edit
   await expect(page.locator(".progression-block-selected")).toHaveCount(1);
   await expect(blocks.nth(1)).toHaveClass(/progression-block-selected/);
   await expect(blocks.nth(0)).not.toHaveClass(/progression-block-selected/);
-  await expect(page.locator("#progressionEditor")).toContainText("Selected item 2 of 3");
-  await expect(page.locator("#progressionEditor")).toContainText("F");
 
   await blocks.nth(2).click();
   await expect(page.locator(".progression-block-selected")).toHaveCount(1);
+
+  await blocks.nth(2).dblclick();
+  await expect(page.locator("#progressionEditor .progression-editor-modal")).toBeVisible();
   await expect(page.locator("#progressionEditor")).toContainText("Selected item 3 of 3");
+  await expect(page.locator("#progressionEditor")).toContainText("Beats");
 });
 
 test("renders the progression as compact wrapped chord blocks with beat-based widths", async ({ page }) => {
@@ -95,7 +98,7 @@ test("renders the progression as compact wrapped chord blocks with beat-based wi
 
   await expect(blocks).toHaveCount(10);
   await expect(blocks.nth(2)).toHaveAttribute("data-duration", "4");
-  await expect(page.locator("#progressionEditor")).toContainText("Beats");
+  await expect(page.locator("#progressionEditor .progression-editor-modal")).toHaveCount(0);
 
   const timelineMetrics = await timeline.evaluate(element => {
     const style = window.getComputedStyle(element);
@@ -128,27 +131,24 @@ test("renders the progression as compact wrapped chord blocks with beat-based wi
   );
   expect(Math.max(...heights)).toBeLessThan(74);
 
-  const stripAndEditorMetrics = await page.evaluate(() => {
+  const stripMetrics = await page.evaluate(() => {
     const strip = document.getElementById("progressionBlocks");
-    const editor = document.getElementById("progressionEditor");
     const textArea = document.getElementById("progression");
     const stripRect = strip?.getBoundingClientRect();
-    const editorRect = editor?.getBoundingClientRect();
 
     return {
       stripHeight: Math.round(stripRect?.height || 0),
-      editorTop: Math.round(editorRect?.top || 0),
-      stripBottom: Math.round(stripRect?.bottom || 0),
       textAreaHeight: Math.round(textArea?.getBoundingClientRect().height || 0)
     };
   });
 
-  expect(stripAndEditorMetrics.stripHeight).toBeGreaterThan(96);
-  expect(stripAndEditorMetrics.editorTop).toBeGreaterThanOrEqual(stripAndEditorMetrics.stripBottom);
-  expect(stripAndEditorMetrics.textAreaHeight).toBeLessThan(90);
+  expect(stripMetrics.stripHeight).toBeGreaterThan(96);
+  expect(stripMetrics.textAreaHeight).toBeLessThan(90);
 
   await blocks.nth(2).click();
   await expect(page.locator(".progression-block-selected")).toHaveCount(1);
+  await blocks.nth(2).dblclick();
+  await expect(page.locator("#progressionEditor .progression-editor-modal")).toBeVisible();
   await expect(page.locator("#progressionEditor")).toContainText("Selected item 3 of 10");
   await expect(page.locator("#progressionEditor")).toContainText("4");
 });
@@ -209,16 +209,22 @@ test("saves and loads a progression file with sequence timing and beat lengths",
   const raw = await readFile(downloadPath, "utf8");
   const savedProgression = JSON.parse(raw);
 
-  expect(savedProgression.type).toBe("chordcanvas-progression");
-  expect(savedProgression.version).toBe(2);
+  expect(savedProgression.type).toBe("vibe-chording-progression");
+  expect(savedProgression.version).toBe(4);
+  expect(savedProgression.savedAt).toEqual(expect.any(String));
+  expect(savedProgression.key).toMatchObject({
+    name: "C Ionian",
+    root: "C",
+    mode: "Ionian"
+  });
   expect(savedProgression.sequence).toEqual({
     tempoBpm: 120,
     timeSignature: "4/4"
   });
   expect(savedProgression.items).toEqual([
-    { position: 1, chord: "C", durationBeats: 4 },
-    { position: 2, chord: "F", durationBeats: 4 },
-    { position: 3, chord: "G", durationBeats: 4 }
+    expect.objectContaining({ position: 1, chord: "C", durationBeats: 4, sustain: false, voicing: null }),
+    expect.objectContaining({ position: 2, chord: "F", durationBeats: 4, sustain: false, voicing: null }),
+    expect.objectContaining({ position: 3, chord: "G", durationBeats: 4, sustain: false, voicing: null })
   ]);
 
   await page.locator("#progression").fill("");
