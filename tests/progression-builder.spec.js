@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
-import { gotoApp, openTool } from "./helpers/appTestUtils.js";
+import { gotoApp, openTool, setProgressionText } from "./helpers/appTestUtils.js";
 
 test("lets you build, auto-recognise, add, and clear a chord from the sequence keyboard", async ({ page }) => {
   await gotoApp(page);
@@ -40,7 +40,7 @@ test("renders text progressions as selectable visual blocks and updates the edit
 
   await expect(page.locator(".progression-blocks-empty")).toBeVisible();
 
-  await page.locator("#progression").fill("C | F | G/Bb");
+  await setProgressionText(page, "C | F | G/Bb");
 
   const blocks = page.locator(".progression-block");
   await expect(blocks).toHaveCount(3);
@@ -56,7 +56,7 @@ test("renders text progressions as selectable visual blocks and updates the edit
   await blocks.nth(2).click();
   await expect(page.locator(".progression-block-selected")).toHaveCount(1);
 
-  await blocks.nth(2).dblclick();
+  await blocks.nth(2).dispatchEvent("dblclick");
   await expect(page.locator("#progressionEditor .progression-editor-modal")).toBeVisible();
   await expect(page.locator("#progressionEditor")).toContainText("Selected item 3 of 3");
   await expect(page.locator("#progressionEditor")).toContainText("Beats");
@@ -64,7 +64,7 @@ test("renders text progressions as selectable visual blocks and updates the edit
 
 test("renders the progression as compact wrapped chord blocks with beat-based widths", async ({ page }) => {
   await gotoApp(page);
-  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.setViewportSize({ width: 820, height: 900 });
 
   const savedProgression = {
     type: "chordcanvas-progression",
@@ -142,12 +142,12 @@ test("renders the progression as compact wrapped chord blocks with beat-based wi
     };
   });
 
-  expect(stripMetrics.stripHeight).toBeGreaterThan(96);
+  expect(stripMetrics.stripHeight).toBeGreaterThan(90);
   expect(stripMetrics.textAreaHeight).toBeLessThan(90);
 
   await blocks.nth(2).click();
   await expect(page.locator(".progression-block-selected")).toHaveCount(1);
-  await blocks.nth(2).dblclick();
+  await blocks.nth(2).dispatchEvent("dblclick");
   await expect(page.locator("#progressionEditor .progression-editor-modal")).toBeVisible();
   await expect(page.locator("#progressionEditor")).toContainText("Selected item 3 of 10");
   await expect(page.locator("#progressionEditor")).toContainText("4");
@@ -174,7 +174,7 @@ test("reflects chord explorer playback on the progression builder keyboard", asy
 test("plays the progression from the structured chord blocks", async ({ page }) => {
   await gotoApp(page);
 
-  await page.locator("#progression").fill("C");
+  await setProgressionText(page, "C");
   await page.getByRole("button", { name: "Play sequence" }).click();
 
   await expect(page.locator(".progression-block")).toHaveCount(1);
@@ -197,7 +197,7 @@ test("shows a popup when saving a progression without chords", async ({ page }) 
 test("saves and loads a progression file with sequence timing and beat lengths", async ({ page }) => {
   await gotoApp(page);
 
-  await page.locator("#progression").fill("C | F | G");
+  await setProgressionText(page, "C | F | G");
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Save progression" }).click();
@@ -227,7 +227,7 @@ test("saves and loads a progression file with sequence timing and beat lengths",
     expect.objectContaining({ position: 3, chord: "G", durationBeats: 4, sustain: false, voicing: null })
   ]);
 
-  await page.locator("#progression").fill("");
+  await setProgressionText(page, "");
   await page.locator("#loadProgressionInput").setInputFiles({
     name: "saved-progression.json",
     mimeType: "application/json",

@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { gotoApp } from "./helpers/appTestUtils.js";
+import { gotoApp, setProgressionText } from "./helpers/appTestUtils.js";
 
 test("renders mood-aware suggestions as soon as the suggestion engine opens", async ({ page }) => {
   await gotoApp(page);
 
-  await page.locator("#progression").fill("C, F, G");
+  await setProgressionText(page, "C, F, G");
   await page.getByRole("button", { name: /Suggestion Engine/ }).click();
 
   await expect(page.locator("#results .suggestion-card")).toHaveCount(9);
@@ -38,11 +38,11 @@ test("renders mood-aware suggestions as soon as the suggestion engine opens", as
 test("refresh button reruns suggestions without needing a mood change", async ({ page }) => {
   await gotoApp(page);
 
-  await page.locator("#progression").fill("C, F, G");
+  await setProgressionText(page, "C, F, G");
   await page.getByRole("button", { name: /Suggestion Engine/ }).click();
   await expect(page.locator("#results .suggestion-feedback-text").first()).toHaveText("C (I) -> F (IV) -> G (V)");
 
-  await page.locator("#progression").fill("C, F, G, Am");
+  await setProgressionText(page, "C, F, G, Am");
   await page.locator("#suggestBtn").click();
 
   await expect(page.locator("#results .suggestion-feedback-text").first()).toHaveText("C (I) -> F (IV) -> G (V) -> Am (vi)");

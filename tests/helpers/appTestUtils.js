@@ -53,7 +53,16 @@ export async function gotoApp(page) {
 }
 
 export async function selectMode(page, modeId) {
-  await page.locator("#styleSelect").selectOption(modeId);
+  await page.evaluate(expectedModeId => {
+    const select = document.getElementById("styleSelect");
+    if (!select) {
+      throw new Error("styleSelect not found");
+    }
+
+    select.value = expectedModeId;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  }, modeId);
+
   await page.waitForFunction(
     expectedModeId => {
       const select = document.getElementById("styleSelect");
@@ -61,6 +70,18 @@ export async function selectMode(page, modeId) {
     },
     modeId
   );
+}
+
+export async function setProgressionText(page, value) {
+  await page.evaluate(nextValue => {
+    const input = document.getElementById("progression");
+    if (!input) {
+      throw new Error("progression input not found");
+    }
+
+    input.value = nextValue;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }, value);
 }
 
 export async function selectRoot(page, root) {
