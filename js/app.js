@@ -30,6 +30,7 @@ import {
   initSoundFont,
   playMidiNote,
   playMidiNotes,
+  playMetronomeTick,
   playMidiNoteSpecs,
   ensureAudioContext,
   stopAllPlayback
@@ -42,6 +43,7 @@ import {
   identifyChordFromMidiNotes,
   pitchClassToDisplayNote
 } from "./chordNotes.js";
+import { getAscendingRootVoicing } from "./chordVoicing.js";
 import { ensureAudioReady, playChord, playProgression } from "./playback.js";
 import {
   appendProgressionItem,
@@ -94,6 +96,11 @@ const loadProgressionInput = document.getElementById("loadProgressionInput");
 const progressionBlocks = document.getElementById("progressionBlocks");
 const progressionEditor = document.getElementById("progressionEditor");
 const sequenceTempoBpmInput = document.getElementById("sequenceTempoBpm");
+const metronomeToggleBtn = document.getElementById("metronomeToggleBtn");
+const metronomePopover = document.getElementById("metronomePopover");
+const metronomeVolumeInput = document.getElementById("metronomeVolume");
+const metronomeVolumeValue = document.getElementById("metronomeVolumeValue");
+const metronomeStartStopBtn = document.getElementById("metronomeStartStopBtn");
 const sequenceTimeSignatureSelect = document.getElementById("sequenceTimeSignature");
 const results = document.getElementById("results");
 const rootContainer = document.getElementById("rootContainer");
@@ -114,9 +121,13 @@ const appState = {
   selectedBassRoot: "C",
   keyChordSet: null,
   sequenceTempoBpm: DEFAULT_TEMPO_BPM,
+  metronomeArmed: false,
+  metronomeVolume: 40,
+  metronomePopoverOpen: false,
   sequenceTimeSignature: DEFAULT_TIME_SIGNATURE,
   progressionItems: [],
   selectedProgressionItemId: null,
+  insertChoiceOpen: false,
   editingProgressionItemId: null,
   editingProgressionAnchorRect: null,
   playingProgressionItemId: null,
@@ -134,6 +145,7 @@ const SEQUENCE_KEYBOARD_MIN_MIDI = 48; // C3
 const SEQUENCE_KEYBOARD_MAX_MIDI = 95; // B6
 const PLAYBACK_MIN_MIDI = 36; // C2
 const TOOL_PANEL_TRANSITION_MS = 180;
+const DEFAULT_METRONOME_VOLUME = 40;
 let activeToolPanelId = "keyExplorerPanel";
 let toolPanelTransitionTimeout = null;
 let progressionPreviewToken = 0;
@@ -150,6 +162,106 @@ function updateKeyChordSet() {
   appState.keyChordSet = Array.isArray(keyData?.chords)
     ? [...keyData.chords]
     : null;
+}
+
+function normalizeMetronomeVolume(volume, fallback = DEFAULT_METRONOME_VOLUME) {
+  const numericVolume = Number(volume);
+  if (!Number.isFinite(numericVolume)) {
+    return fallback;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(numericVolume)));
+}
+
+function getMetronomeLevel() {
+  return normalizeMetronomeVolume(appState.metronomeVolume, DEFAULT_METRONOME_VOLUME) / 100;
+}
+
+async function triggerMetronomeBeat(isBarAccent = false) {
+  try {
+    await playMetronomeTick(isBarAccent, getMetronomeLevel());
+  } catch (error) {
+    console.warn("Could not play metronome tick:", error);
+  }
+}
+
+function renderMetronomeUI() {
+  const metronomeVolume = normalizeMetronomeVolume(appState.metronomeVolume, DEFAULT_METRONOME_VOLUME);
+  const isPlaybackMetronomeActive = appState.isPlayingProgression && appState.metronomeArmed;
+
+  if (metronomeVolumeInput) {
+    metronomeVolumeInput.value = String(metronomeVolume);
+  }
+
+  if (metronomeVolumeValue) {
+    metronomeVolumeValue.textContent = `${metronomeVolume}%`;
+  }
+
+  if (metronomePopover) {
+    metronomePopover.hidden = !appState.metronomePopoverOpen;
+  }
+
+  if (metronomeToggleBtn) {
+    metronomeToggleBtn.setAttribute("aria-expanded", String(appState.metronomePopoverOpen));
+    metronomeToggleBtn.classList.toggle(
+      "progression-sequence-metronome-btn-active",
+      appState.metronomePopoverOpen || appState.metronomeArmed
+    );
+    metronomeToggleBtn.classList.toggle(
+      "progression-sequence-metronome-btn-running",
+      isPlaybackMetronomeActive
+    );
+    metronomeToggleBtn.title =
+      appState.metronomeArmed
+        ? "Metronome is armed for playback"
+        : "Metronome is off";
+  }
+
+  if (metronomeStartStopBtn) {
+    metronomeStartStopBtn.textContent = appState.metronomeArmed ? "Stop" : "Arm";
+    metronomeStartStopBtn.setAttribute("aria-pressed", String(appState.metronomeArmed));
+    metronomeStartStopBtn.classList.toggle("progression-metronome-arm-btn-active", appState.metronomeArmed);
+    metronomeStartStopBtn.title = appState.metronomeArmed
+      ? "Turn the metronome off"
+      : "Arm the metronome so it joins playback";
+  }
+}
+
+function setIconButtonLabel(button, label) {
+  if (!button) {
+    return;
+  }
+
+  button.setAttribute("aria-label", label);
+  const hiddenLabel = button.querySelector(".visually-hidden");
+  if (hiddenLabel) {
+    hiddenLabel.textContent = label;
+  }
+}
+
+function setIconButtonState(button, { label, icon, active = false, disabled = false, pressed = null }) {
+  if (!button) {
+    return;
+  }
+
+  setIconButtonLabel(button, label);
+  button.dataset.icon = icon;
+  button.disabled = Boolean(disabled);
+  button.classList.toggle("app-icon-button-active", Boolean(active));
+  if (pressed == null) {
+    button.removeAttribute("aria-pressed");
+  } else {
+    button.setAttribute("aria-pressed", String(Boolean(pressed)));
+  }
+}
+
+function closeMetronomePopover() {
+  if (!appState.metronomePopoverOpen) {
+    return;
+  }
+
+  appState.metronomePopoverOpen = false;
+  renderMetronomeUI();
 }
 
 function formatAccidentalDisplay(value) {
@@ -299,6 +411,8 @@ function renderProgressionBuilderUI() {
     sequenceTempoBpmInput.value = String(appState.sequenceTempoBpm);
   }
 
+  renderMetronomeUI();
+
   if (sequenceTimeSignatureSelect) {
     sequenceTimeSignatureSelect.value = appState.sequenceTimeSignature;
   }
@@ -311,11 +425,13 @@ function renderProgressionBuilderUI() {
     getBeatsPerBar(appState.sequenceTimeSignature),
     selectedId => {
       appState.selectedProgressionItemId = selectedId;
+      appState.insertChoiceOpen = false;
       renderProgressionBuilderUI();
       void previewProgressionItemSelection(selectedId);
     },
     (editingId, anchorRect) => {
       appState.selectedProgressionItemId = editingId;
+      appState.insertChoiceOpen = false;
       appState.editingProgressionItemId = editingId;
       renderProgressionBuilderUI();
       appState.editingProgressionAnchorRect = getProgressionBlockAnchorRect(editingId, anchorRect);
@@ -363,8 +479,13 @@ function renderProgressionBuilderUI() {
 
   if (playProgressionBtn) {
     const isAllPlaybackActive = appState.isPlayingProgression && activeProgressionPlaybackMode === "all";
-    playProgressionBtn.textContent = isAllPlaybackActive ? "Stop" : "Play sequence";
-    playProgressionBtn.disabled = appState.isPlayingProgression && !isAllPlaybackActive;
+    setIconButtonState(playProgressionBtn, {
+      label: isAllPlaybackActive ? "Stop playback" : "Play sequence",
+      icon: isAllPlaybackActive ? "stop" : "play-sequence",
+      active: isAllPlaybackActive,
+      disabled: appState.isPlayingProgression && !isAllPlaybackActive,
+      pressed: isAllPlaybackActive
+    });
     playProgressionBtn.dataset.tooltip = isAllPlaybackActive
       ? "Stop progression playback"
       : "Play all chords in the progression";
@@ -372,12 +493,19 @@ function renderProgressionBuilderUI() {
 
   if (playFromSelectedBtn) {
     const isFromPlaybackActive = appState.isPlayingProgression && activeProgressionPlaybackMode === "selected";
-    playFromSelectedBtn.textContent = isFromPlaybackActive ? "Stop" : "Play from";
-    playFromSelectedBtn.disabled = (appState.isPlayingProgression && !isFromPlaybackActive) || (!appState.isPlayingProgression && !appState.selectedProgressionItemId);
+    setIconButtonState(playFromSelectedBtn, {
+      label: isFromPlaybackActive ? "Stop playback from selected chord" : "Play from",
+      icon: isFromPlaybackActive ? "stop" : "play-from",
+      active: isFromPlaybackActive,
+      disabled: (appState.isPlayingProgression && !isFromPlaybackActive) || (!appState.isPlayingProgression && !appState.selectedProgressionItemId),
+      pressed: isFromPlaybackActive
+    });
     playFromSelectedBtn.dataset.tooltip = isFromPlaybackActive
       ? "Stop progression playback"
       : "Play the progression from the selected chord";
   }
+
+  refreshSequenceKeyboard();
 }
 
 function setProgressionItems(items, options = {}) {
@@ -401,6 +529,9 @@ function setProgressionItems(items, options = {}) {
 
   appState.progressionItems = nextItems;
   appState.selectedProgressionItemId = nextSelectedId;
+  if (!nextSelectedId) {
+    appState.insertChoiceOpen = false;
+  }
   if (!availableIds.has(appState.editingProgressionItemId)) {
     appState.editingProgressionItemId = null;
     appState.editingProgressionAnchorRect = null;
@@ -457,9 +588,39 @@ function appendChordToProgression(chordName, overrides = {}) {
 
   setProgressionItems(nextItems, { selectedId });
 
+  if (selectedId) {
+    void previewProgressionItemSelection(selectedId);
+  }
+
   if (autoSuggestToggle?.checked && appData) {
     runSuggestions();
   }
+}
+
+function buildClonedProgressionItem(sourceItem, overrides = {}) {
+  return appendProgressionItem(
+    [],
+    sourceItem.chord,
+    getCurrentKeyData(),
+    getCurrentSequenceSettings(),
+    {
+      durationBeats: overrides.durationBeats ?? sourceItem.durationBeats,
+      sustain: overrides.sustain ?? sourceItem.sustain,
+      voicing: overrides.voicing ?? sourceItem.voicing
+    }
+  )[0] || null;
+}
+
+function getSelectedProgressionItem() {
+  if (!appState.selectedProgressionItemId) {
+    return null;
+  }
+
+  return appState.progressionItems.find(item => item.id === appState.selectedProgressionItemId) || null;
+}
+
+function canSplitProgressionItem(item) {
+  return Number(item?.durationBeats) > 1;
 }
 
 function moveProgressionItem(draggedId, targetId, placement = "before") {
@@ -637,6 +798,128 @@ function updateSelectedProgressionVoicingNoteVelocity(noteIndex, velocity) {
   });
 }
 
+function duplicateSelectedProgressionChord() {
+  const selectedId = appState.selectedProgressionItemId;
+  if (!selectedId) {
+    return;
+  }
+
+  const selectedIndex = appState.progressionItems.findIndex(item => item.id === selectedId);
+  if (selectedIndex < 0) {
+    return;
+  }
+
+  const selectedItem = appState.progressionItems[selectedIndex];
+  const duplicateItem = buildClonedProgressionItem(selectedItem);
+
+  if (!duplicateItem) {
+    return;
+  }
+
+  const nextItems = [...appState.progressionItems];
+  nextItems.splice(selectedIndex + 1, 0, duplicateItem);
+
+  if (appState.editingProgressionItemId === selectedId) {
+    appState.editingProgressionItemId = duplicateItem.id;
+    appState.editingProgressionAnchorRect = null;
+  }
+
+  setProgressionItems(nextItems, { selectedId: duplicateItem.id });
+
+  if (appState.editingProgressionItemId === duplicateItem.id) {
+    appState.editingProgressionAnchorRect = getProgressionBlockAnchorRect(duplicateItem.id, null);
+    renderProgressionBuilderUI();
+  }
+
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+    runSuggestions();
+  }
+}
+
+function insertSelectedProgressionChord(placement = "after") {
+  const selectedId = appState.selectedProgressionItemId;
+  if (!selectedId) {
+    return;
+  }
+
+  const selectedIndex = appState.progressionItems.findIndex(item => item.id === selectedId);
+  if (selectedIndex < 0) {
+    return;
+  }
+
+  const selectedItem = appState.progressionItems[selectedIndex];
+  const insertedItem = buildClonedProgressionItem(selectedItem);
+
+  if (!insertedItem) {
+    return;
+  }
+
+  const insertionIndex = placement === "before" ? selectedIndex : selectedIndex + 1;
+  const nextItems = [...appState.progressionItems];
+  nextItems.splice(insertionIndex, 0, insertedItem);
+
+  appState.insertChoiceOpen = false;
+  setProgressionItems(nextItems, { selectedId: insertedItem.id });
+  refreshSequenceKeyboard();
+
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+    runSuggestions();
+  }
+}
+
+function splitSelectedProgressionChord() {
+  const selectedId = appState.selectedProgressionItemId;
+  if (!selectedId) {
+    return;
+  }
+
+  const selectedIndex = appState.progressionItems.findIndex(item => item.id === selectedId);
+  if (selectedIndex < 0) {
+    return;
+  }
+
+  const selectedItem = appState.progressionItems[selectedIndex];
+  if (!canSplitProgressionItem(selectedItem)) {
+    return;
+  }
+
+  const leftDurationBeats = Math.ceil(selectedItem.durationBeats / 2);
+  const rightDurationBeats = Math.floor(selectedItem.durationBeats / 2);
+  const splitItem = buildClonedProgressionItem(selectedItem, { durationBeats: rightDurationBeats });
+
+  if (!splitItem) {
+    return;
+  }
+
+  const nextItems = [...appState.progressionItems];
+  nextItems.splice(selectedIndex, 1,
+    {
+      ...selectedItem,
+      durationBeats: leftDurationBeats
+    },
+    splitItem
+  );
+
+  if (appState.editingProgressionItemId === selectedId) {
+    appState.editingProgressionItemId = splitItem.id;
+    appState.editingProgressionAnchorRect = null;
+  }
+
+  appState.insertChoiceOpen = false;
+  setProgressionItems(nextItems, { selectedId: splitItem.id });
+
+  if (appState.editingProgressionItemId === splitItem.id) {
+    appState.editingProgressionAnchorRect = getProgressionBlockAnchorRect(splitItem.id, null);
+    renderProgressionBuilderUI();
+  }
+
+  refreshSequenceKeyboard();
+
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+    runSuggestions();
+  }
+}
+
 function deleteSelectedProgressionChord() {
   const selectedId = appState.selectedProgressionItemId;
   if (!selectedId) {
@@ -757,7 +1040,9 @@ async function handleLoadProgression(event) {
 
 async function handleLoadDemoProgression() {
   try {
-    const response = await fetch(new URL("../c-ionian-progression.json", import.meta.url));
+    const demoUrl = new URL("../Example Music File/c-ionian-progression.json", import.meta.url);
+    demoUrl.searchParams.set("ts", String(Date.now()));
+    const response = await fetch(demoUrl, { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`Failed to load demo progression: ${response.status}`);
     }
@@ -954,6 +1239,8 @@ function setSequenceKeyboardFlash(midiNotes, durationSeconds = 1.0) {
 }
 
 function refreshSequenceKeyboard() {
+  const selectedProgressionItem = getSelectedProgressionItem();
+
   renderSequenceKeyboard(
     sequenceKeyboard,
     {
@@ -964,6 +1251,10 @@ function refreshSequenceKeyboard() {
       chordLabel: getSequenceKeyboardLabel(),
       canSave: Boolean(identifiedSequenceChord),
       canUpdate: Boolean(identifiedSequenceChord && appState.selectedProgressionItemId),
+      canInsert: Boolean(appState.selectedProgressionItemId),
+      insertChoiceActive: Boolean(appState.selectedProgressionItemId && appState.insertChoiceOpen),
+      canSplit: canSplitProgressionItem(selectedProgressionItem),
+      canDuplicate: Boolean(appState.selectedProgressionItemId),
       canDelete: Boolean(appState.selectedProgressionItemId),
       canPlay: sequenceKeyboardMidiNotes.length > 0
     },
@@ -995,13 +1286,8 @@ function refreshSequenceKeyboard() {
           return;
         }
 
-        const isLockedPlaybackChord = Boolean(lockedSequenceChordName);
-        const playbackNotes = isLockedPlaybackChord && identifiedSequenceChord?.canonicalName
-          ? getVisibleSequenceKeyboardChordDisplay(identifiedSequenceChord.canonicalName)
-          : normalizeMidiList(sequenceKeyboardMidiNotes);
-        const displayNotes = isLockedPlaybackChord && identifiedSequenceChord?.canonicalName
-          ? getVisibleSequenceKeyboardChordDisplay(identifiedSequenceChord.canonicalName)
-          : normalizeMidiList(sequenceKeyboardMidiNotes);
+        const playbackNotes = normalizeMidiList(sequenceKeyboardMidiNotes);
+        const displayNotes = normalizeMidiList(sequenceKeyboardMidiNotes);
         const flashNotes = displayNotes.length
           ? displayNotes
           : normalizeMidiList(sequenceKeyboardMidiNotes);
@@ -1043,6 +1329,36 @@ function refreshSequenceKeyboard() {
           });
         }
       },
+      onInsert: () => {
+        if (appState.selectedProgressionItemId) {
+          appState.insertChoiceOpen = !appState.insertChoiceOpen;
+          refreshSequenceKeyboard();
+        }
+      },
+      onInsertBefore: () => {
+        if (appState.selectedProgressionItemId) {
+          insertSelectedProgressionChord("before");
+        }
+      },
+      onInsertAfter: () => {
+        if (appState.selectedProgressionItemId) {
+          insertSelectedProgressionChord("after");
+        }
+      },
+      onInsertCancel: () => {
+        appState.insertChoiceOpen = false;
+        refreshSequenceKeyboard();
+      },
+      onSplit: () => {
+        if (canSplitProgressionItem(getSelectedProgressionItem())) {
+          splitSelectedProgressionChord();
+        }
+      },
+      onDuplicate: () => {
+        if (appState.selectedProgressionItemId) {
+          duplicateSelectedProgressionChord();
+        }
+      },
       onDelete: () => {
         if (appState.selectedProgressionItemId) {
           deleteSelectedProgressionChord();
@@ -1070,25 +1386,11 @@ function getDisplayMidiForNoteNames(noteNames, octave = 3) {
 }
 
 function getDisplayMidiForChord(chordName) {
-  const parsed = parseChordName(chordName);
-  if (!parsed) return [];
-
-  const rootMidi = noteToMidi(parsed.root, 4);
-  if (rootMidi == null) {
-    return [];
-  }
-
-  const bassMidi = noteToMidi(parsed.bass || parsed.root, 3);
-  const upperStructure = parsed.intervals.map(interval => rootMidi + interval);
-
-  return normalizeMidiList([
-    ...(bassMidi == null ? [] : [bassMidi]),
-    ...upperStructure
-  ]);
+  return normalizeMidiList(getAscendingRootVoicing(chordName));
 }
 
-function showSequenceKeyboardNotes(noteNames, durationSeconds = 1.0) {
-  const midiNotes = getDisplayMidiForNoteNames(noteNames, 3);
+function showSequenceKeyboardNotes(noteNames, durationSeconds = 1.0, octave = 3) {
+  const midiNotes = getDisplayMidiForNoteNames(noteNames, octave);
   if (!midiNotes.length) return;
   setSequenceKeyboardNotes(midiNotes, durationSeconds);
 }
@@ -1166,8 +1468,8 @@ function refreshChordPlaygroundUI() {
 
       try {
         await ensureAudioReady();
-        showSequenceKeyboardNotes([note], 0.5);
-        const midi = noteToMidi(note, 3);
+        showSequenceKeyboardNotes([note], 0.5, 2);
+        const midi = noteToMidi(note, 2);
         if (midi != null) {
           await playMidiNote(midi, 0.5);
         }
@@ -1428,6 +1730,9 @@ async function handlePlayProgression(startMode = "all") {
   }
 
   const playbackItems = progressionItems.slice(startIndex);
+  const startBeatOffset = progressionItems
+    .slice(0, startIndex)
+    .reduce((totalBeats, item) => totalBeats + Math.max(1, Number(item?.durationBeats) || 0), 0);
 
   const playbackSession = { cancelled: false };
   activeProgressionPlaybackSession = playbackSession;
@@ -1437,18 +1742,29 @@ async function handlePlayProgression(startMode = "all") {
 
   try {
     let playbackIndex = 0;
+    const playbackBeatHandler = appState.metronomeArmed
+      ? ({ isBarAccent }) => triggerMetronomeBeat(isBarAccent)
+      : null;
     await ensureAudioReady();
-    await playProgression(playbackItems, appState.sequenceTempoBpm, async (chord, durationSeconds) => {
-      const activeItem = playbackItems[playbackIndex];
-      appState.playingProgressionItemId = activeItem?.id || null;
-      renderProgressionBuilderUI();
-      if (activeItem?.voicing?.notes?.length) {
-        showSequenceKeyboardVoicing(activeItem.voicing.notes, chord, durationSeconds);
-      } else {
-        showSequenceKeyboardChord(chord, durationSeconds);
-      }
-      playbackIndex += 1;
-    }, () => playbackSession.cancelled);
+    await playProgression(
+      playbackItems,
+      appState.sequenceTempoBpm,
+      async (chord, durationSeconds) => {
+        const activeItem = playbackItems[playbackIndex];
+        appState.playingProgressionItemId = activeItem?.id || null;
+        renderProgressionBuilderUI();
+        if (activeItem?.voicing?.notes?.length) {
+          showSequenceKeyboardVoicing(activeItem.voicing.notes, chord, durationSeconds);
+        } else {
+          showSequenceKeyboardChord(chord, durationSeconds);
+        }
+        playbackIndex += 1;
+      },
+      () => playbackSession.cancelled,
+      playbackBeatHandler,
+      getBeatsPerBar(appState.sequenceTimeSignature),
+      startBeatOffset
+    );
   } catch (error) {
     console.error("Could not play progression:", error);
   } finally {
@@ -1519,6 +1835,8 @@ async function init() {
     if (loadDemoProgressionBtn) loadDemoProgressionBtn.dataset.tooltip = "Load the bundled C Ionian demo progression";
     if (saveProgressionBtn) saveProgressionBtn.dataset.tooltip = "Save the progression with tempo, time signature, and beat lengths";
     if (loadProgressionBtn) loadProgressionBtn.dataset.tooltip = "Load a saved progression file";
+    if (metronomeToggleBtn) metronomeToggleBtn.dataset.tooltip = "Open metronome settings";
+    if (metronomeStartStopBtn) metronomeStartStopBtn.dataset.tooltip = "Arm or stop the metronome for playback";
     if (sequenceTempoBpmInput) sequenceTempoBpmInput.dataset.tooltip = "Set the playback tempo for the chord sequence";
     if (sequenceTimeSignatureSelect) sequenceTimeSignatureSelect.dataset.tooltip = "Set the default beats per bar for new chord blocks";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
@@ -1535,6 +1853,28 @@ async function init() {
       sequenceTempoBpmInput.addEventListener("change", () => {
         appState.sequenceTempoBpm = normalizeTempoBpm(sequenceTempoBpmInput.value);
         renderProgressionBuilderUI();
+      });
+    }
+
+    if (metronomeToggleBtn) {
+      metronomeToggleBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        appState.metronomePopoverOpen = !appState.metronomePopoverOpen;
+        renderMetronomeUI();
+      });
+    }
+
+    if (metronomeVolumeInput) {
+      metronomeVolumeInput.addEventListener("input", () => {
+        appState.metronomeVolume = normalizeMetronomeVolume(metronomeVolumeInput.value, DEFAULT_METRONOME_VOLUME);
+        renderMetronomeUI();
+      });
+    }
+
+    if (metronomeStartStopBtn) {
+      metronomeStartStopBtn.addEventListener("click", () => {
+        appState.metronomeArmed = !appState.metronomeArmed;
+        renderMetronomeUI();
       });
     }
 
@@ -1578,6 +1918,25 @@ async function init() {
 
       loadProgressionInput.addEventListener("change", handleLoadProgression);
     }
+
+    document.addEventListener("click", event => {
+      if (!appState.metronomePopoverOpen) {
+        return;
+      }
+
+      const target = event.target;
+      if (metronomePopover?.contains(target) || metronomeToggleBtn?.contains(target)) {
+        return;
+      }
+
+      closeMetronomePopover();
+    });
+
+    document.addEventListener("keydown", event => {
+      if (event.key === "Escape" && appState.metronomePopoverOpen) {
+        closeMetronomePopover();
+      }
+    });
 
     console.log("📍 Setting up first-click listener...");
     document.addEventListener(

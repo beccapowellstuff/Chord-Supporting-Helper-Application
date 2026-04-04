@@ -147,6 +147,27 @@ function buildSequenceKey(midi, noteLabel, className, activeMidiNotes, flashMidi
   return button;
 }
 
+function buildSequenceIconButton(label, icon, disabled, title, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "sequence-keyboard-action app-icon-button";
+  button.dataset.icon = icon;
+  button.disabled = Boolean(disabled);
+  button.title = title;
+  button.setAttribute("aria-label", label);
+
+  const hiddenLabel = document.createElement("span");
+  hiddenLabel.className = "visually-hidden";
+  hiddenLabel.textContent = label;
+  button.appendChild(hiddenLabel);
+
+  button.addEventListener("click", () => {
+    if (!button.disabled && onClick) onClick();
+  });
+
+  return button;
+}
+
 export function renderSequenceKeyboard(
   container,
   {
@@ -155,6 +176,10 @@ export function renderSequenceKeyboard(
     chordLabel = "No notes selected",
     canSave = false,
     canUpdate = false,
+    canInsert = false,
+    insertChoiceActive = false,
+    canSplit = false,
+    canDuplicate = false,
     canDelete = false,
     canPlay = false
   },
@@ -163,6 +188,12 @@ export function renderSequenceKeyboard(
     onPlay,
     onSave,
     onUpdate,
+    onInsert,
+    onInsertBefore,
+    onInsertAfter,
+    onInsertCancel,
+    onSplit,
+    onDuplicate,
     onDelete,
     onClear
   } = {}
@@ -195,62 +226,129 @@ export function renderSequenceKeyboard(
   const actions = document.createElement("div");
   actions.className = "sequence-keyboard-actions";
 
-  const playButton = document.createElement("button");
-  playButton.type = "button";
-  playButton.className = "sequence-keyboard-action";
-  playButton.textContent = "Play";
-  playButton.disabled = !canPlay;
-  playButton.title = canPlay ? "Play the selected notes" : "Select notes to play them";
-  playButton.addEventListener("click", () => {
-    if (canPlay && onPlay) onPlay();
-  });
+  const playButton = buildSequenceIconButton(
+    "Play",
+    "play",
+    !canPlay,
+    canPlay ? "Play the selected notes" : "Select notes to play them",
+    onPlay
+  );
   actions.appendChild(playButton);
 
-  const saveButton = document.createElement("button");
-  saveButton.type = "button";
-  saveButton.className = "sequence-keyboard-action";
-  saveButton.textContent = "Add";
-  saveButton.disabled = !canSave;
-  saveButton.title = canSave ? "Add the identified chord to the progression" : "Select a recognised chord to add it";
-  saveButton.addEventListener("click", () => {
-    if (canSave && onSave) onSave();
-  });
+  const saveButton = buildSequenceIconButton(
+    "Add",
+    "add",
+    !canSave,
+    canSave ? "Add the identified chord to the progression" : "Select a recognised chord to add it",
+    onSave
+  );
   actions.appendChild(saveButton);
 
-  const updateButton = document.createElement("button");
-  updateButton.type = "button";
-  updateButton.className = "sequence-keyboard-action";
-  updateButton.textContent = "Update";
-  updateButton.disabled = !canUpdate;
-  updateButton.title = canUpdate
-    ? "Replace the selected progression chord with the recognised chord"
-    : "Select a progression chord and a recognised keyboard chord to update it";
-  updateButton.addEventListener("click", () => {
-    if (canUpdate && onUpdate) onUpdate();
-  });
+  const updateButton = buildSequenceIconButton(
+    "Update",
+    "update",
+    !canUpdate,
+    canUpdate
+      ? "Replace the selected progression chord with the recognised chord"
+      : "Select a progression chord and a recognised keyboard chord to update it",
+    onUpdate
+  );
   actions.appendChild(updateButton);
 
-  const deleteButton = document.createElement("button");
-  deleteButton.type = "button";
-  deleteButton.className = "sequence-keyboard-action";
-  deleteButton.textContent = "Delete";
-  deleteButton.disabled = !canDelete;
-  deleteButton.title = canDelete
-    ? "Delete the selected progression chord"
-    : "Select a progression chord to delete it";
-  deleteButton.addEventListener("click", () => {
-    if (canDelete && onDelete) onDelete();
-  });
+  const insertControl = document.createElement("div");
+  insertControl.className = "sequence-keyboard-insert-control";
+
+  const insertButton = buildSequenceIconButton(
+    "Insert",
+    "insert",
+    !canInsert,
+    canInsert
+      ? "Insert a duplicated chord before or after the selected progression chord"
+      : "Select a progression chord to insert beside it",
+    onInsert
+  );
+  insertControl.appendChild(insertButton);
+
+  if (insertChoiceActive && canInsert) {
+    const insertChoice = document.createElement("div");
+    insertChoice.className = "sequence-keyboard-insert-popover";
+
+    const beforeButton = document.createElement("button");
+    beforeButton.type = "button";
+    beforeButton.className = "sequence-keyboard-inline-choice-btn";
+    beforeButton.textContent = "Before";
+    beforeButton.title = "Insert a duplicated chord before the selected chord";
+    beforeButton.addEventListener("click", () => {
+      if (onInsertBefore) onInsertBefore();
+    });
+    insertChoice.appendChild(beforeButton);
+
+    const afterButton = document.createElement("button");
+    afterButton.type = "button";
+    afterButton.className = "sequence-keyboard-inline-choice-btn";
+    afterButton.textContent = "After";
+    afterButton.title = "Insert a duplicated chord after the selected chord";
+    afterButton.addEventListener("click", () => {
+      if (onInsertAfter) onInsertAfter();
+    });
+    insertChoice.appendChild(afterButton);
+
+    const cancelButton = document.createElement("button");
+    cancelButton.type = "button";
+    cancelButton.className = "sequence-keyboard-inline-choice-btn sequence-keyboard-inline-choice-btn-cancel";
+    cancelButton.textContent = "\u00d7";
+    cancelButton.title = "Cancel insert";
+    cancelButton.setAttribute("aria-label", "Cancel insert");
+    cancelButton.addEventListener("click", () => {
+      if (onInsertCancel) onInsertCancel();
+    });
+    insertChoice.appendChild(cancelButton);
+
+    insertControl.appendChild(insertChoice);
+  }
+
+  actions.appendChild(insertControl);
+
+  const splitButton = buildSequenceIconButton(
+    "Split",
+    "split",
+    !canSplit,
+    canSplit
+      ? "Split the selected progression chord into two shorter blocks"
+      : "Select a progression chord longer than 1 beat to split it",
+    onSplit
+  );
+  actions.appendChild(splitButton);
+
+  const duplicateButton = buildSequenceIconButton(
+    "Duplicate",
+    "duplicate",
+    !canDuplicate,
+    canDuplicate
+      ? "Duplicate the selected progression chord beside itself"
+      : "Select a progression chord to duplicate it",
+    onDuplicate
+  );
+  actions.appendChild(duplicateButton);
+
+  const deleteButton = buildSequenceIconButton(
+    "Delete",
+    "delete",
+    !canDelete,
+    canDelete
+      ? "Delete the selected progression chord"
+      : "Select a progression chord to delete it",
+    onDelete
+  );
   actions.appendChild(deleteButton);
 
-  const clearButton = document.createElement("button");
-  clearButton.type = "button";
-  clearButton.className = "sequence-keyboard-action";
-  clearButton.textContent = "Clear";
-  clearButton.title = "Clear selected notes";
-  clearButton.addEventListener("click", () => {
-    if (onClear) onClear();
-  });
+  const clearButton = buildSequenceIconButton(
+    "Clear",
+    "clear",
+    false,
+    "Clear selected notes",
+    onClear
+  );
   actions.appendChild(clearButton);
 
   header.appendChild(actions);

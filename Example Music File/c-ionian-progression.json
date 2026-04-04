@@ -1,14 +1,14 @@
 {
-  "type": "chordcanvas-progression",
+  "type": "vibe-chording-progression",
   "version": 4,
-  "savedAt": "2026-03-31T11:29:12.755Z",
+  "savedAt": "2026-04-04T11:36:56.867Z",
   "key": {
     "name": "C Ionian",
     "root": "C",
     "mode": "Ionian"
   },
   "sequence": {
-    "tempoBpm": 100,
+    "tempoBpm": 120,
     "timeSignature": "4/4"
   },
   "items": [
@@ -17,89 +17,82 @@
       "chord": "C",
       "durationBeats": 2,
       "sustain": true,
-      "voicing": {
-        "source": "keyboard",
-        "velocityMode": "basic",
-        "notes": [
-          {
-            "midi": 36,
-            "velocity": 84
-          },
-          {
-            "midi": 60,
-            "velocity": 84
-          },
-          {
-            "midi": 64,
-            "velocity": 84
-          },
-          {
-            "midi": 67,
-            "velocity": 84
-          }
-        ]
-      }
+      "voicing": null
     },
     {
       "position": 2,
       "chord": "Dm",
       "durationBeats": 1,
       "sustain": true,
-      "voicing": {
-        "source": "keyboard",
-        "velocityMode": "basic",
-        "notes": [
-          {
-            "midi": 38,
-            "velocity": 84
-          },
-          {
-            "midi": 62,
-            "velocity": 84
-          },
-          {
-            "midi": 65,
-            "velocity": 84
-          },
-          {
-            "midi": 69,
-            "velocity": 84
-          }
-        ]
-      }
+      "voicing": null
     },
     {
       "position": 3,
       "chord": "Em",
       "durationBeats": 1,
       "sustain": true,
-      "voicing": {
-        "source": "keyboard",
-        "velocityMode": "basic",
-        "notes": [
-          {
-            "midi": 40,
-            "velocity": 84
-          },
-          {
-            "midi": 64,
-            "velocity": 84
-          },
-          {
-            "midi": 67,
-            "velocity": 84
-          },
-          {
-            "midi": 71,
-            "velocity": 84
-          }
-        ]
-      }
+      "voicing": null
     },
     {
       "position": 4,
       "chord": "F",
-      "durationBeats": 3,
+      "durationBeats": 4,
+      "sustain": true,
+      "voicing": null
+    },
+    {
+      "position": 5,
+      "chord": "F",
+      "durationBeats": 2,
+      "sustain": true,
+      "voicing": null
+    },
+    {
+      "position": 6,
+      "chord": "Em",
+      "durationBeats": 1,
+      "sustain": true,
+      "voicing": null
+    },
+    {
+      "position": 7,
+      "chord": "Dm",
+      "durationBeats": 1,
+      "sustain": true,
+      "voicing": null
+    },
+    {
+      "position": 8,
+      "chord": "C",
+      "durationBeats": 4,
+      "sustain": true,
+      "voicing": null
+    },
+    {
+      "position": 9,
+      "chord": "C",
+      "durationBeats": 2,
+      "sustain": true,
+      "voicing": null
+    },
+    {
+      "position": 10,
+      "chord": "Dm",
+      "durationBeats": 1,
+      "sustain": true,
+      "voicing": null
+    },
+    {
+      "position": 11,
+      "chord": "Em",
+      "durationBeats": 1,
+      "sustain": true,
+      "voicing": null
+    },
+    {
+      "position": 12,
+      "chord": "Dm7/F",
+      "durationBeats": 4,
       "sustain": true,
       "voicing": {
         "source": "keyboard",
@@ -107,6 +100,14 @@
         "notes": [
           {
             "midi": 41,
+            "velocity": 84
+          },
+          {
+            "midi": 50,
+            "velocity": 84
+          },
+          {
+            "midi": 62,
             "velocity": 84
           },
           {
@@ -125,8 +126,8 @@
       }
     },
     {
-      "position": 5,
-      "chord": "Bdim/G#",
+      "position": 13,
+      "chord": "Bdim",
       "durationBeats": 1,
       "sustain": true,
       "voicing": {
@@ -134,7 +135,11 @@
         "velocityMode": "basic",
         "notes": [
           {
-            "midi": 44,
+            "midi": 47,
+            "velocity": 84
+          },
+          {
+            "midi": 59,
             "velocity": 84
           },
           {
@@ -153,7 +158,7 @@
       }
     },
     {
-      "position": 6,
+      "position": 14,
       "chord": "Am",
       "durationBeats": 3,
       "sustain": true,
@@ -166,75 +171,7 @@
             "velocity": 84
           },
           {
-            "midi": 69,
-            "velocity": 84
-          },
-          {
-            "midi": 72,
-            "velocity": 84
-          },
-          {
-            "midi": 76,
-            "velocity": 84
-          }
-        ]
-      }
-    },
-    {
-      "position": 7,
-      "chord": "E7/B",
-      "durationBeats": 1,
-      "sustain": true,
-      "voicing": {
-        "source": "keyboard",
-        "velocityMode": "basic",
-        "notes": [
-          {
-            "midi": 47,
-            "velocity": 84
-          },
-          {
-            "midi": 59,
-            "velocity": 84
-          },
-          {
-            "midi": 64,
-            "velocity": 84
-          },
-          {
-            "midi": 68,
-            "velocity": 84
-          },
-          {
-            "midi": 71,
-            "velocity": 84
-          },
-          {
-            "midi": 74,
-            "velocity": 84
-          }
-        ]
-      }
-    },
-    {
-      "position": 8,
-      "chord": "Am/C",
-      "durationBeats": 3,
-      "sustain": true,
-      "voicing": {
-        "source": "keyboard",
-        "velocityMode": "basic",
-        "notes": [
-          {
-            "midi": 36,
-            "velocity": 84
-          },
-          {
-            "midi": 48,
-            "velocity": 84
-          },
-          {
-            "midi": 60,
+            "midi": 57,
             "velocity": 84
           },
           {
@@ -253,7 +190,7 @@
       }
     },
     {
-      "position": 9,
+      "position": 15,
       "chord": "A7/C#",
       "durationBeats": 1,
       "sustain": true,
@@ -263,6 +200,10 @@
         "notes": [
           {
             "midi": 37,
+            "velocity": 84
+          },
+          {
+            "midi": 49,
             "velocity": 84
           },
           {
@@ -289,7 +230,7 @@
       }
     },
     {
-      "position": 10,
+      "position": 16,
       "chord": "Dm7",
       "durationBeats": 3,
       "sustain": true,
@@ -303,33 +244,29 @@
           },
           {
             "midi": 50,
-            "velocity": 56
+            "velocity": 84
           },
           {
             "midi": 62,
-            "velocity": 56
-          },
-          {
-            "midi": 65,
-            "velocity": 56
+            "velocity": 84
           },
           {
             "midi": 69,
-            "velocity": 56
+            "velocity": 84
           },
           {
             "midi": 72,
-            "velocity": 56
+            "velocity": 84
           },
           {
             "midi": 77,
-            "velocity": 127
+            "velocity": 84
           }
         ]
       }
     },
     {
-      "position": 11,
+      "position": 17,
       "chord": "Eb",
       "durationBeats": 1,
       "sustain": true,
@@ -343,15 +280,19 @@
           },
           {
             "midi": 51,
-            "velocity": 56
+            "velocity": 84
+          },
+          {
+            "midi": 58,
+            "velocity": 84
           },
           {
             "midi": 67,
-            "velocity": 56
+            "velocity": 84
           },
           {
             "midi": 70,
-            "velocity": 56
+            "velocity": 84
           },
           {
             "midi": 75,
@@ -361,7 +302,7 @@
       }
     },
     {
-      "position": 12,
+      "position": 18,
       "chord": "Dm",
       "durationBeats": 3,
       "sustain": true,
@@ -375,35 +316,31 @@
           },
           {
             "midi": 50,
-            "velocity": 56
+            "velocity": 84
           },
           {
             "midi": 57,
-            "velocity": 56
-          },
-          {
-            "midi": 62,
-            "velocity": 56
+            "velocity": 84
           },
           {
             "midi": 65,
-            "velocity": 56
+            "velocity": 84
           },
           {
             "midi": 69,
-            "velocity": 56
+            "velocity": 84
           },
           {
             "midi": 74,
-            "velocity": 112
+            "velocity": 84
           }
         ]
       }
     },
     {
-      "position": 13,
-      "chord": "F#9/C#",
-      "durationBeats": 4,
+      "position": 19,
+      "chord": "C#",
+      "durationBeats": 1,
       "sustain": true,
       "voicing": {
         "source": "keyboard",
@@ -414,11 +351,15 @@
             "velocity": 84
           },
           {
-            "midi": 51,
+            "midi": 49,
             "velocity": 84
           },
           {
-            "midi": 64,
+            "midi": 61,
+            "velocity": 84
+          },
+          {
+            "midi": 65,
             "velocity": 84
           },
           {
@@ -426,29 +367,17 @@
             "velocity": 84
           },
           {
-            "midi": 70,
-            "velocity": 84
-          },
-          {
             "midi": 73,
-            "velocity": 84
-          },
-          {
-            "midi": 78,
-            "velocity": 84
-          },
-          {
-            "midi": 80,
             "velocity": 84
           }
         ]
       }
     },
     {
-      "position": 14,
+      "position": 20,
       "chord": "C",
-      "durationBeats": 8,
-      "sustain": false,
+      "durationBeats": 7,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "velocityMode": "basic",
@@ -475,10 +404,6 @@
           },
           {
             "midi": 72,
-            "velocity": 84
-          },
-          {
-            "midi": 84,
             "velocity": 84
           }
         ]
