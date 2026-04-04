@@ -1,8 +1,18 @@
 # Version Changes
 
-This file is a retroactive milestone summary for Vibe Chording from `v0.1.0` through `v0.12.0`.
+This file is a retroactive milestone summary for Vibe Chording from `v0.1.0` through `v0.13.0`.
 
 The early entries were reconstructed from the project’s development history and are meant to reflect the main release-level changes, not every individual commit.
+
+## <a id="v0-13-0"></a>v0.13.0
+
+- Added `Split` for selected progression chords so longer blocks can be broken into shorter adjacent parts.
+- Added new icons for the progression builder.
+- Reworked the main sequence and transport controls into compact SVG icon buttons with tooltips and themed styling.
+- Added an armable metronome with adjustable volume and dedicated click/thump sounds instead of piano notes.
+- Made playback and metronome timing respect the true beat offset and time signature when starting mid-progression.
+- Added visible bar numbering across the wrapped progression view, including labels inside long chords where a new bar begins.
+- Expanded UI regression coverage for split editing, metronome controls, and cumulative bar markers/tooltips.
 
 ## <a id="v0-12-0"></a>v0.12.0
 

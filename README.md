@@ -2,7 +2,7 @@
 
 Vibe Chording is a browser-based music idea tool for building chord progressions, exploring keys, and shaping harmonic direction without handing authorship over to AI.
 
-Current version: [v0.12.0](./VERSION_CHANGES.md#v0-12-0)  
+Current version: [v0.13.0](./VERSION_CHANGES.md#v0-13-0)  
 Full history: [Version Changes](./VERSION_CHANGES.md)
 
 Public-facing product name: `Vibe Chording`  
@@ -39,8 +39,10 @@ The goal is not to write music for you. The goal is to support the writing proce
   - drag-and-drop chord reordering
   - click a block to audition it
   - double-click a block to edit it
+  - duplicate, insert, split, and delete sequence blocks from the builder controls
   - beat-based chord durations
   - tempo and time-signature controls
+  - visible bar numbering across wrapped blocks, including long chords that cross into a new bar
   - per-chord sustain
   - per-chord custom voicing capture from the keyboard
   - per-note velocity editing with `Basic` and `Advanced` modes
@@ -61,6 +63,7 @@ The goal is not to write music for you. The goal is to support the writing proce
   - play from the selected chord
   - stop playback mid-sequence
   - active chord highlighting during playback
+  - armable metronome with adjustable volume and downbeat accent
   - custom stored voicings used during preview and sequence playback
 
 - Suggestion Engine (Still in Alpha)
@@ -158,7 +161,8 @@ The app still uses circle-of-fifths style theory relationships in the background
 
 These link to the retroactive version summary file:
 
-- [v0.12.0](./VERSION_CHANGES.md)
+- [v0.13.0](./VERSION_CHANGES.md#v0-13-0)
+- [v0.12.0](./VERSION_CHANGES.md#v0-12-0)
 
 ## Vibe Coding Note
 
