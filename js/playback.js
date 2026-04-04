@@ -133,13 +133,23 @@ function getPlaybackEntry(entry) {
   };
 }
 
-export async function playProgression(chords, tempo = 120, onChordStart = null, shouldStop = null) {
+export async function playProgression(
+  chords,
+  tempo = 120,
+  onChordStart = null,
+  shouldStop = null,
+  onBeat = null,
+  beatsPerBar = 4,
+  initialBeatIndex = 0
+) {
   if (!chords.length) return;
 
   const normalizedTempo = Math.max(40, Number(tempo) || 120);
   const secondsPerBeat = 60 / normalizedTempo;
+  const normalizedBeatsPerBar = Math.max(1, Number(beatsPerBar) || 4);
   let previousVoicing = null;
   let activeHeldNotes = [];
+  let beatIndex = Math.max(0, Number(initialBeatIndex) || 0);
 
   for (const rawEntry of chords) {
     const entry = getPlaybackEntry(rawEntry);
@@ -148,7 +158,6 @@ export async function playProgression(chords, tempo = 120, onChordStart = null, 
     const chordPlaybackSeconds = entry.sustain
       ? chordDurationSeconds
       : chordDurationSeconds * 0.9;
-    const chordWindowMs = chordDurationSeconds * 1000;
 
     if (shouldStop?.()) {
       if (activeHeldNotes.length) {
@@ -190,13 +199,25 @@ export async function playProgression(chords, tempo = 120, onChordStart = null, 
       await playMidiNotes(voicing, chordPlaybackSeconds);
     }
 
-    const wasStopped = await waitForChordWindow(chordWindowMs, shouldStop);
-    if (wasStopped) {
-      if (activeHeldNotes.length) {
-        releaseHeldMidiNotes(activeHeldNotes);
+    for (let entryBeatIndex = 0; entryBeatIndex < entry.durationBeats; entryBeatIndex += 1) {
+      if (onBeat) {
+        await onBeat({
+          beatIndex,
+          beatInBar: (beatIndex % normalizedBeatsPerBar) + 1,
+          isBarAccent: beatIndex % normalizedBeatsPerBar === 0
+        });
       }
-      stopAllPlayback();
-      return;
+
+      const wasStopped = await waitForChordWindow(secondsPerBeat * 1000, shouldStop);
+      if (wasStopped) {
+        if (activeHeldNotes.length) {
+          releaseHeldMidiNotes(activeHeldNotes);
+        }
+        stopAllPlayback();
+        return;
+      }
+
+      beatIndex += 1;
     }
   }
 

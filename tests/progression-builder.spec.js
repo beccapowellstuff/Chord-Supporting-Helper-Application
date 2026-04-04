@@ -153,6 +153,99 @@ test("renders the progression as compact wrapped chord blocks with beat-based wi
   await expect(page.locator("#progressionEditor")).toContainText("4");
 });
 
+test("splits a selected progression chord into two shorter beat blocks", async ({ page }) => {
+  await gotoApp(page);
+
+  const splitButton = page.locator("#sequenceKeyboard").getByRole("button", { name: "Split" });
+  await expect(splitButton).toBeDisabled();
+
+  const savedProgression = {
+    type: "vibe-chording-progression",
+    version: 4,
+    sequence: {
+      tempoBpm: 120,
+      timeSignature: "4/4"
+    },
+    items: [
+      { position: 1, chord: "C", durationBeats: 5, sustain: false, voicing: null }
+    ]
+  };
+
+  await page.locator("#loadProgressionInput").setInputFiles({
+    name: "split-progression.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(savedProgression), "utf8")
+  });
+
+  const blocks = page.locator(".progression-block");
+  await expect(blocks).toHaveCount(1);
+  await expect(blocks.first()).toHaveAttribute("data-duration", "5");
+  await expect(splitButton).toBeEnabled();
+
+  await splitButton.click();
+
+  await expect(blocks).toHaveCount(2);
+  await expect(blocks.nth(0)).toHaveAttribute("data-progression-chord", "C");
+  await expect(blocks.nth(0)).toHaveAttribute("data-duration", "3");
+  await expect(blocks.nth(1)).toHaveAttribute("data-progression-chord", "C");
+  await expect(blocks.nth(1)).toHaveAttribute("data-duration", "2");
+  await expect(blocks.nth(1)).toHaveClass(/progression-block-selected/);
+  await expect(page.locator("#progression")).toHaveValue("C | C");
+
+  await blocks.nth(1).click();
+  await splitButton.click();
+
+  await expect(page.locator(".progression-block")).toHaveCount(3);
+  await expect(page.locator(".progression-block").nth(1)).toHaveAttribute("data-duration", "1");
+  await expect(page.locator(".progression-block").nth(2)).toHaveAttribute("data-duration", "1");
+  await expect(splitButton).toBeDisabled();
+});
+
+test("places bar markers using cumulative beat position across the full sequence", async ({ page }) => {
+  await gotoApp(page);
+
+  const savedProgression = {
+    type: "vibe-chording-progression",
+    version: 4,
+    sequence: {
+      tempoBpm: 120,
+      timeSignature: "4/4"
+    },
+    items: [
+      { position: 1, chord: "C#", durationBeats: 1, sustain: false, voicing: null },
+      { position: 2, chord: "C", durationBeats: 7, sustain: false, voicing: null }
+    ]
+  };
+
+  await page.locator("#loadProgressionInput").setInputFiles({
+    name: "cumulative-marker-progression.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(savedProgression), "utf8")
+  });
+
+  const secondBlock = page.locator(".progression-block").nth(1);
+  const markers = secondBlock.locator(".progression-block-marker");
+  const firstBlock = page.locator(".progression-block").nth(0);
+  const firstBarLabel = firstBlock.locator(".progression-block-bar-start-label");
+  const secondBarLabel = markers.nth(2).locator(".progression-block-marker-bar-label");
+  const tooltip = page.locator(".app-tooltip");
+
+  await expect(page.locator(".progression-block")).toHaveCount(2);
+  await expect(firstBarLabel).toHaveText("1");
+  await expect(markers).toHaveCount(6);
+  await expect(markers.nth(2)).toHaveClass(/progression-block-marker-bar/);
+  await expect(secondBarLabel).toHaveText("2");
+  await expect(markers.nth(3)).not.toHaveClass(/progression-block-marker-bar/);
+
+  await firstBarLabel.hover();
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toHaveText("Bar 1");
+
+  await secondBarLabel.hover();
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toHaveText("Bar 2");
+});
+
 test("reflects chord explorer playback on the progression builder keyboard", async ({ page }) => {
   await gotoApp(page);
   await openTool(page, "Chord Explorer");

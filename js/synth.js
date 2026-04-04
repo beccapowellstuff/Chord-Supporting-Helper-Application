@@ -8,6 +8,7 @@ let isReady = false;
 let reverb = null;
 let filter = null;
 let limiter = null;
+let metronomeContext = null;
 
 function getNoteVelocity(velocity = 84) {
   const midiVelocity = Number(velocity);
@@ -105,6 +106,124 @@ export async function playMidiNotes(midiNumbers, duration = 1.0, velocity = 0.45
   } catch (error) {
     console.error("✗ Failed to play notes:", error);
   }
+}
+
+function getMetronomeContext() {
+  if (metronomeContext) {
+    return metronomeContext;
+  }
+
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextCtor) {
+    return null;
+  }
+
+  metronomeContext = new AudioContextCtor();
+  return metronomeContext;
+}
+
+async function ensureMetronomeContext() {
+  const context = getMetronomeContext();
+  if (!context) {
+    return null;
+  }
+
+  if (context.state === "suspended") {
+    try {
+      await context.resume();
+    } catch (error) {
+      console.warn("Could not resume metronome audio context:", error);
+    }
+  }
+
+  return context;
+}
+
+function scheduleMetronomeBurst(context, config) {
+  if (!context) {
+    return;
+  }
+
+  const {
+    type = "triangle",
+    startFrequency = 880,
+    endFrequency = startFrequency,
+    peakGain = 0.08,
+    durationSeconds = 0.05,
+    attackSeconds = 0.0015
+  } = config;
+
+  const safePeakGain = Math.max(0.0001, peakGain);
+  const safeDuration = Math.max(0.01, durationSeconds);
+  const safeAttack = Math.min(Math.max(0.0008, attackSeconds), safeDuration * 0.4);
+  const now = context.currentTime;
+  const oscillator = context.createOscillator();
+  const gainNode = context.createGain();
+
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(Math.max(30, startFrequency), now);
+  oscillator.frequency.exponentialRampToValueAtTime(Math.max(30, endFrequency), now + safeDuration);
+
+  gainNode.gain.setValueAtTime(0.0001, now);
+  gainNode.gain.exponentialRampToValueAtTime(safePeakGain, now + safeAttack);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + safeDuration);
+
+  oscillator.connect(gainNode);
+  gainNode.connect(context.destination);
+  oscillator.start(now);
+  oscillator.stop(now + safeDuration + 0.02);
+}
+
+export async function playMetronomeTick(accent = false, level = 0.4) {
+  const normalizedLevel = Number.isFinite(Number(level))
+    ? Math.max(0, Math.min(1, Number(level)))
+    : 0.4;
+
+  if (normalizedLevel <= 0) {
+    return;
+  }
+
+  const context = await ensureMetronomeContext();
+  if (!context) {
+    return;
+  }
+
+  if (accent) {
+    scheduleMetronomeBurst(context, {
+      type: "triangle",
+      startFrequency: 180,
+      endFrequency: 110,
+      peakGain: 0.05 + (normalizedLevel * 0.11),
+      durationSeconds: 0.11,
+      attackSeconds: 0.002
+    });
+    scheduleMetronomeBurst(context, {
+      type: "square",
+      startFrequency: 1400,
+      endFrequency: 900,
+      peakGain: 0.015 + (normalizedLevel * 0.03),
+      durationSeconds: 0.022,
+      attackSeconds: 0.001
+    });
+    return;
+  }
+
+  scheduleMetronomeBurst(context, {
+    type: "square",
+    startFrequency: 1900,
+    endFrequency: 1320,
+    peakGain: 0.012 + (normalizedLevel * 0.04),
+    durationSeconds: 0.028,
+    attackSeconds: 0.001
+  });
+  scheduleMetronomeBurst(context, {
+    type: "triangle",
+    startFrequency: 980,
+    endFrequency: 760,
+    peakGain: 0.007 + (normalizedLevel * 0.018),
+    durationSeconds: 0.04,
+    attackSeconds: 0.0015
+  });
 }
 
 export async function playMidiNoteSpecs(noteSpecs, duration = 1.0) {
@@ -206,6 +325,9 @@ export async function ensureAudioContext() {
       await initSoundFont();
     } else {
       await Tone.start();
+    }
+    if (metronomeContext?.state === "suspended") {
+      await metronomeContext.resume();
     }
   } catch (error) {
     console.error("✗ Failed to start audio context:", error);

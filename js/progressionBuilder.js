@@ -392,6 +392,7 @@ export function renderProgressionBlocks(container, items, selectedId, playingId,
   const track = document.createElement("div");
   track.className = "progression-blocks-track";
   let draggedItemId = null;
+  let cumulativeBeatPosition = 0;
 
   function clearDropIndicators() {
     track.querySelectorAll(".progression-block-drop-before, .progression-block-drop-after, .progression-block-dragging")
@@ -406,6 +407,7 @@ export function renderProgressionBlocks(container, items, selectedId, playingId,
   }
 
   items.forEach(item => {
+    const itemDurationBeats = Math.max(1, Number(item.durationBeats) || 1);
     const button = document.createElement("button");
     button.type = "button";
     button.className = "progression-block";
@@ -425,17 +427,35 @@ export function renderProgressionBlocks(container, items, selectedId, playingId,
       button.classList.add("progression-block-playing");
     }
 
-    if (item.durationBeats > 1) {
+    if (cumulativeBeatPosition % beatsPerBar === 0) {
+      const barNumber = Math.floor(cumulativeBeatPosition / beatsPerBar) + 1;
+      const barStartLabel = document.createElement("span");
+      barStartLabel.className = "progression-block-bar-start-label";
+      barStartLabel.textContent = String(barNumber);
+      barStartLabel.dataset.tooltip = `Bar ${barNumber}`;
+      barStartLabel.setAttribute("aria-label", `Bar ${barNumber}`);
+      button.appendChild(barStartLabel);
+    }
+
+    if (itemDurationBeats > 1) {
       const beatMarkers = document.createElement("div");
       beatMarkers.className = "progression-block-markers";
 
-      for (let beatIndex = 1; beatIndex < item.durationBeats; beatIndex += 1) {
+      for (let beatIndex = 1; beatIndex < itemDurationBeats; beatIndex += 1) {
         const marker = document.createElement("span");
         marker.className = "progression-block-marker";
-        if (beatIndex % beatsPerBar === 0) {
+        const globalBeatPosition = cumulativeBeatPosition + beatIndex;
+        if (globalBeatPosition % beatsPerBar === 0) {
+          const barNumber = Math.floor(globalBeatPosition / beatsPerBar) + 1;
           marker.classList.add("progression-block-marker-bar");
+          const barLabel = document.createElement("span");
+          barLabel.className = "progression-block-marker-bar-label";
+          barLabel.textContent = String(barNumber);
+          barLabel.dataset.tooltip = `Bar ${barNumber}`;
+          barLabel.setAttribute("aria-label", `Bar ${barNumber}`);
+          marker.appendChild(barLabel);
         }
-        marker.style.left = `${(beatIndex / item.durationBeats) * 100}%`;
+        marker.style.left = `${(beatIndex / itemDurationBeats) * 100}%`;
         beatMarkers.appendChild(marker);
       }
 
@@ -526,6 +546,7 @@ export function renderProgressionBlocks(container, items, selectedId, playingId,
     });
 
     track.appendChild(button);
+    cumulativeBeatPosition += itemDurationBeats;
   });
 
   container.appendChild(track);

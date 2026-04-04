@@ -34,6 +34,31 @@
                     <span class="progression-sequence-setting-label">Tempo</span>
                     <input id="sequenceTempoBpm" type="number" min="40" max="240" step="1" value="120" aria-label="Sequence tempo in beats per minute">
                   </label>
+                  <div class="progression-metronome-control">
+                    <button
+                      id="metronomeToggleBtn"
+                      class="progression-sequence-metronome-btn app-icon-button"
+                      type="button"
+                      aria-label="Metronome"
+                      aria-expanded="false"
+                      aria-haspopup="dialog"
+                      data-icon="metronome"
+                    >
+                      <span class="visually-hidden">Metronome</span>
+                    </button>
+                    <div id="metronomePopover" class="progression-metronome-popover" hidden>
+                      <div class="progression-metronome-popover-title">Metronome</div>
+                      <div class="progression-metronome-controls-row">
+                        <button id="metronomeStartStopBtn" class="progression-metronome-arm-btn" type="button" aria-pressed="false">Arm</button>
+                        <label class="progression-metronome-field" for="metronomeVolume">
+                          <span class="progression-sequence-setting-label">Volume</span>
+                          <input id="metronomeVolume" type="range" min="0" max="100" step="1" value="40" aria-label="Metronome volume">
+                        </label>
+                      </div>
+                      <div id="metronomeVolumeValue" class="progression-metronome-volume-value">40%</div>
+                      <div class="progression-metronome-help">Soft clicks each beat, with a lower accent on bar 1.</div>
+                    </div>
+                  </div>
                   <label class="progression-sequence-setting" for="sequenceTimeSignature">
                     <span class="progression-sequence-setting-label">Time Signature</span>
                     <select id="sequenceTimeSignature" aria-label="Sequence time signature">
@@ -55,10 +80,18 @@
             <textarea id="progression" rows="2" placeholder="Example: C | Am | F" aria-label="Chord Sequence"></textarea>
           </div>
           <div class="sequence-panel-actions">
-            <button id="playProgressionBtn" type="button">Play sequence</button>
-            <button id="playFromSelectedBtn" type="button">Play from</button>
-            <button id="saveProgressionBtn" type="button">Save progression</button>
-            <button id="loadProgressionBtn" type="button">Load progression</button>
+            <button id="playProgressionBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Play sequence" data-icon="play-sequence">
+              <span class="visually-hidden">Play sequence</span>
+            </button>
+            <button id="playFromSelectedBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Play from" data-icon="play-from">
+              <span class="visually-hidden">Play from</span>
+            </button>
+            <button id="saveProgressionBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Save progression" data-icon="save-progression">
+              <span class="visually-hidden">Save progression</span>
+            </button>
+            <button id="loadProgressionBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Load progression" data-icon="load-progression">
+              <span class="visually-hidden">Load progression</span>
+            </button>
           </div>
           <input id="loadProgressionInput" type="file" accept=".json,application/json" hidden>
         </div>
