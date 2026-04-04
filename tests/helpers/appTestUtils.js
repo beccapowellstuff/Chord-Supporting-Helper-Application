@@ -1,50 +1,101 @@
 import { expect } from "@playwright/test";
 
-const TONE_STUB = `
-  window.Tone = {
-    version: "test-stub",
-    start: async () => {},
-    now: () => 0,
-    Limiter: class {
-      toDestination() { return this; }
-      connect() { return this; }
-    },
-    Reverb: class {
-      constructor() {}
-      connect() { return this; }
-      async generate() {}
-    },
-    Filter: class {
-      constructor() {}
-      connect() { return this; }
-    },
-    Sampler: class {
-      constructor(options = {}) {
-        this.volume = { value: 0 };
-        setTimeout(() => {
-          if (typeof options.onload === "function") {
-            options.onload();
-          }
-        }, 0);
-      }
-      connect() { return this; }
-      triggerAttackRelease() {}
-    }
-  };
-`;
+function buildToneStub(options = {}) {
+  const samplerOutcomes = Array.isArray(options.samplerOutcomes) && options.samplerOutcomes.length
+    ? options.samplerOutcomes
+    : ["load"];
+  const startFailures = Math.max(0, Number(options.startFailures) || 0);
 
-export async function stubToneJs(page) {
+  return `
+    (() => {
+      const samplerOutcomes = ${JSON.stringify(samplerOutcomes)};
+      let remainingStartFailures = ${startFailures};
+
+      window.__toneTestState = {
+        samplerConstructCount: 0,
+        samplerLoadCount: 0,
+        samplerErrorCount: 0,
+        startCallCount: 0,
+        triggerAttackReleaseCount: 0,
+        triggerAttackCount: 0,
+        triggerReleaseCount: 0,
+        releaseAllCount: 0,
+        disposeCount: 0
+      };
+
+      window.Tone = {
+        version: "test-stub",
+        start: async () => {
+          window.__toneTestState.startCallCount += 1;
+          if (remainingStartFailures > 0) {
+            remainingStartFailures -= 1;
+            throw new Error("Tone.start failed");
+          }
+        },
+        now: () => 0,
+        Limiter: class {
+          toDestination() { return this; }
+          connect() { return this; }
+          dispose() { window.__toneTestState.disposeCount += 1; }
+        },
+        Reverb: class {
+          constructor() {}
+          connect() { return this; }
+          async generate() {}
+          dispose() { window.__toneTestState.disposeCount += 1; }
+        },
+        Filter: class {
+          constructor() {}
+          connect() { return this; }
+          dispose() { window.__toneTestState.disposeCount += 1; }
+        },
+        Sampler: class {
+          constructor(options = {}) {
+            this.volume = { value: 0 };
+            window.__toneTestState.samplerConstructCount += 1;
+
+            const outcome = samplerOutcomes.length ? samplerOutcomes.shift() : "load";
+            setTimeout(() => {
+              if (outcome === "error") {
+                window.__toneTestState.samplerErrorCount += 1;
+                if (typeof options.onerror === "function") {
+                  options.onerror(new Error("Sampler load failed"));
+                }
+                return;
+              }
+
+              window.__toneTestState.samplerLoadCount += 1;
+              if (typeof options.onload === "function") {
+                options.onload();
+              }
+            }, 0);
+          }
+
+          connect() { return this; }
+          triggerAttackRelease() { window.__toneTestState.triggerAttackReleaseCount += 1; }
+          triggerAttack() { window.__toneTestState.triggerAttackCount += 1; }
+          triggerRelease() { window.__toneTestState.triggerReleaseCount += 1; }
+          releaseAll() { window.__toneTestState.releaseAllCount += 1; }
+          dispose() { window.__toneTestState.disposeCount += 1; }
+        }
+      };
+    })();
+  `;
+}
+
+export async function stubToneJs(page, options = {}) {
+  const toneStub = buildToneStub(options);
   await page.route("https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js", route =>
     route.fulfill({
       status: 200,
       contentType: "application/javascript",
-      body: TONE_STUB
+      body: toneStub
     })
   );
 }
 
-export async function gotoApp(page) {
-  await stubToneJs(page);
+export async function gotoApp(page, options = {}) {
+  await stubToneJs(page, options.toneStubOptions);
   await page.goto("/");
   await page.waitForFunction(() => {
     return Boolean(window.appState && Array.isArray(window.appState.keyChordSet) && window.appState.keyChordSet.length === 7);

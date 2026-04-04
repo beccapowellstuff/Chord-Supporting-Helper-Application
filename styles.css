@@ -1295,6 +1295,14 @@ h2 {
   color: #8b4b3d;
 }
 
+.sequence-audio-status {
+  margin: 10px 0 0;
+}
+
+.sequence-audio-status[hidden] {
+  display: none;
+}
+
 .tool-status-icon {
   width: 18px;
   height: 18px;

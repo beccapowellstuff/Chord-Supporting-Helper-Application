@@ -6,6 +6,8 @@ test("loads the main app shell with builder and tool navigation", async ({ page 
 
   await expect(page).toHaveTitle("Vibe Chording");
   await expect(page.locator(".sequence-panel-title")).toHaveText("Progression Builder");
+  await expect(page.getByRole("button", { name: "Play sequence" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Play from" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Key Explorer" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Chord Explorer" })).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("button", { name: /Suggestion Engine/ })).toBeVisible();

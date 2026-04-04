@@ -2,6 +2,28 @@ import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { gotoApp, openTool, setProgressionText } from "./helpers/appTestUtils.js";
 
+async function loadStructuredProgression(page, progression, filename = "structured-progression.json") {
+  await page.locator("#loadProgressionInput").setInputFiles({
+    name: filename,
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(progression), "utf8")
+  });
+}
+
+async function getPlaybackSnapshot(page) {
+  return page.evaluate(() => {
+    const items = Array.isArray(window.appState?.progressionItems) ? window.appState.progressionItems : [];
+    const activeItem = items.find(item => item.id === window.appState?.playingProgressionItemId) || null;
+
+    return {
+      isPlaying: Boolean(window.appState?.isPlayingProgression),
+      playingChord: activeItem?.chord || null,
+      triggerAttackReleaseCount: window.__toneTestState?.triggerAttackReleaseCount ?? 0,
+      releaseAllCount: window.__toneTestState?.releaseAllCount ?? 0
+    };
+  });
+}
+
 test("lets you build, auto-recognise, add, and clear a chord from the sequence keyboard", async ({ page }) => {
   await gotoApp(page);
 
@@ -272,6 +294,87 @@ test("plays the progression from the structured chord blocks", async ({ page }) 
 
   await expect(page.locator(".progression-block")).toHaveCount(1);
   await expect(page.locator("#sequenceKeyboard .sequence-keyboard-chord-name")).toHaveText("C");
+});
+
+test("steps through each chord block while progression playback is running", async ({ page }) => {
+  await gotoApp(page);
+
+  await loadStructuredProgression(page, {
+    type: "vibe-chording-progression",
+    version: 4,
+    sequence: {
+      tempoBpm: 240,
+      timeSignature: "4/4"
+    },
+    items: [
+      { position: 1, chord: "C", durationBeats: 1, sustain: false, voicing: null },
+      { position: 2, chord: "F", durationBeats: 1, sustain: false, voicing: null },
+      { position: 3, chord: "G", durationBeats: 1, sustain: false, voicing: null }
+    ]
+  }, "playback-steps.json");
+
+  const playButton = page.locator("#playProgressionBtn");
+
+  await playButton.click();
+
+  await expect(playButton).toHaveAttribute("aria-label", "Stop playback");
+  await expect.poll(() => getPlaybackSnapshot(page)).toMatchObject({ isPlaying: true, playingChord: "C" });
+  await expect.poll(() => getPlaybackSnapshot(page), { timeout: 5000 }).toMatchObject({ isPlaying: true, playingChord: "F" });
+  await expect.poll(() => getPlaybackSnapshot(page), { timeout: 5000 }).toMatchObject({ isPlaying: true, playingChord: "G" });
+  await expect.poll(() => getPlaybackSnapshot(page), { timeout: 5000 }).toMatchObject({
+    isPlaying: false,
+    playingChord: null,
+    triggerAttackReleaseCount: 3
+  });
+  await expect(playButton).toHaveAttribute("aria-label", "Play sequence");
+});
+
+test("stops progression playback on a second click before the rest of the sequence runs", async ({ page }) => {
+  await gotoApp(page);
+
+  await loadStructuredProgression(page, {
+    type: "vibe-chording-progression",
+    version: 4,
+    sequence: {
+      tempoBpm: 240,
+      timeSignature: "4/4"
+    },
+    items: [
+      { position: 1, chord: "C", durationBeats: 4, sustain: false, voicing: null },
+      { position: 2, chord: "F", durationBeats: 4, sustain: false, voicing: null },
+      { position: 3, chord: "G", durationBeats: 4, sustain: false, voicing: null }
+    ]
+  }, "playback-stop.json");
+
+  const playButton = page.locator("#playProgressionBtn");
+
+  await playButton.click();
+  await expect.poll(() => getPlaybackSnapshot(page)).toMatchObject({ isPlaying: true, playingChord: "C" });
+
+  await playButton.click();
+
+  await expect.poll(
+    async () => {
+      const snapshot = await getPlaybackSnapshot(page);
+      return {
+        isPlaying: snapshot.isPlaying,
+        playingChord: snapshot.playingChord,
+        hasReleasedPlayback: snapshot.releaseAllCount >= 1
+      };
+    },
+    { timeout: 5000 }
+  ).toMatchObject({
+    isPlaying: false,
+    playingChord: null,
+    hasReleasedPlayback: true
+  });
+
+  await page.waitForTimeout(1200);
+
+  const playbackSnapshot = await getPlaybackSnapshot(page);
+  expect(playbackSnapshot.triggerAttackReleaseCount).toBe(1);
+  expect(playbackSnapshot.releaseAllCount).toBeGreaterThanOrEqual(1);
+  await expect(playButton).toHaveAttribute("aria-label", "Play sequence");
 });
 
 test("shows a popup when saving a progression without chords", async ({ page }) => {

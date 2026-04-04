@@ -27,7 +27,7 @@ import {
 import { renderRootSelector } from "./rootSelector.js";
 import { renderCompactRootSelector, renderSequenceKeyboard } from "./playgroundKeyboard.js";
 import {
-  initSoundFont,
+  AUDIO_STATUS_EVENT,
   playMidiNote,
   playMidiNotes,
   playMetronomeTick,
@@ -67,14 +67,6 @@ import {
   velocityPresetToMidi
 } from "./progressionBuilder.js";
 
-document.addEventListener(
-  "pointerdown",
-  () => {
-    ensureAudioContext();
-  },
-  { once: true }
-);
-
 // Verify Tone.js loaded
 console.log("🔍 Checking Tone.js...");
 if (typeof Tone !== "undefined") {
@@ -101,6 +93,8 @@ const metronomePopover = document.getElementById("metronomePopover");
 const metronomeVolumeInput = document.getElementById("metronomeVolume");
 const metronomeVolumeValue = document.getElementById("metronomeVolumeValue");
 const metronomeStartStopBtn = document.getElementById("metronomeStartStopBtn");
+const audioStatus = document.getElementById("audioStatus");
+const audioStatusMessage = document.getElementById("audioStatusMessage");
 const sequenceTimeSignatureSelect = document.getElementById("sequenceTimeSignature");
 const results = document.getElementById("results");
 const rootContainer = document.getElementById("rootContainer");
@@ -124,6 +118,7 @@ const appState = {
   metronomeArmed: false,
   metronomeVolume: 40,
   metronomePopoverOpen: false,
+  audioStatusMessage: "",
   sequenceTimeSignature: DEFAULT_TIME_SIGNATURE,
   progressionItems: [],
   selectedProgressionItemId: null,
@@ -151,6 +146,66 @@ let toolPanelTransitionTimeout = null;
 let progressionPreviewToken = 0;
 let activeProgressionPlaybackSession = null;
 let activeProgressionPlaybackMode = null;
+let removeAudioPrimingListeners = null;
+let isPrimingAudio = false;
+
+function renderAudioStatus() {
+  const message = String(appState.audioStatusMessage || "").trim();
+
+  if (audioStatusMessage) {
+    audioStatusMessage.textContent = message;
+  }
+
+  if (audioStatus) {
+    audioStatus.hidden = !message;
+  }
+}
+
+async function attemptAudioPriming() {
+  if (isPrimingAudio) {
+    return;
+  }
+
+  isPrimingAudio = true;
+  try {
+    await ensureAudioContext();
+    if (removeAudioPrimingListeners) {
+      removeAudioPrimingListeners();
+    }
+  } catch (error) {
+    console.debug("Audio priming will retry on the next interaction.", error);
+  } finally {
+    isPrimingAudio = false;
+  }
+}
+
+function installAudioPrimingListeners() {
+  if (removeAudioPrimingListeners) {
+    return;
+  }
+
+  const handleUserInteraction = () => {
+    void attemptAudioPriming();
+  };
+
+  document.addEventListener("pointerdown", handleUserInteraction);
+  document.addEventListener("keydown", handleUserInteraction);
+  removeAudioPrimingListeners = () => {
+    document.removeEventListener("pointerdown", handleUserInteraction);
+    document.removeEventListener("keydown", handleUserInteraction);
+    removeAudioPrimingListeners = null;
+  };
+}
+
+window.addEventListener(AUDIO_STATUS_EVENT, event => {
+  const { state = "idle", message = "" } = event.detail || {};
+
+  appState.audioStatusMessage = state === "error" ? String(message || "").trim() : "";
+  renderAudioStatus();
+});
+
+installAudioPrimingListeners();
+renderAudioStatus();
 
 function updateKeyChordSet() {
   if (!appData || !appState.selectedKey) {
@@ -479,11 +534,12 @@ function renderProgressionBuilderUI() {
 
   if (playProgressionBtn) {
     const isAllPlaybackActive = appState.isPlayingProgression && activeProgressionPlaybackMode === "all";
+    const hasProgressionItems = appState.progressionItems.length > 0;
     setIconButtonState(playProgressionBtn, {
       label: isAllPlaybackActive ? "Stop playback" : "Play sequence",
       icon: isAllPlaybackActive ? "stop" : "play-sequence",
       active: isAllPlaybackActive,
-      disabled: appState.isPlayingProgression && !isAllPlaybackActive,
+      disabled: (appState.isPlayingProgression && !isAllPlaybackActive) || (!appState.isPlayingProgression && !hasProgressionItems),
       pressed: isAllPlaybackActive
     });
     playProgressionBtn.dataset.tooltip = isAllPlaybackActive
@@ -1938,22 +1994,6 @@ async function init() {
       }
     });
 
-    console.log("📍 Setting up first-click listener...");
-    document.addEventListener(
-      "click",
-      async () => {
-        console.log("🖱️ Document click detected - initializing audio...");
-        try {
-          await ensureAudioContext();
-          console.log("▶ Calling initSoundFont...");
-          await initSoundFont();
-          console.log("✓ SoundFont initialized");
-        } catch (error) {
-          console.error("✗ Audio/SoundFont initialisation failed:", error);
-        }
-      },
-      { once: true }
-    );
     console.log("✓ App initialized successfully");
   } catch (error) {
     console.error("✗ Initialization failed:", error);

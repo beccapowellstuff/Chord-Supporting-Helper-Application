@@ -1,7 +1,7 @@
 {
   "type": "vibe-chording-progression",
   "version": 4,
-  "savedAt": "2026-04-04T11:36:56.867Z",
+  "savedAt": "2026-04-04T12:24:34.515Z",
   "key": {
     "name": "C Ionian",
     "root": "C",
@@ -91,7 +91,7 @@
     },
     {
       "position": 12,
-      "chord": "Dm7/F",
+      "chord": "Dm7",
       "durationBeats": 4,
       "sustain": true,
       "voicing": {
@@ -99,7 +99,7 @@
         "velocityMode": "basic",
         "notes": [
           {
-            "midi": 41,
+            "midi": 38,
             "velocity": 84
           },
           {
@@ -143,6 +143,10 @@
             "velocity": 84
           },
           {
+            "midi": 65,
+            "velocity": 84
+          },
+          {
             "midi": 71,
             "velocity": 84
           },
@@ -172,6 +176,10 @@
           },
           {
             "midi": 57,
+            "velocity": 84
+          },
+          {
+            "midi": 64,
             "velocity": 84
           },
           {

@@ -93,6 +93,10 @@
               <span class="visually-hidden">Load progression</span>
             </button>
           </div>
+          <div id="audioStatus" class="tool-status tool-status-warning sequence-audio-status" role="status" aria-live="polite" hidden>
+            <span class="tool-status-icon" aria-hidden="true">!</span>
+            <span id="audioStatusMessage">Audio preview unavailable right now. Try another click to retry.</span>
+          </div>
           <input id="loadProgressionInput" type="file" accept=".json,application/json" hidden>
         </div>
       </div>
