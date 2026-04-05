@@ -388,6 +388,25 @@ function formatBeatLabel(durationBeats) {
   return `${durationBeats} beat${durationBeats === 1 ? "" : "s"}`;
 }
 
+function formatSustainLabel(sustain) {
+  return sustain ? "On" : "Off";
+}
+
+function buildProgressionBlockTooltip(item) {
+  const parts = [
+    `Chord: ${item?.label || item?.chord || ""}`,
+    `Length: ${formatBeatLabel(Math.max(1, Number(item?.durationBeats) || 1))}`,
+    `Sustain: ${formatSustainLabel(Boolean(item?.sustain))}`
+  ];
+
+  const voicingSummary = formatProgressionVoicingSummary(item);
+  if (voicingSummary) {
+    parts.push(`Voicing: ${voicingSummary}`);
+  }
+
+  return parts.join("\n");
+}
+
 function formatProgressionVoicingSummary(item) {
   const inversionLabel = String(item?.voicing?.inversionLabel || "").trim();
   const voicingLabel = String(item?.voicing?.voicingLabel || "").trim();
@@ -465,6 +484,7 @@ export function renderProgressionBlocks(container, items, selectedId, playingId,
     button.dataset.progressionBlockId = item.id;
     button.dataset.progressionChord = item.chord;
     button.dataset.duration = String(item.durationBeats);
+    button.dataset.tooltip = buildProgressionBlockTooltip(item);
     button.setAttribute("aria-pressed", String(item.id === selectedId));
     button.setAttribute("aria-current", item.id === playingId ? "true" : "false");
     button.style.setProperty("--progression-duration-beats", String(item.durationBeats));

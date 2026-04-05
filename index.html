@@ -19,15 +19,42 @@
 
     <div class="panel builder-panel">
       <div class="sequence-panel">
-        <div class="sequence-panel-title">Progression Builder</div>
+        <div class="section-title-row">
+          <div class="sequence-panel-title">Progression Builder</div>
+          <button class="section-help-btn" type="button" data-help-topic="progression-builder" aria-label="Open help">?</button>
+        </div>
         <div class="sequence-panel-body">
           <div id="sequenceKeyboard" class="sequence-keyboard-mount"></div>
+          <div class="progression-toolbar-row">
+            <div class="sequence-panel-actions">
+              <button id="playProgressionBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Play sequence" data-icon="play-sequence">
+                <span class="visually-hidden">Play sequence</span>
+              </button>
+              <button id="playFromSelectedBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Play from" data-icon="play-from">
+                <span class="visually-hidden">Play from</span>
+              </button>
+              <button id="saveProgressionBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Save progression" data-icon="save-progression">
+                <span class="visually-hidden">Save progression</span>
+              </button>
+              <button id="loadProgressionBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Load progression" data-icon="load-progression">
+                <span class="visually-hidden">Load progression</span>
+              </button>
+              <div class="sequence-panel-action-shell sequence-panel-action-shell-danger">
+                <button id="newProgressionBtn" class="sequence-panel-action-btn sequence-panel-action-btn-danger app-icon-button" type="button" aria-label="Clear chord sequence" aria-expanded="false" aria-haspopup="dialog" data-icon="reset-progression">
+                  <span class="visually-hidden">Clear chord sequence</span>
+                </button>
+              </div>
+            </div>
+            <div id="sequenceKeyboardToolbarMount" class="sequence-keyboard-toolbar-mount"></div>
+          </div>
           <div class="progression-builder-shell">
             <div class="progression-builder-primary">
               <div class="progression-sequence-header">
                 <div class="progression-sequence-heading">
-                  <div class="progression-section-label">Chord Sequence</div>
-                  <div class="input-help">Select a chord block to audition it, or double-click to edit it.</div>
+                  <div class="progression-subsection-header progression-subsection-header-inline">
+                    <div class="progression-section-label">Chord Sequence</div>
+                    <button class="section-help-btn section-help-btn-subtle" type="button" data-help-topic="chord-sequence" aria-label="Open help">?</button>
+                  </div>
                 </div>
                 <div class="progression-sequence-meta">
                   <label class="progression-sequence-setting" for="sequenceTempoBpm">
@@ -84,6 +111,7 @@
                   </div>
                 </div>
               </div>
+              <div id="progressionSequenceKeyBadge" class="progression-sequence-key-badge" aria-live="polite"></div>
               <div id="progressionBlocks" class="progression-blocks" aria-label="Progression blocks"></div>
             </div>
           </div>
@@ -93,25 +121,6 @@
             <div class="input-help">Paste progression text when needed. The chord blocks above remain the main view.</div>
             <textarea id="progression" rows="2" placeholder="Example: C | Am | F" aria-label="Chord Sequence"></textarea>
           </div>
-          <div class="sequence-panel-actions">
-            <button id="playProgressionBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Play sequence" data-icon="play-sequence">
-              <span class="visually-hidden">Play sequence</span>
-            </button>
-            <button id="playFromSelectedBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Play from" data-icon="play-from">
-              <span class="visually-hidden">Play from</span>
-            </button>
-            <button id="saveProgressionBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Save progression" data-icon="save-progression">
-              <span class="visually-hidden">Save progression</span>
-            </button>
-            <button id="loadProgressionBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Load progression" data-icon="load-progression">
-              <span class="visually-hidden">Load progression</span>
-            </button>
-            <div class="sequence-panel-action-shell sequence-panel-action-shell-danger">
-              <button id="newProgressionBtn" class="sequence-panel-action-btn sequence-panel-action-btn-danger app-icon-button" type="button" aria-label="New progression" aria-expanded="false" aria-haspopup="dialog" data-icon="clear">
-                <span class="visually-hidden">New progression</span>
-              </button>
-            </div>
-          </div>
           <div id="audioStatus" class="tool-status tool-status-warning sequence-audio-status" role="status" aria-live="polite" hidden>
             <span class="tool-status-icon" aria-hidden="true">!</span>
             <span id="audioStatusMessage">Audio preview unavailable right now. Try another click to retry.</span>
@@ -120,12 +129,22 @@
           <div id="newProgressionConfirmPopover" class="progression-confirm-modal-root" hidden>
             <div class="progression-confirm-modal-overlay" aria-hidden="true"></div>
             <div class="progression-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="newProgressionConfirmTitle">
-              <div id="newProgressionConfirmTitle" class="progression-confirm-modal-title">Clear Progression?</div>
-              <div class="progression-confirm-modal-text">Start fresh and remove the current progression?</div>
+              <div id="newProgressionConfirmTitle" class="progression-confirm-modal-title">Clear Chord Sequence?</div>
+              <div class="progression-confirm-modal-text">Remove every chord block from the current sequence?</div>
               <div class="progression-confirm-modal-actions">
                 <button id="confirmNewProgressionBtn" class="progression-confirm-modal-confirm" type="button">Yes</button>
                 <button id="cancelNewProgressionBtn" class="progression-confirm-modal-cancel" type="button">No</button>
               </div>
+            </div>
+          </div>
+          <div id="sectionHelpModal" class="section-help-modal-root" hidden>
+            <div class="section-help-modal-overlay" aria-hidden="true"></div>
+            <div class="section-help-modal" role="dialog" aria-modal="true" aria-labelledby="sectionHelpModalTitle">
+              <div class="section-help-modal-header">
+                <div id="sectionHelpModalTitle" class="section-help-modal-title">Help</div>
+                <button id="sectionHelpModalClose" class="section-help-modal-close" type="button" aria-label="Close help">×</button>
+              </div>
+              <div id="sectionHelpModalBody" class="section-help-modal-body"></div>
             </div>
           </div>
         </div>
@@ -146,13 +165,11 @@
         <div id="keyExplorerPanel" class="panel tool-panel">
           <div class="chord-loader key-explorer-module">
             <div class="tool-header-bar">
-              <p class="chord-loader-title">Key Explorer</p>
-              <div class="tool-context tool-context-inline" data-tool-context>
-                <span class="tool-context-chip" data-tool-context-root>C</span>
-                <span class="tool-context-chip tool-context-chip-mode" data-tool-context-mode>Ionian</span>
+              <div class="section-title-row section-title-row-inline">
+                <p class="chord-loader-title">Key Explorer</p>
+                <button class="section-help-btn" type="button" data-help-topic="key-explorer" aria-label="Open help">?</button>
               </div>
             </div>
-            <p class="tool-panel-description tool-panel-description-inline">Explore chords within a key and mode.</p>
             <div class="chord-loader-body key-explorer-body">
             <table class="select-root-style-table">
               <thead>
@@ -198,13 +215,9 @@
                     <span>Out of key</span>
                   </span>
                 </div>
-                <div class="tool-context tool-context-inline" data-tool-context>
-                  <span class="tool-context-chip" data-tool-context-root>C</span>
-                  <span class="tool-context-chip tool-context-chip-mode" data-tool-context-mode>Ionian</span>
-                </div>
+                <button class="section-help-btn" type="button" data-help-topic="chord-explorer" aria-label="Open help">?</button>
               </div>
             </div>
-            <p class="tool-panel-description tool-panel-description-inline">Build and preview any chord.</p>
             <div class="chord-loader-body">
               <div class="chord-root-controls">
                 <div id="bassRootSelector" class="compact-root-mount"></div>
@@ -219,12 +232,10 @@
           <div class="chord-loader suggestion-engine-module">
             <div class="tool-header-bar">
               <p class="chord-loader-title">Suggestion Engine</p>
-              <div class="tool-context tool-context-inline" data-tool-context>
-                <span class="tool-context-chip" data-tool-context-root>C</span>
-                <span class="tool-context-chip tool-context-chip-mode" data-tool-context-mode>Ionian</span>
+              <div class="tool-header-meta">
+                <button class="section-help-btn" type="button" data-help-topic="suggestion-engine" aria-label="Open help">?</button>
               </div>
             </div>
-            <p class="tool-panel-description tool-panel-description-inline">Get ideas based on your progression.</p>
             <div class="tool-status tool-status-warning" role="status" aria-live="polite">
               <span class="tool-status-icon" aria-hidden="true">!</span>
               <span>Suggestion Engine is very MVP right now, and not fully working as wanted.</span>
@@ -233,7 +244,7 @@
               <div class="suggestion-engine-controls">
                 <div class="suggestion-engine-feeling">
                   <span class="suggestion-engine-feeling-label">Feeling</span>
-                  <span class="suggestion-engine-feeling-subtitle">Choose the direction you want the progression to lean toward.</span>
+                  <span class="suggestion-engine-feeling-subtitle">Choose the direction you want the suggestions to lean toward.</span>
                 </div>
                 <select id="feeling" aria-label="Feeling"></select>
                 <button id="suggestBtn" class="suggest-refresh-btn" type="button">Refresh</button>

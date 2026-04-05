@@ -8,6 +8,7 @@ test("loads the main app shell with builder and tool navigation", async ({ page 
   await expect(page.locator(".sequence-panel-title")).toHaveText("Progression Builder");
   await expect(page.getByRole("button", { name: "Play sequence" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Play from" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Save progression" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Key Explorer" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Chord Explorer" })).toHaveAttribute("aria-pressed", "false");
   await expect(page.getByRole("button", { name: /Suggestion Engine/ })).toBeVisible();
@@ -70,7 +71,7 @@ test("opens the demo menu and shows bundled music demos", async ({ page }) => {
 test("lets you clear the progression with the new action", async ({ page }) => {
   await gotoApp(page);
 
-  const newButton = page.getByRole("button", { name: "New progression" });
+  const newButton = page.getByRole("button", { name: "Clear chord sequence" });
   const confirmPopover = page.locator("#newProgressionConfirmPopover");
   await expect(newButton).toBeDisabled();
   await expect(confirmPopover).toBeHidden();
@@ -95,7 +96,7 @@ test("keeps the progression when new progression is cancelled", async ({ page })
   await setProgressionText(page, "C | F | G");
   await expect(page.locator(".progression-block")).toHaveCount(3);
 
-  await page.getByRole("button", { name: "New progression" }).click();
+  await page.getByRole("button", { name: "Clear chord sequence" }).click();
   const confirmPopover = page.locator("#newProgressionConfirmPopover");
   await expect(confirmPopover).toBeVisible();
   await confirmPopover.getByRole("button", { name: "No" }).click();
