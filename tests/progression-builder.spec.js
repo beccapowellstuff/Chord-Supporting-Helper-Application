@@ -280,10 +280,10 @@ test("reflects chord explorer playback on the progression builder keyboard", asy
 
   const keyboard = page.locator("#sequenceKeyboard");
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("C");
-  await expect(keyboard.locator('[data-midi="48"]')).toHaveClass(/sequence-key-active/);
   await expect(keyboard.locator('[data-midi="60"]')).toHaveClass(/sequence-key-active/);
   await expect(keyboard.locator('[data-midi="64"]')).toHaveClass(/sequence-key-active/);
   await expect(keyboard.locator('[data-midi="67"]')).toHaveClass(/sequence-key-active/);
+  await expect(keyboard.locator('[data-midi="48"]')).not.toHaveClass(/sequence-key-active/);
 });
 
 test("plays the progression from the structured chord blocks", async ({ page }) => {

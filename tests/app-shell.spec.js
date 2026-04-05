@@ -96,12 +96,13 @@ test("keeps the progression when new progression is cancelled", async ({ page })
   await expect(page.locator(".progression-block")).toHaveCount(3);
 
   await page.getByRole("button", { name: "New progression" }).click();
-  await expect(page.locator("#newProgressionConfirmPopover")).toBeVisible();
-  await page.getByRole("button", { name: "No" }).click();
+  const confirmPopover = page.locator("#newProgressionConfirmPopover");
+  await expect(confirmPopover).toBeVisible();
+  await confirmPopover.getByRole("button", { name: "No" }).click();
 
   await expect(page.locator(".progression-block")).toHaveCount(3);
   await expect.poll(() => page.locator("#progression").inputValue()).toBe("C | F | G");
-  await expect(page.locator("#newProgressionConfirmPopover")).toBeHidden();
+  await expect(confirmPopover).toBeHidden();
 });
 
 test("plays distinct notes across the top keyboard octave", async ({ page }) => {
