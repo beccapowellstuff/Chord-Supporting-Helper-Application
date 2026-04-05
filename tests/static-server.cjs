@@ -45,7 +45,7 @@ const server = http.createServer((req, res) => {
         .filter(entry => entry.isFile() && path.extname(entry.name).toLowerCase() === ".json")
         .map(entry => ({
           fileName: entry.name,
-          path: `/Music%20Demos/${encodeURIComponent(entry.name)}`,
+          path: `./Music%20Demos/${encodeURIComponent(entry.name)}`,
           label: entry.name.replace(/\.json$/i, "")
         }))
         .sort((a, b) => a.fileName.localeCompare(b.fileName));

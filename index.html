@@ -110,14 +110,6 @@
               <button id="newProgressionBtn" class="sequence-panel-action-btn sequence-panel-action-btn-danger app-icon-button" type="button" aria-label="New progression" aria-expanded="false" aria-haspopup="dialog" data-icon="clear">
                 <span class="visually-hidden">New progression</span>
               </button>
-              <div id="newProgressionConfirmPopover" class="progression-confirm-popover" hidden>
-                <div class="progression-confirm-popover-title">Clear Progression?</div>
-                <div class="progression-confirm-popover-text">Start fresh and remove the current progression?</div>
-                <div class="progression-confirm-popover-actions">
-                  <button id="confirmNewProgressionBtn" class="progression-confirm-popover-confirm" type="button">Yes</button>
-                  <button id="cancelNewProgressionBtn" class="progression-confirm-popover-cancel" type="button">No</button>
-                </div>
-              </div>
             </div>
           </div>
           <div id="audioStatus" class="tool-status tool-status-warning sequence-audio-status" role="status" aria-live="polite" hidden>
@@ -125,6 +117,17 @@
             <span id="audioStatusMessage">Audio preview unavailable right now. Try another click to retry.</span>
           </div>
           <input id="loadProgressionInput" type="file" accept=".json,application/json" hidden>
+          <div id="newProgressionConfirmPopover" class="progression-confirm-modal-root" hidden>
+            <div class="progression-confirm-modal-overlay" aria-hidden="true"></div>
+            <div class="progression-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="newProgressionConfirmTitle">
+              <div id="newProgressionConfirmTitle" class="progression-confirm-modal-title">Clear Progression?</div>
+              <div class="progression-confirm-modal-text">Start fresh and remove the current progression?</div>
+              <div class="progression-confirm-modal-actions">
+                <button id="confirmNewProgressionBtn" class="progression-confirm-modal-confirm" type="button">Yes</button>
+                <button id="cancelNewProgressionBtn" class="progression-confirm-modal-cancel" type="button">No</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

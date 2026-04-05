@@ -173,7 +173,8 @@ let musicDemoEntries = [];
 let isLoadingMusicDemos = false;
 
 const DEFAULT_MUSIC_DEMO_FILE = "Demo01-cIonian.json";
-const MUSIC_DEMOS_DIR_PATH = "/Music%20Demos/";
+const MUSIC_DEMOS_DIR_PATH = "./Music%20Demos/";
+const MUSIC_DEMOS_ENDPOINT_PATH = "./__music-demos";
 
 function syncKeyExplorerSelection() {
   const keyChords = appData?.musicData?.[appState.selectedKey]?.chords || [];
@@ -1345,7 +1346,7 @@ function normalizeMusicDemoEntries(entries = []) {
 }
 
 async function fetchMusicDemoEntries() {
-  const endpointUrl = new URL("/__music-demos", window.location.href);
+  const endpointUrl = new URL(MUSIC_DEMOS_ENDPOINT_PATH, window.location.href);
   endpointUrl.searchParams.set("ts", String(Date.now()));
 
   try {
@@ -2507,7 +2508,8 @@ async function init() {
       }
 
       if (appState.newProgressionConfirmOpen) {
-        if (!(newProgressionConfirmPopover?.contains(target) || newProgressionBtn?.contains(target))) {
+        const clickedInsideConfirmDialog = Boolean(target?.closest?.(".progression-confirm-modal"));
+        if (!clickedInsideConfirmDialog && !newProgressionBtn?.contains(target)) {
           closeNewProgressionConfirm();
         }
       }
