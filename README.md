@@ -2,8 +2,8 @@
 
 Vibe Chording is a browser-based music idea tool for building chord progressions, exploring keys, and shaping harmonic direction without handing authorship over to AI.
 
-Current version: [v0.13.0](./VERSION_CHANGES.md#v0-13-0)  
-Full history: [Version Changes](./VERSION_CHANGES.md)
+Current version: [v0.15.0](./Version_Changes.md#v0-15-0)  
+Full history: [Version Changes](./Version_Changes.md)
 
 Public-facing product name: `Vibe Chording`  
 Current repository name: `Chord-Supporting-Helper-Application`
@@ -33,6 +33,7 @@ The goal is not to write music for you. The goal is to support the writing proce
   - chord playback
   - chord root and bass-root exploration
   - slash chord support
+  - shared inversion and voicing audition controls across Key Explorer, Chord Explorer, and Suggestion Engine
 
 - Progression Builder
   - visual `Chord Sequence` made from compact chord blocks
@@ -45,10 +46,13 @@ The goal is not to write music for you. The goal is to support the writing proce
   - visible bar numbering across wrapped blocks, including long chords that cross into a new bar
   - per-chord sustain
   - per-chord custom voicing capture from the keyboard
+  - visible inversion and voicing shorthand on progression blocks
   - per-note velocity editing with `Basic` and `Advanced` modes
   - save progression to JSON
   - load progression from JSON
-  - load bundled demo progression
+  - load bundled demo progression from a `Music Demos` menu
+  - in-app clear-sequence confirmation
+  - hover tooltips for full chord name, length, sustain, and voicing details
 
 - Keyboard workflow
   - identify chords from selected notes
@@ -56,6 +60,9 @@ The goal is not to write music for you. The goal is to support the writing proce
   - update a selected sequence chord from the keyboard
   - delete a selected sequence chord
   - compact bass lane display for low doubled bass notes
+  - note-plus-octave tooltips on keys
+  - exact manual voicing save without auto-adding a lower bass note
+  - slash-bass recognition driven only by the dedicated bass lane
 
 - Playback
   - play a single chord
@@ -161,8 +168,32 @@ The app still uses circle-of-fifths style theory relationships in the background
 
 These link to the retroactive version summary file:
 
-- [v0.13.0](./VERSION_CHANGES.md#v0-13-0)
-- [v0.12.0](./VERSION_CHANGES.md#v0-12-0)
+- [v0.15.0](./Version_Changes.md#v0-15-0)
+- [v0.14.0](./Version_Changes.md#v0-14-0)
+- [v0.13.0](./Version_Changes.md#v0-13-0)
+- [v0.12.0](./Version_Changes.md#v0-12-0)
+
+## Recent Releases
+
+### v0.15.0
+
+- cleaned up the Progression Builder layout and merged the sequence and keyboard actions into one clearer toolbar row
+- added a distinct `Clear chord sequence` action and icon with safer confirmation and disabled states
+- added richer chord-block hover details for full chord names, duration, sustain, and voicing
+- fixed manual keyboard saves so they preserve the exact notes you entered
+- fixed slash-bass recognition so the dedicated bass lane controls the bass note
+- added contextual help popups across the main builder and exploration panels
+- simplified section titles, labels, and other UX details to reduce confusion
+
+### v0.14.0
+
+- fixed audio initialisation so one failed synth start does not permanently break playback
+- replaced the old placeholder Playwright coverage with app-specific browser tests
+- added shared inversion and voicing controls for Key Explorer, Chord Explorer, and Suggestion Engine
+- added triad voicing presets, progression voicing badges, and octave-aware keyboard note tooltips
+- improved progression playback behavior and expanded automated playback checks
+- replaced the one-off demo loader with a `Music Demos` menu that can list multiple demo JSON files
+- added an in-app clear/new progression flow and more builder-state polish
 
 ## Vibe Coding Note
 

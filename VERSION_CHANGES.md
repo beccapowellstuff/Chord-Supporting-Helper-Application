@@ -1,8 +1,30 @@
 # Version Changes
 
-This file is a retroactive milestone summary for Vibe Chording from `v0.1.0` through `v0.13.0`.
+This file is a retroactive milestone summary for Vibe Chording from `v0.1.0` through `v0.15.0`.
 
-The early entries were reconstructed from the project’s development history and are meant to reflect the main release-level changes, not every individual commit.
+The early entries were reconstructed from the project's development history and are meant to reflect the main release-level changes, not every individual commit.
+
+## <a id="v0-15-0"></a>v0.15.0
+
+- Refined the Progression Builder layout so sequence transport and keyboard actions share one cleaner toolbar row.
+- Added a distinct `Clear chord sequence` action and icon, with safer disabled states and in-app confirmation flow.
+- Added richer chord-block hover details showing the full chord name, beat length, sustain state, and voicing summary.
+- Fixed manual keyboard chord saves so custom note shapes are preserved exactly without auto-adding a lower bass note.
+- Fixed slash-bass recognition so the dedicated bass lane determines the bass note instead of upper keyboard notes forcing labels like `Am/E`.
+- Added contextual help popups across Progression Builder, Keyboard, Chord Sequence, Key Explorer, Chord Explorer, and Suggestion Engine.
+- Simplified section headers and labels to reduce confusion, including cleaner Key Explorer, Chord Explorer, Suggestion Engine, and Keyboard headings.
+- Added a visible sequence key label above the chord blocks and continued polishing toolbar sizing, button states, and sequence UX.
+
+## <a id="v0-14-0"></a>v0.14.0
+
+- Fixed synth initialisation so failed audio startup no longer leaves playback permanently unavailable for the rest of the session.
+- Replaced the old placeholder Playwright setup with app-specific browser coverage and strengthened regression checks around key selection, suggestions, and progression playback.
+- Added explicit inversion and voicing audition controls to Key Explorer, then reused the same shared bar pattern in Chord Explorer and Suggestion Engine.
+- Added beginner-friendly triad voicing presets, progression voicing badges, octave-aware keyboard tooltips, and keyboard display updates that match the actual played notes.
+- Improved chord-sequence playback behavior, disabled sequence playback controls when no chords are present, and expanded automated playback tests.
+- Added a `Music Demos` menu that auto-lists bundled JSON demo files and renamed the old demo folder/file structure to support multiple demos.
+- Added a `New progression` flow with an in-app confirmation UI and follow-up builder polishing around empty states and action placement.
+- Fixed top-octave keyboard playback so notes above `C6` no longer collapse to the same sampled pitch.
 
 ## <a id="v0-13-0"></a>v0.13.0
 
@@ -90,7 +112,7 @@ The early entries were reconstructed from the project’s development history an
 - Added the first working suggestion-engine flow.
 - Added feeling-based chord suggestions.
 - Added progression parsing foundations for theory-aware suggestions.
-- Began shaping the app around “what could come next?” rather than only theory display.
+- Began shaping the app around "what could come next?" rather than only theory display.
 
 ## <a id="v0-2-0"></a>v0.2.0
 

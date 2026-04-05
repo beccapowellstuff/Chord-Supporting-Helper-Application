@@ -143,6 +143,8 @@
         This page is the browser-friendly release history for Vibe Chording. The earlier entries are retroactive milestone summaries, designed to show how the app grew from a theory reference into a progression-focused builder and playback tool.
       </p>
       <div class="jump-links">
+        <a href="#v0-15-0">v0.15.0</a>
+        <a href="#v0-14-0">v0.14.0</a>
         <a href="#v0-13-0">v0.13.0</a>
         <a href="#v0-12-0">v0.12.0</a>
         <a href="#v0-11-0">v0.11.0</a>
@@ -160,6 +162,34 @@
     </section>
 
     <section class="release-list">
+      <article class="release-card" id="v0-15-0">
+        <h2>v0.15.0</h2>
+        <ul>
+          <li>Refined the Progression Builder layout so sequence transport and keyboard actions share one cleaner toolbar row.</li>
+          <li>Added a distinct <code>Clear chord sequence</code> action and icon, with safer disabled states and in-app confirmation flow.</li>
+          <li>Added richer chord-block hover details showing the full chord name, beat length, sustain state, and voicing summary.</li>
+          <li>Fixed manual keyboard chord saves so custom note shapes are preserved exactly without auto-adding a lower bass note.</li>
+          <li>Fixed slash-bass recognition so the dedicated bass lane determines the bass note instead of upper keyboard notes forcing labels like <code>Am/E</code>.</li>
+          <li>Added contextual help popups across Progression Builder, Keyboard, Chord Sequence, Key Explorer, Chord Explorer, and Suggestion Engine.</li>
+          <li>Simplified section headers and labels to reduce confusion, including cleaner Key Explorer, Chord Explorer, Suggestion Engine, and Keyboard headings.</li>
+          <li>Added a visible sequence key label above the chord blocks and continued polishing toolbar sizing, button states, and sequence UX.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-14-0">
+        <h2>v0.14.0</h2>
+        <ul>
+          <li>Fixed synth initialisation so failed audio startup no longer leaves playback permanently unavailable for the rest of the session.</li>
+          <li>Replaced the old placeholder Playwright setup with app-specific browser coverage and strengthened regression checks around key selection, suggestions, and progression playback.</li>
+          <li>Added explicit inversion and voicing audition controls to Key Explorer, then reused the same shared bar pattern in Chord Explorer and Suggestion Engine.</li>
+          <li>Added beginner-friendly triad voicing presets, progression voicing badges, octave-aware keyboard tooltips, and keyboard display updates that match the actual played notes.</li>
+          <li>Improved chord-sequence playback behavior, disabled sequence playback controls when no chords are present, and expanded automated playback tests.</li>
+          <li>Added a <code>Music Demos</code> menu that auto-lists bundled JSON demo files and renamed the old demo folder/file structure to support multiple demos.</li>
+          <li>Added a <code>New progression</code> flow with an in-app confirmation UI and follow-up builder polishing around empty states and action placement.</li>
+          <li>Fixed top-octave keyboard playback so notes above <code>C6</code> no longer collapse to the same sampled pitch.</li>
+        </ul>
+      </article>
+
       <article class="release-card" id="v0-13-0">
         <h2>v0.13.0</h2>
         <ul>
