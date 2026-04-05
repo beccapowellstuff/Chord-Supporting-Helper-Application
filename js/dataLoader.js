@@ -36,9 +36,9 @@ async function fetchJsonWithFallback(paths) {
 
 export async function loadAllData() {
   const [moodBoosts, descriptionsData, modesConfig] = await Promise.all([
-    fetchJsonWithFallback(["./moods.json", "./data/moods.json"]),
-    fetchJsonWithFallback(["./descriptions.json", "./data/descriptions.json"]),
-    fetchJsonWithFallback(["./modes.json", "./data/modes.json"])
+    fetchJsonWithFallback(["./data/moods.json", "./moods.json"]),
+    fetchJsonWithFallback(["./data/descriptions.json", "./descriptions.json"]),
+    fetchJsonWithFallback(["./data/modes.json", "./modes.json"])
   ]);
 
   const musicData = generateAllKeys(modesConfig);
