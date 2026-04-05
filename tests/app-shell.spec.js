@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { gotoApp, openTool } from "./helpers/appTestUtils.js";
+import { gotoApp, openTool, setProgressionText } from "./helpers/appTestUtils.js";
 
 test("loads the main app shell with builder and tool navigation", async ({ page }) => {
   await gotoApp(page);
@@ -53,4 +53,66 @@ test("opens metronome settings and lets you arm or stop playback clicks", async 
 
   await page.locator(".sequence-panel-title").click();
   await expect(popover).toBeHidden();
+});
+
+test("opens the demo menu and shows bundled music demos", async ({ page }) => {
+  await gotoApp(page);
+
+  const demoButton = page.locator("#loadDemoProgressionBtn");
+  const demoPopover = page.locator("#demoMenuPopover");
+
+  await expect(demoPopover).toBeHidden();
+  await demoButton.click();
+  await expect(demoPopover).toBeVisible();
+  await expect(page.locator("#demoMenuList .progression-demo-menu-item").first()).toHaveText("Demo01-cIonian");
+});
+
+test("lets you clear the progression with the new action", async ({ page }) => {
+  await gotoApp(page);
+
+  const newButton = page.getByRole("button", { name: "New progression" });
+  const confirmPopover = page.locator("#newProgressionConfirmPopover");
+  await expect(newButton).toBeDisabled();
+  await expect(confirmPopover).toBeHidden();
+
+  await setProgressionText(page, "C | F | G");
+  await expect(page.locator(".progression-block")).toHaveCount(3);
+  await expect(newButton).toBeEnabled();
+
+  await newButton.click();
+  await expect(confirmPopover).toBeVisible();
+  await page.getByRole("button", { name: "Yes" }).click();
+
+  await expect(page.locator(".progression-block")).toHaveCount(0);
+  await expect.poll(() => page.locator("#progression").inputValue()).toBe("");
+  await expect(newButton).toBeDisabled();
+  await expect(confirmPopover).toBeHidden();
+});
+
+test("keeps the progression when new progression is cancelled", async ({ page }) => {
+  await gotoApp(page);
+
+  await setProgressionText(page, "C | F | G");
+  await expect(page.locator(".progression-block")).toHaveCount(3);
+
+  await page.getByRole("button", { name: "New progression" }).click();
+  await expect(page.locator("#newProgressionConfirmPopover")).toBeVisible();
+  await page.getByRole("button", { name: "No" }).click();
+
+  await expect(page.locator(".progression-block")).toHaveCount(3);
+  await expect.poll(() => page.locator("#progression").inputValue()).toBe("C | F | G");
+  await expect(page.locator("#newProgressionConfirmPopover")).toBeHidden();
+});
+
+test("plays distinct notes across the top keyboard octave", async ({ page }) => {
+  await gotoApp(page);
+
+  await page.locator('#sequenceKeyboard [data-midi="84"]').click();
+  await expect.poll(() => page.evaluate(() => window.__toneTestState?.lastTriggeredNotes ?? [])).toEqual(["C6"]);
+
+  await page.locator('#sequenceKeyboard [data-midi="85"]').click();
+  await expect.poll(() => page.evaluate(() => window.__toneTestState?.lastTriggeredNotes ?? [])).toEqual(["C#6"]);
+
+  await page.locator('#sequenceKeyboard [data-midi="95"]').click();
+  await expect.poll(() => page.evaluate(() => window.__toneTestState?.lastTriggeredNotes ?? [])).toEqual(["B6"]);
 });

@@ -4,6 +4,7 @@ const path = require("path");
 
 const rootDir = process.cwd();
 const port = Number(process.argv[2] || 4173);
+const musicDemosDir = path.join(rootDir, "Music Demos");
 
 const MIME_TYPES = {
   ".css": "text/css; charset=utf-8",
@@ -30,7 +31,32 @@ function resolvePath(urlPathname) {
 }
 
 const server = http.createServer((req, res) => {
-  const targetPath = resolvePath(req.url || "/");
+  const requestUrl = req.url || "/";
+
+  if (requestUrl.split("?")[0] === "/__music-demos") {
+    fs.readdir(musicDemosDir, { withFileTypes: true }, (readError, entries) => {
+      if (readError) {
+        res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ demos: [] }));
+        return;
+      }
+
+      const demos = entries
+        .filter(entry => entry.isFile() && path.extname(entry.name).toLowerCase() === ".json")
+        .map(entry => ({
+          fileName: entry.name,
+          path: `/Music%20Demos/${encodeURIComponent(entry.name)}`,
+          label: entry.name.replace(/\.json$/i, "")
+        }))
+        .sort((a, b) => a.fileName.localeCompare(b.fileName));
+
+      res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ demos }));
+    });
+    return;
+  }
+
+  const targetPath = resolvePath(requestUrl);
 
   if (!targetPath) {
     res.writeHead(403);

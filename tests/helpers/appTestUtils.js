@@ -17,6 +17,8 @@ function buildToneStub(options = {}) {
         samplerErrorCount: 0,
         startCallCount: 0,
         triggerAttackReleaseCount: 0,
+        lastTriggerAttackReleaseArgs: [],
+        lastTriggeredNotes: [],
         triggerAttackCount: 0,
         triggerReleaseCount: 0,
         releaseAllCount: 0,
@@ -72,7 +74,12 @@ function buildToneStub(options = {}) {
           }
 
           connect() { return this; }
-          triggerAttackRelease() { window.__toneTestState.triggerAttackReleaseCount += 1; }
+          triggerAttackRelease(...args) {
+            window.__toneTestState.triggerAttackReleaseCount += 1;
+            window.__toneTestState.lastTriggerAttackReleaseArgs = args;
+            const playedNotes = Array.isArray(args[0]) ? args[0] : [args[0]];
+            window.__toneTestState.lastTriggeredNotes = playedNotes;
+          }
           triggerAttack() { window.__toneTestState.triggerAttackCount += 1; }
           triggerRelease() { window.__toneTestState.triggerReleaseCount += 1; }
           releaseAll() { window.__toneTestState.releaseAllCount += 1; }

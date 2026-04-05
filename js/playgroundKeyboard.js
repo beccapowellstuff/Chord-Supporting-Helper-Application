@@ -11,6 +11,11 @@ function formatAccidentalDisplay(value) {
     .replace(/#/g, "\u266f");
 }
 
+function formatKeyboardNoteWithOctave(noteLabel, midi) {
+  const octave = Math.floor((Number(midi) / 12) - 1);
+  return `${formatAccidentalDisplay(noteLabel)}(${octave})`;
+}
+
 function buildKeyboardLayout() {
   const whiteKeys = [];
   const blackKeys = [];
@@ -125,7 +130,7 @@ function buildSequenceKey(midi, noteLabel, className, activeMidiNotes, flashMidi
   button.className = className;
   button.dataset.midi = String(midi);
   button.dataset.note = noteLabel;
-  button.title = formatAccidentalDisplay(noteLabel);
+  button.title = formatKeyboardNoteWithOctave(noteLabel, midi);
 
   const label = document.createElement("span");
   label.className = "sequence-key-label";

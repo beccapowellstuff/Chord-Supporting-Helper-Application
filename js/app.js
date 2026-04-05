@@ -43,7 +43,7 @@ import {
   identifyChordFromMidiNotes,
   pitchClassToDisplayNote
 } from "./chordNotes.js";
-import { getAscendingRootVoicing } from "./chordVoicing.js";
+import { getAscendingRootVoicing, getInversionOptions, getVoicingOptions } from "./chordVoicing.js";
 import { ensureAudioReady, playChord, playProgression } from "./playback.js";
 import {
   appendProgressionItem,
@@ -81,7 +81,13 @@ const suggestBtn = document.getElementById("suggestBtn");
 const autoSuggestToggle = document.getElementById("autoSuggestToggle");
 const playProgressionBtn = document.getElementById("playProgressionBtn");
 const playFromSelectedBtn = document.getElementById("playFromSelectedBtn");
+const newProgressionBtn = document.getElementById("newProgressionBtn");
+const newProgressionConfirmPopover = document.getElementById("newProgressionConfirmPopover");
+const confirmNewProgressionBtn = document.getElementById("confirmNewProgressionBtn");
+const cancelNewProgressionBtn = document.getElementById("cancelNewProgressionBtn");
 const loadDemoProgressionBtn = document.getElementById("loadDemoProgressionBtn");
+const demoMenuPopover = document.getElementById("demoMenuPopover");
+const demoMenuList = document.getElementById("demoMenuList");
 const saveProgressionBtn = document.getElementById("saveProgressionBtn");
 const loadProgressionBtn = document.getElementById("loadProgressionBtn");
 const loadProgressionInput = document.getElementById("loadProgressionInput");
@@ -113,11 +119,22 @@ const appState = {
   selectedKey: "C Ionian",
   selectedChordRoot: "C",
   selectedBassRoot: "C",
+  keyExplorerSelectedChord: "",
+  keyExplorerSelectedInversion: "0",
+  keyExplorerSelectedVoicing: "close",
+  chordExplorerSelectedChord: "",
+  chordExplorerSelectedInversion: "0",
+  chordExplorerSelectedVoicing: "close",
+  suggestionEngineSelectedChord: "",
+  suggestionEngineSelectedInversion: "0",
+  suggestionEngineSelectedVoicing: "close",
   keyChordSet: null,
   sequenceTempoBpm: DEFAULT_TEMPO_BPM,
   metronomeArmed: false,
   metronomeVolume: 40,
   metronomePopoverOpen: false,
+  newProgressionConfirmOpen: false,
+  demoMenuOpen: false,
   audioStatusMessage: "",
   sequenceTimeSignature: DEFAULT_TIME_SIGNATURE,
   progressionItems: [],
@@ -135,6 +152,10 @@ let sequenceKeyboardFlashMidiNotes = [];
 let sequenceKeyboardDisplayMidiNotes = [];
 let identifiedSequenceChord = null;
 let lockedSequenceChordName = "";
+let lockedSequenceChordInversionLabel = "";
+let lockedSequenceChordVoicingLabel = "";
+let lockedSequenceChordInversionShortLabel = "";
+let lockedSequenceChordVoicingShortLabel = "";
 let sequenceKeyboardFlashTimeout = null;
 const SEQUENCE_KEYBOARD_MIN_MIDI = 48; // C3
 const SEQUENCE_KEYBOARD_MAX_MIDI = 95; // B6
@@ -148,6 +169,153 @@ let activeProgressionPlaybackSession = null;
 let activeProgressionPlaybackMode = null;
 let removeAudioPrimingListeners = null;
 let isPrimingAudio = false;
+let musicDemoEntries = [];
+let isLoadingMusicDemos = false;
+
+const DEFAULT_MUSIC_DEMO_FILE = "Demo01-cIonian.json";
+const MUSIC_DEMOS_DIR_PATH = "/Music%20Demos/";
+
+function syncKeyExplorerSelection() {
+  const keyChords = appData?.musicData?.[appState.selectedKey]?.chords || [];
+
+  if (!keyChords.length) {
+    appState.keyExplorerSelectedChord = "";
+    appState.keyExplorerSelectedInversion = "0";
+    appState.keyExplorerSelectedVoicing = "close";
+    return;
+  }
+
+  if (appState.keyExplorerSelectedChord && !keyChords.includes(appState.keyExplorerSelectedChord)) {
+    appState.keyExplorerSelectedChord = "";
+    appState.keyExplorerSelectedInversion = "0";
+    appState.keyExplorerSelectedVoicing = "close";
+  }
+}
+
+function resetToolSelection(toolKey) {
+  appState[`${toolKey}SelectedChord`] = "";
+  appState[`${toolKey}SelectedInversion`] = "0";
+  appState[`${toolKey}SelectedVoicing`] = "close";
+}
+
+function setToolSelection(toolKey, chord = "", inversionValue = "0", voicingValue = "close") {
+  appState[`${toolKey}SelectedChord`] = chord;
+  appState[`${toolKey}SelectedInversion`] = String(inversionValue);
+  appState[`${toolKey}SelectedVoicing`] = String(voicingValue);
+}
+
+function getToolSelection(toolKey) {
+  return {
+    chord: appState[`${toolKey}SelectedChord`] || "",
+    inversionValue: String(appState[`${toolKey}SelectedInversion`] ?? "0"),
+    voicingValue: String(appState[`${toolKey}SelectedVoicing`] ?? "close")
+  };
+}
+
+function syncChordExplorerSelection() {
+  const { chord } = getToolSelection("chordExplorer");
+  if (!chord) {
+    return;
+  }
+
+  const parsed = parseChordName(chord);
+  const activeBassRoot = appState.selectedBassRoot || appState.selectedChordRoot;
+  if (!parsed || parsed.root !== appState.selectedChordRoot || (parsed.bass || parsed.root) !== activeBassRoot) {
+    resetToolSelection("chordExplorer");
+  }
+}
+
+function syncSuggestionEngineSelection(suggestions = []) {
+  const { chord } = getToolSelection("suggestionEngine");
+  if (!chord) {
+    return;
+  }
+
+  if (!suggestions.some(item => item?.chord === chord)) {
+    resetToolSelection("suggestionEngine");
+  }
+}
+
+function getSelectedVoicingPlayback(chord, inversionValue = "0", voicingValue = "close") {
+  const selectedOption = getInversionOptions(chord, voicingValue)
+    .find(option => option.value === String(inversionValue));
+  if (!selectedOption?.voicing?.length) {
+    return null;
+  }
+
+  const selectedVoicing = getVoicingOptions(chord)
+    .find(option => option.value === String(voicingValue));
+
+  return {
+    notes: selectedOption.voicing,
+    inversionLabel: selectedOption.label,
+    inversionShortLabel: selectedOption.shortLabel || "",
+    voicingLabel: selectedVoicing?.label || "Close",
+    voicingShortLabel: selectedVoicing?.shortLabel || ""
+  };
+}
+
+async function playToolSelection(toolKey, refreshUi, chord, inversionValue = "0", voicingValue = "close") {
+  setToolSelection(toolKey, chord, inversionValue, voicingValue);
+  if (typeof refreshUi === "function") {
+    refreshUi();
+  }
+
+  const selectedPlayback = getSelectedVoicingPlayback(chord, inversionValue, voicingValue);
+  if (!selectedPlayback) {
+    return;
+  }
+
+  await ensureAudioReady();
+  await playVoicingWithSequenceKeyboard(selectedPlayback.notes, chord, 1.0, {
+    inversionLabel: selectedPlayback.inversionLabel,
+    inversionShortLabel: selectedPlayback.inversionShortLabel,
+    voicingLabel: selectedPlayback.voicingLabel,
+    voicingShortLabel: selectedPlayback.voicingShortLabel
+  });
+}
+
+function getToolSelectionProgressionOverrides(toolKey, chord, source) {
+  const selection = getToolSelection(toolKey);
+  if (!chord || chord !== selection.chord) {
+    return {};
+  }
+
+  const selectedPlayback = getSelectedVoicingPlayback(chord, selection.inversionValue, selection.voicingValue);
+  if (!selectedPlayback) {
+    return {};
+  }
+
+  return {
+    voicing: {
+      source,
+      inversionLabel: selectedPlayback.inversionLabel,
+      inversionShortLabel: selectedPlayback.inversionShortLabel,
+      voicingLabel: selectedPlayback.voicingLabel,
+      voicingShortLabel: selectedPlayback.voicingShortLabel,
+      notes: selectedPlayback.notes.map(midi => ({
+        midi,
+        velocity: DEFAULT_NOTE_VELOCITY
+      }))
+    }
+  };
+}
+
+function formatSequenceKeyboardSelectionLabel(inversionLabel = "", voicingLabel = "") {
+  const parts = [];
+  const normalizedInversion = String(inversionLabel || "").trim();
+  const normalizedVoicing = String(voicingLabel || "").trim();
+
+  if (normalizedInversion && normalizedInversion !== "Root") {
+    parts.push(normalizedInversion);
+  }
+
+  if (normalizedVoicing && normalizedVoicing !== "Close") {
+    parts.push(normalizedVoicing);
+  }
+
+  return parts.join(", ");
+}
 
 function renderAudioStatus() {
   const message = String(appState.audioStatusMessage || "").trim();
@@ -467,6 +635,7 @@ function renderProgressionBuilderUI() {
   }
 
   renderMetronomeUI();
+  renderNewProgressionConfirm();
 
   if (sequenceTimeSignatureSelect) {
     sequenceTimeSignatureSelect.value = appState.sequenceTimeSignature;
@@ -561,6 +730,21 @@ function renderProgressionBuilderUI() {
       : "Play the progression from the selected chord";
   }
 
+  if (newProgressionBtn) {
+    const hasProgressionContent = Boolean(appState.progressionItems.length || progressionInput?.value?.trim());
+    setIconButtonState(newProgressionBtn, {
+      label: "New progression",
+      icon: "clear",
+      disabled: !hasProgressionContent
+    });
+    if (!hasProgressionContent) {
+      closeNewProgressionConfirm();
+    }
+    newProgressionBtn.dataset.tooltip = hasProgressionContent
+      ? "Clear the current progression and start fresh"
+      : "Start a new progression";
+  }
+
   refreshSequenceKeyboard();
 }
 
@@ -651,6 +835,10 @@ function appendChordToProgression(chordName, overrides = {}) {
   if (autoSuggestToggle?.checked && appData) {
     runSuggestions();
   }
+}
+
+function getKeyExplorerSelectionProgressionOverrides(chord) {
+  return getToolSelectionProgressionOverrides("keyExplorer", chord, "key-explorer");
 }
 
 function buildClonedProgressionItem(sourceItem, overrides = {}) {
@@ -1039,6 +1227,34 @@ function notifyProgressionSaveNeedsChords() {
   window.alert("Add at least one chord before saving the progression.");
 }
 
+function renderNewProgressionConfirm() {
+  if (!newProgressionBtn || !newProgressionConfirmPopover) {
+    return;
+  }
+
+  newProgressionBtn.setAttribute("aria-expanded", String(Boolean(appState.newProgressionConfirmOpen)));
+  newProgressionConfirmPopover.hidden = !appState.newProgressionConfirmOpen;
+}
+
+function closeNewProgressionConfirm() {
+  if (!appState.newProgressionConfirmOpen) {
+    return;
+  }
+
+  appState.newProgressionConfirmOpen = false;
+  renderNewProgressionConfirm();
+}
+
+function openNewProgressionConfirm() {
+  const hasProgressionContent = Boolean(appState.progressionItems.length || progressionInput?.value?.trim());
+  if (!hasProgressionContent) {
+    return;
+  }
+
+  appState.newProgressionConfirmOpen = true;
+  renderNewProgressionConfirm();
+}
+
 function handleSaveProgression() {
   const payload = buildProgressionSavePayload(
     appState.progressionItems,
@@ -1051,6 +1267,22 @@ function handleSaveProgression() {
   }
 
   downloadProgressionFile(payload);
+}
+
+function handleNewProgression() {
+  closeNewProgressionConfirm();
+
+  if (appState.isPlayingProgression) {
+    stopActiveProgressionPlayback();
+  }
+
+  appState.progressionInvalidTokens = [];
+  appState.insertChoiceOpen = false;
+  appState.editingProgressionItemId = null;
+  appState.editingProgressionAnchorRect = null;
+  appState.selectedProgressionItemId = null;
+  clearSequenceKeyboardState();
+  setProgressionItems([], { selectedId: null });
 }
 
 function applyLoadedProgressionData(data) {
@@ -1094,9 +1326,143 @@ async function handleLoadProgression(event) {
   }
 }
 
-async function handleLoadDemoProgression() {
+function normalizeMusicDemoEntries(entries = []) {
+  return (Array.isArray(entries) ? entries : [])
+    .map(entry => {
+      const fileName = String(entry?.fileName || entry?.name || "").trim();
+      if (!fileName || !fileName.toLowerCase().endsWith(".json")) {
+        return null;
+      }
+
+      return {
+        fileName,
+        label: String(entry?.label || fileName.replace(/\.json$/i, "")).trim(),
+        path: String(entry?.path || `${MUSIC_DEMOS_DIR_PATH}${encodeURIComponent(fileName)}`).trim()
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.fileName.localeCompare(b.fileName));
+}
+
+async function fetchMusicDemoEntries() {
+  const endpointUrl = new URL("/__music-demos", window.location.href);
+  endpointUrl.searchParams.set("ts", String(Date.now()));
+
   try {
-    const demoUrl = new URL("../Example Music File/c-ionian-progression.json", import.meta.url);
+    const response = await fetch(endpointUrl, { cache: "no-store" });
+    if (response.ok) {
+      const payload = await response.json();
+      const demos = normalizeMusicDemoEntries(payload?.demos);
+      if (demos.length) {
+        return demos;
+      }
+    }
+  } catch (error) {
+    console.warn("Could not load demo list endpoint:", error);
+  }
+
+  try {
+    const listingUrl = new URL(MUSIC_DEMOS_DIR_PATH, window.location.href);
+    listingUrl.searchParams.set("ts", String(Date.now()));
+    const response = await fetch(listingUrl, { cache: "no-store" });
+    if (response.ok) {
+      const html = await response.text();
+      const parser = new DOMParser();
+      const documentNode = parser.parseFromString(html, "text/html");
+      const demos = normalizeMusicDemoEntries(
+        [...documentNode.querySelectorAll("a[href]")]
+          .map(link => {
+            const href = link.getAttribute("href") || "";
+            const resolvedUrl = new URL(href, listingUrl);
+            return {
+              fileName: decodeURIComponent(resolvedUrl.pathname.split("/").pop() || ""),
+              path: resolvedUrl.pathname
+            };
+          })
+      );
+
+      if (demos.length) {
+        return demos;
+      }
+    }
+  } catch (error) {
+    console.warn("Could not parse demo directory listing:", error);
+  }
+
+  return normalizeMusicDemoEntries([
+    {
+      fileName: DEFAULT_MUSIC_DEMO_FILE,
+      label: DEFAULT_MUSIC_DEMO_FILE.replace(/\.json$/i, ""),
+      path: `${MUSIC_DEMOS_DIR_PATH}${encodeURIComponent(DEFAULT_MUSIC_DEMO_FILE)}`
+    }
+  ]);
+}
+
+function renderDemoMenu() {
+  if (!loadDemoProgressionBtn || !demoMenuPopover || !demoMenuList) {
+    return;
+  }
+
+  loadDemoProgressionBtn.setAttribute("aria-expanded", String(Boolean(appState.demoMenuOpen)));
+  demoMenuPopover.hidden = !appState.demoMenuOpen;
+  demoMenuList.innerHTML = "";
+
+  if (isLoadingMusicDemos) {
+    const loading = document.createElement("div");
+    loading.className = "progression-demo-menu-item-loading";
+    loading.textContent = "Loading demos...";
+    demoMenuList.appendChild(loading);
+    return;
+  }
+
+  if (!musicDemoEntries.length) {
+    const empty = document.createElement("div");
+    empty.className = "progression-demo-menu-item-empty";
+    empty.textContent = "No demo files found.";
+    demoMenuList.appendChild(empty);
+    return;
+  }
+
+  musicDemoEntries.forEach(entry => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "progression-demo-menu-item";
+    button.setAttribute("role", "menuitem");
+    button.dataset.tooltip = `Load ${entry.label}`;
+    button.textContent = entry.label;
+    button.addEventListener("click", () => {
+      closeDemoMenu();
+      void handleLoadDemoProgression(entry.path);
+    });
+    demoMenuList.appendChild(button);
+  });
+}
+
+function closeDemoMenu() {
+  if (!appState.demoMenuOpen) {
+    return;
+  }
+
+  appState.demoMenuOpen = false;
+  renderDemoMenu();
+}
+
+async function openDemoMenu() {
+  appState.demoMenuOpen = true;
+  isLoadingMusicDemos = true;
+  renderDemoMenu();
+
+  try {
+    musicDemoEntries = await fetchMusicDemoEntries();
+  } finally {
+    isLoadingMusicDemos = false;
+    renderDemoMenu();
+  }
+}
+
+async function handleLoadDemoProgression(demoPath = `${MUSIC_DEMOS_DIR_PATH}${encodeURIComponent(DEFAULT_MUSIC_DEMO_FILE)}`) {
+  try {
+    const demoUrl = new URL(demoPath, window.location.href);
     demoUrl.searchParams.set("ts", String(Date.now()));
     const response = await fetch(demoUrl, { cache: "no-store" });
     if (!response.ok) {
@@ -1157,6 +1523,10 @@ function getIdentifiedSequenceVoicing() {
 
   return {
     source: "keyboard",
+    inversionLabel: String(identifiedSequenceChord?.inversionLabel || "").trim(),
+    inversionShortLabel: String(identifiedSequenceChord?.inversionShortLabel || "").trim(),
+    voicingLabel: String(identifiedSequenceChord?.voicingLabel || "").trim(),
+    voicingShortLabel: String(identifiedSequenceChord?.voicingShortLabel || "").trim(),
     velocityMode: BASIC_VOICING_MODE,
     notes: voicingMidiNotes.map(midi => ({
       midi,
@@ -1194,6 +1564,10 @@ function identifySequenceKeyboardChord() {
           bass: parsed.bass,
           suffix: parsed.suffix,
           canonicalName: parsed.canonicalName,
+          inversionLabel: lockedSequenceChordInversionLabel || "",
+          inversionShortLabel: lockedSequenceChordInversionShortLabel || "",
+          voicingLabel: lockedSequenceChordVoicingLabel || "",
+          voicingShortLabel: lockedSequenceChordVoicingShortLabel || "",
           playedMidiNotes: [...sequenceKeyboardMidiNotes],
           playedPitchClasses: []
         }
@@ -1257,14 +1631,16 @@ function identifySequenceKeyboardChord() {
   const parsedIdentified = parseChordName(canonicalName);
 
   identifiedSequenceChord = parsedIdentified
-    ? {
-        root: parsedIdentified.root,
-        bass: parsedIdentified.bass,
-        suffix: parsedIdentified.suffix,
-        canonicalName: parsedIdentified.canonicalName,
-        playedMidiNotes: [...normalizedMidi],
-        playedPitchClasses: []
-      }
+      ? {
+          root: parsedIdentified.root,
+          bass: parsedIdentified.bass,
+          suffix: parsedIdentified.suffix,
+          canonicalName: parsedIdentified.canonicalName,
+          inversionLabel: "",
+          voicingLabel: "",
+          playedMidiNotes: [...normalizedMidi],
+          playedPitchClasses: []
+        }
     : null;
 }
 
@@ -1277,7 +1653,14 @@ function getSequenceKeyboardLabel() {
     return "Chord not recognised";
   }
 
-  return formatChordLabel(identifiedSequenceChord.canonicalName);
+  const chordLabel = formatChordLabel(identifiedSequenceChord.canonicalName);
+  const selectionLabel = formatSequenceKeyboardSelectionLabel(
+    identifiedSequenceChord.inversionLabel,
+    identifiedSequenceChord.voicingLabel
+  );
+  return selectionLabel
+    ? `${chordLabel} (${selectionLabel})`
+    : chordLabel;
 }
 
 function setSequenceKeyboardFlash(midiNotes, durationSeconds = 1.0) {
@@ -1292,6 +1675,22 @@ function setSequenceKeyboardFlash(midiNotes, durationSeconds = 1.0) {
     sequenceKeyboardDisplayMidiNotes = [];
     refreshSequenceKeyboard();
   }, Math.max(250, durationSeconds * 1000));
+}
+
+function clearSequenceKeyboardState() {
+  sequenceKeyboardMidiNotes = [];
+  sequenceKeyboardFlashMidiNotes = [];
+  sequenceKeyboardDisplayMidiNotes = [];
+  identifiedSequenceChord = null;
+  lockedSequenceChordName = "";
+  lockedSequenceChordInversionLabel = "";
+  lockedSequenceChordVoicingLabel = "";
+  lockedSequenceChordInversionShortLabel = "";
+  lockedSequenceChordVoicingShortLabel = "";
+  if (sequenceKeyboardFlashTimeout) {
+    clearTimeout(sequenceKeyboardFlashTimeout);
+    sequenceKeyboardFlashTimeout = null;
+  }
 }
 
 function refreshSequenceKeyboard() {
@@ -1317,6 +1716,10 @@ function refreshSequenceKeyboard() {
     {
       onKeyToggle: async midi => {
         lockedSequenceChordName = "";
+        lockedSequenceChordInversionLabel = "";
+        lockedSequenceChordVoicingLabel = "";
+        lockedSequenceChordInversionShortLabel = "";
+        lockedSequenceChordVoicingShortLabel = "";
         sequenceKeyboardDisplayMidiNotes = [];
         const midiSet = new Set(sequenceKeyboardMidiNotes);
         if (midiSet.has(midi)) {
@@ -1360,15 +1763,7 @@ function refreshSequenceKeyboard() {
         }
       },
       onClear: () => {
-        sequenceKeyboardMidiNotes = [];
-        sequenceKeyboardFlashMidiNotes = [];
-        sequenceKeyboardDisplayMidiNotes = [];
-        identifiedSequenceChord = null;
-        lockedSequenceChordName = "";
-        if (sequenceKeyboardFlashTimeout) {
-          clearTimeout(sequenceKeyboardFlashTimeout);
-          sequenceKeyboardFlashTimeout = null;
-        }
+        clearSequenceKeyboardState();
         refreshSequenceKeyboard();
       },
       onSave: () => {
@@ -1424,9 +1819,13 @@ function refreshSequenceKeyboard() {
   );
 }
 
-function setSequenceKeyboardNotes(midiNotes, durationSeconds = 1.0, chordName = "") {
+function setSequenceKeyboardNotes(midiNotes, durationSeconds = 1.0, chordName = "", options = {}) {
   sequenceKeyboardMidiNotes = normalizeMidiList(midiNotes);
   lockedSequenceChordName = chordName || "";
+  lockedSequenceChordInversionLabel = chordName ? String(options.inversionLabel || "").trim() : "";
+  lockedSequenceChordVoicingLabel = chordName ? String(options.voicingLabel || "").trim() : "";
+  lockedSequenceChordInversionShortLabel = chordName ? String(options.inversionShortLabel || "").trim() : "";
+  lockedSequenceChordVoicingShortLabel = chordName ? String(options.voicingShortLabel || "").trim() : "";
   sequenceKeyboardDisplayMidiNotes = [];
   identifySequenceKeyboardChord();
   setSequenceKeyboardFlash(sequenceKeyboardMidiNotes, durationSeconds);
@@ -1457,7 +1856,7 @@ function showSequenceKeyboardChord(chordName, durationSeconds = 1.0) {
   setSequenceKeyboardNotes(midiNotes, durationSeconds, chordName);
 }
 
-function showSequenceKeyboardVoicing(midiNotes, chordName = "", durationSeconds = 1.0) {
+function showSequenceKeyboardVoicing(midiNotes, chordName = "", durationSeconds = 1.0, options = {}) {
   const normalizedMidi = Array.isArray(midiNotes)
     ? normalizeMidiList(
         midiNotes.map(note => (typeof note === "object" && note !== null ? note.midi : note))
@@ -1467,7 +1866,7 @@ function showSequenceKeyboardVoicing(midiNotes, chordName = "", durationSeconds 
     return;
   }
 
-  setSequenceKeyboardNotes(normalizedMidi, durationSeconds, chordName);
+  setSequenceKeyboardNotes(normalizedMidi, durationSeconds, chordName, options);
 }
 
 async function playChordWithSequenceKeyboard(chordName, duration = 1.0) {
@@ -1475,9 +1874,17 @@ async function playChordWithSequenceKeyboard(chordName, duration = 1.0) {
   await playChord(chordName, duration);
 }
 
-async function playVoicingWithSequenceKeyboard(voicingNotes, chordName = "", duration = 1.0) {
-  showSequenceKeyboardVoicing(voicingNotes, chordName, duration);
-  await playMidiNoteSpecs(normalizeVoicingNotes({ notes: voicingNotes }), duration);
+async function playVoicingWithSequenceKeyboard(voicingNotes, chordName = "", duration = 1.0, options = {}) {
+  showSequenceKeyboardVoicing(voicingNotes, chordName, duration, options);
+  const normalizedVoicing = Array.isArray(voicingNotes)
+    ? voicingNotes.map(note => (
+        typeof note === "object" && note !== null
+          ? note
+          : { midi: Number(note), velocity: DEFAULT_NOTE_VELOCITY }
+      ))
+    : [];
+
+  await playMidiNoteSpecs(normalizeVoicingNotes({ notes: normalizedVoicing }), duration);
 }
 
 async function previewProgressionItemSelection(selectedId) {
@@ -1515,6 +1922,8 @@ async function previewProgressionItemSelection(selectedId) {
 }
 
 function refreshChordPlaygroundUI() {
+  syncChordExplorerSelection();
+
   renderCompactRootSelector(bassRootSelector, {
     title: "Bass Root",
     selectedNote: appState.selectedBassRoot,
@@ -1564,15 +1973,34 @@ function refreshChordPlaygroundUI() {
     appState.selectedChordRoot,
     appState.selectedBassRoot,
     appState.keyChordSet,
-    async chordName => {
+    Object.assign(async chordName => {
       try {
         await ensureAudioReady();
         await playChordWithSequenceKeyboard(chordName, 1.0);
       } catch (error) {
         console.error("✗ Could not play chord:", error);
       }
-    },
-    chordName => appendChordToProgression(chordName)
+    }, {
+      getSelectedChord: () => appState.chordExplorerSelectedChord,
+      getSelectedInversionValue: () => appState.chordExplorerSelectedInversion,
+      getSelectedVoicingValue: () => appState.chordExplorerSelectedVoicing,
+      getInversionOptions,
+      getVoicingOptions,
+      selectChord: chord => {
+        setToolSelection("chordExplorer", chord, "0", "close");
+      },
+      playSelection: async (chord, inversionValue = "0", voicingValue = "close") => {
+        try {
+          await playToolSelection("chordExplorer", refreshChordPlaygroundUI, chord, inversionValue, voicingValue);
+        } catch (error) {
+          console.error("✗ Could not play selected chord voicing:", error);
+        }
+      }
+    }),
+    chordName => appendChordToProgression(
+      chordName,
+      getToolSelectionProgressionOverrides("chordExplorer", chordName, "chord-explorer")
+    )
   );
 }
 
@@ -1603,6 +2031,7 @@ async function loadVersionLabel() {
 }
 
 function refreshKeyUI() {
+  syncKeyExplorerSelection();
   updateToolContext();
   const styleSelect = document.getElementById("styleSelect");
   if (styleSelect) {
@@ -1640,16 +2069,51 @@ function refreshKeyUI() {
     keyInfo,
     appData.musicData,
     appState.selectedKey,
-    async chord => {
+    Object.assign(async chord => {
       try {
         await ensureAudioReady();
         await playChordWithSequenceKeyboard(chord, 1.0);
       } catch (error) {
         console.error("✗ Could not play chord:", error);
       }
-    },
+    }, {
+      getSelectedChord: () => appState.keyExplorerSelectedChord,
+      getSelectedInversionValue: () => appState.keyExplorerSelectedInversion,
+      getSelectedVoicingValue: () => appState.keyExplorerSelectedVoicing,
+      getInversionOptions,
+      getVoicingOptions,
+      selectChord: chord => {
+        appState.keyExplorerSelectedChord = chord;
+        appState.keyExplorerSelectedInversion = "0";
+        appState.keyExplorerSelectedVoicing = "close";
+      },
+      playSelection: async (chord, inversionValue = "0", voicingValue = "close") => {
+        try {
+          appState.keyExplorerSelectedChord = chord;
+          appState.keyExplorerSelectedInversion = String(inversionValue);
+          appState.keyExplorerSelectedVoicing = String(voicingValue);
+          refreshKeyUI();
+          const options = getInversionOptions(chord, voicingValue);
+          const selectedOption = options.find(option => option.value === String(inversionValue));
+          if (!selectedOption?.voicing?.length) {
+            return;
+          }
+
+          const selectedVoicing = getVoicingOptions(chord).find(option => option.value === String(voicingValue));
+          await ensureAudioReady();
+          await playVoicingWithSequenceKeyboard(selectedOption.voicing, chord, 1.0, {
+            inversionLabel: selectedOption.label,
+            inversionShortLabel: selectedOption.shortLabel || "",
+            voicingLabel: selectedVoicing?.label || "Close",
+            voicingShortLabel: selectedVoicing?.shortLabel || ""
+          });
+        } catch (error) {
+          console.error("✗ Could not play selected chord voicing:", error);
+        }
+      }
+    }),
     chord => {
-      appendChordToProgression(chord);
+      appendChordToProgression(chord, getKeyExplorerSelectionProgressionOverrides(chord));
     },
     async note => {
       try {
@@ -1733,17 +2197,38 @@ function runSuggestions() {
     feeling: feelingSelect.value
   });
 
-  const onSuggestedChordClick = async (chordName) => {
+  syncSuggestionEngineSelection(suggestionPayload.suggestions);
+
+  const onSuggestedChordClick = Object.assign(async chordName => {
     try {
       await ensureAudioReady();
       await playChordWithSequenceKeyboard(chordName, 1.0);
     } catch (error) {
       console.error("✗ Could not play suggested chord:", error);
     }
-  };
+  }, {
+    getSelectedChord: () => appState.suggestionEngineSelectedChord,
+    getSelectedInversionValue: () => appState.suggestionEngineSelectedInversion,
+    getSelectedVoicingValue: () => appState.suggestionEngineSelectedVoicing,
+    getInversionOptions,
+    getVoicingOptions,
+    selectChord: chord => {
+      setToolSelection("suggestionEngine", chord, "0", "close");
+    },
+    playSelection: async (chord, inversionValue = "0", voicingValue = "close") => {
+      try {
+        await playToolSelection("suggestionEngine", runSuggestions, chord, inversionValue, voicingValue);
+      } catch (error) {
+        console.error("✗ Could not play selected suggestion voicing:", error);
+      }
+    }
+  });
 
   const onSuggestedChordAdd = (chordName) => {
-    appendChordToProgression(chordName);
+    appendChordToProgression(
+      chordName,
+      getToolSelectionProgressionOverrides("suggestionEngine", chordName, "suggestion-engine")
+    );
   };
 
   renderSuggestions(results, suggestionPayload, appData.musicData, appState.selectedKey, onSuggestedChordClick, onSuggestedChordAdd);
@@ -1888,7 +2373,8 @@ async function init() {
     if (suggestBtn) suggestBtn.dataset.tooltip = "Refresh the current suggestions";
     if (playProgressionBtn) playProgressionBtn.dataset.tooltip = "Play all chords in the progression";
     if (playFromSelectedBtn) playFromSelectedBtn.dataset.tooltip = "Play the progression from the selected chord";
-    if (loadDemoProgressionBtn) loadDemoProgressionBtn.dataset.tooltip = "Load the bundled C Ionian demo progression";
+    if (newProgressionBtn) newProgressionBtn.dataset.tooltip = "Start a new progression";
+    if (loadDemoProgressionBtn) loadDemoProgressionBtn.dataset.tooltip = "Open the Music Demos menu";
     if (saveProgressionBtn) saveProgressionBtn.dataset.tooltip = "Save the progression with tempo, time signature, and beat lengths";
     if (loadProgressionBtn) loadProgressionBtn.dataset.tooltip = "Load a saved progression file";
     if (metronomeToggleBtn) metronomeToggleBtn.dataset.tooltip = "Open metronome settings";
@@ -1957,9 +2443,40 @@ async function init() {
       });
     }
 
+    if (newProgressionBtn) {
+      newProgressionBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        if (appState.newProgressionConfirmOpen) {
+          closeNewProgressionConfirm();
+          return;
+        }
+        openNewProgressionConfirm();
+      });
+    }
+
+    if (confirmNewProgressionBtn) {
+      confirmNewProgressionBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        handleNewProgression();
+      });
+    }
+
+    if (cancelNewProgressionBtn) {
+      cancelNewProgressionBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        closeNewProgressionConfirm();
+      });
+    }
+
     if (loadDemoProgressionBtn) {
-      loadDemoProgressionBtn.addEventListener("click", () => {
-        void handleLoadDemoProgression();
+      loadDemoProgressionBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        if (appState.demoMenuOpen) {
+          closeDemoMenu();
+          return;
+        }
+
+        void openDemoMenu();
       });
     }
 
@@ -1976,21 +2493,37 @@ async function init() {
     }
 
     document.addEventListener("click", event => {
-      if (!appState.metronomePopoverOpen) {
-        return;
-      }
-
       const target = event.target;
-      if (metronomePopover?.contains(target) || metronomeToggleBtn?.contains(target)) {
-        return;
+      if (appState.metronomePopoverOpen) {
+        if (!(metronomePopover?.contains(target) || metronomeToggleBtn?.contains(target))) {
+          closeMetronomePopover();
+        }
       }
 
-      closeMetronomePopover();
+      if (appState.demoMenuOpen) {
+        if (!(demoMenuPopover?.contains(target) || loadDemoProgressionBtn?.contains(target))) {
+          closeDemoMenu();
+        }
+      }
+
+      if (appState.newProgressionConfirmOpen) {
+        if (!(newProgressionConfirmPopover?.contains(target) || newProgressionBtn?.contains(target))) {
+          closeNewProgressionConfirm();
+        }
+      }
     });
 
     document.addEventListener("keydown", event => {
-      if (event.key === "Escape" && appState.metronomePopoverOpen) {
-        closeMetronomePopover();
+      if (event.key === "Escape") {
+        if (appState.metronomePopoverOpen) {
+          closeMetronomePopover();
+        }
+        if (appState.demoMenuOpen) {
+          closeDemoMenu();
+        }
+        if (appState.newProgressionConfirmOpen) {
+          closeNewProgressionConfirm();
+        }
       }
     });
 
