@@ -2,8 +2,8 @@
 
 Vibe Chording is a browser-based music idea tool for building chord progressions, exploring keys, and shaping harmonic direction without handing authorship over to AI.
 
-Current version: [v0.15.0](./Version_Changes.md#v0-15-0)  
-Full history: [Version Changes](./Version_Changes.md)
+Current version: [v0.15.0](./VERSION_CHANGES.md#v0-15-0)  
+Full history: [Version Changes](./VERSION_CHANGES.md)
 
 Public-facing product name: `Vibe Chording`  
 Current repository name: `Chord-Supporting-Helper-Application`
@@ -168,10 +168,10 @@ The app still uses circle-of-fifths style theory relationships in the background
 
 These link to the retroactive version summary file:
 
-- [v0.15.0](./Version_Changes.md#v0-15-0)
-- [v0.14.0](./Version_Changes.md#v0-14-0)
-- [v0.13.0](./Version_Changes.md#v0-13-0)
-- [v0.12.0](./Version_Changes.md#v0-12-0)
+- [v0.15.0](./VERSION_CHANGES.md#v0-15-0)
+- [v0.14.0](./VERSION_CHANGES.md#v0-14-0)
+- [v0.13.0](./VERSION_CHANGES.md#v0-13-0)
+- [v0.12.0](./VERSION_CHANGES.md#v0-12-0)
 
 ## Recent Releases
 
