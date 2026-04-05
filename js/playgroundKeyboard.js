@@ -201,11 +201,15 @@ export function renderSequenceKeyboard(
     onDuplicate,
     onDelete,
     onClear
-  } = {}
+  } = {},
+  toolbarContainer = null
 ) {
   if (!container) return;
 
   container.innerHTML = "";
+  if (toolbarContainer) {
+    toolbarContainer.innerHTML = "";
+  }
 
   const shell = document.createElement("div");
   shell.className = "sequence-keyboard-shell";
@@ -216,20 +220,34 @@ export function renderSequenceKeyboard(
   const titleBlock = document.createElement("div");
   titleBlock.className = "sequence-keyboard-title-block";
 
+  const titleRow = document.createElement("div");
+  titleRow.className = "sequence-keyboard-title-row";
+
   const label = document.createElement("div");
   label.className = "sequence-keyboard-label";
   label.textContent = "Keyboard";
-  titleBlock.appendChild(label);
+  titleRow.appendChild(label);
+
+  const helpButton = document.createElement("button");
+  helpButton.type = "button";
+  helpButton.className = "section-help-btn section-help-btn-subtle sequence-keyboard-help-btn";
+  helpButton.dataset.helpTopic = "keyboard";
+  helpButton.dataset.tooltip = "How to use this section";
+  helpButton.setAttribute("aria-label", "Open help");
+  helpButton.textContent = "?";
+  titleRow.appendChild(helpButton);
 
   const chordName = document.createElement("div");
   chordName.className = "sequence-keyboard-chord-name";
   chordName.textContent = chordLabel;
-  titleBlock.appendChild(chordName);
+  titleRow.appendChild(chordName);
+
+  titleBlock.appendChild(titleRow);
 
   header.appendChild(titleBlock);
 
   const actions = document.createElement("div");
-  actions.className = "sequence-keyboard-actions";
+  actions.className = "sequence-keyboard-actions sequence-keyboard-toolbar";
 
   const playButton = buildSequenceIconButton(
     "Play",
@@ -350,13 +368,12 @@ export function renderSequenceKeyboard(
   const clearButton = buildSequenceIconButton(
     "Clear",
     "clear",
-    false,
-    "Clear selected notes",
+    !canPlay,
+    canPlay ? "Clear selected notes" : "Select notes to clear them",
     onClear
   );
   actions.appendChild(clearButton);
 
-  header.appendChild(actions);
   shell.appendChild(header);
 
   const piano = document.createElement("div");
@@ -438,6 +455,11 @@ export function renderSequenceKeyboard(
   shell.appendChild(bassLane);
 
   container.appendChild(shell);
+  if (toolbarContainer) {
+    toolbarContainer.appendChild(actions);
+  } else {
+    container.appendChild(actions);
+  }
 
   const targetMidiNotes = normalizeTargetMidiNotes(
     flashMidiNotes.length ? flashMidiNotes : activeMidiNotes

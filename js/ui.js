@@ -761,29 +761,6 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
   const feedbackContainer = document.createElement("div");
   feedbackContainer.className = "suggestions-feedback";
 
-  if (parsedProgression.length) {
-    const progressionDiv = document.createElement("div");
-    progressionDiv.className = "suggestion-feedback-item";
-
-    const label = document.createElement("strong");
-    label.textContent = "Progression";
-    progressionDiv.appendChild(label);
-
-    const text = document.createElement("div");
-    text.className = "suggestion-feedback-text";
-    text.textContent = parsedProgression
-      .map(item => {
-        const labelText = formatDisplayedChordLabel(item.original);
-        if (item.inKey) {
-          return `${labelText} (${formatRomanNumeralLabel(item.function)})`;
-        }
-        return labelText;
-      })
-      .join(" -> ");
-    progressionDiv.appendChild(text);
-    feedbackContainer.appendChild(progressionDiv);
-  }
-
   if (invalidChords.length) {
     const invalidDiv = document.createElement("div");
     invalidDiv.className = "suggestion-feedback-item invalid";

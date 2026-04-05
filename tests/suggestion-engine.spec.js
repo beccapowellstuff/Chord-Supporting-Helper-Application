@@ -8,7 +8,7 @@ test("renders mood-aware suggestions as soon as the suggestion engine opens", as
   await page.getByRole("button", { name: /Suggestion Engine/ }).click();
 
   await expect(page.locator("#results .suggestion-card")).toHaveCount(9);
-  await expect(page.locator("#results .suggestion-feedback-text").first()).toHaveText("C (I) -> F (IV) -> G (V)");
+  await expect(page.locator("#results .suggestion-feedback-item")).toHaveCount(0);
   await expect(page.locator('[data-suggestion-bucket="inKey"] .suggestion-bucket-title')).toHaveText("In Key");
   await expect(page.locator('[data-suggestion-bucket="related"] .suggestion-bucket-title')).toHaveText("Related");
   await expect(page.locator('[data-suggestion-bucket="outside"] .suggestion-bucket-title')).toHaveText("Out of Key");
@@ -40,12 +40,12 @@ test("refresh button reruns suggestions without needing a mood change", async ({
 
   await setProgressionText(page, "C, F, G");
   await page.getByRole("button", { name: /Suggestion Engine/ }).click();
-  await expect(page.locator("#results .suggestion-feedback-text").first()).toHaveText("C (I) -> F (IV) -> G (V)");
+  await expect(page.locator("#results .suggestion-feedback-item")).toHaveCount(0);
 
   await setProgressionText(page, "C, F, G, Am");
   await page.locator("#suggestBtn").click();
 
-  await expect(page.locator("#results .suggestion-feedback-text").first()).toHaveText("C (I) -> F (IV) -> G (V) -> Am (vi)");
+  await expect(page.locator("#results .suggestion-feedback-item")).toHaveCount(0);
   await expect(page.locator("#results .suggestion-card")).toHaveCount(9);
 });
 

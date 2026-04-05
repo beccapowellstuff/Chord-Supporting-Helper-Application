@@ -92,7 +92,12 @@ const saveProgressionBtn = document.getElementById("saveProgressionBtn");
 const loadProgressionBtn = document.getElementById("loadProgressionBtn");
 const loadProgressionInput = document.getElementById("loadProgressionInput");
 const progressionBlocks = document.getElementById("progressionBlocks");
+const progressionSequenceKeyBadge = document.getElementById("progressionSequenceKeyBadge");
 const progressionEditor = document.getElementById("progressionEditor");
+const sectionHelpModal = document.getElementById("sectionHelpModal");
+const sectionHelpModalTitle = document.getElementById("sectionHelpModalTitle");
+const sectionHelpModalBody = document.getElementById("sectionHelpModalBody");
+const sectionHelpModalClose = document.getElementById("sectionHelpModalClose");
 const sequenceTempoBpmInput = document.getElementById("sequenceTempoBpm");
 const metronomeToggleBtn = document.getElementById("metronomeToggleBtn");
 const metronomePopover = document.getElementById("metronomePopover");
@@ -109,10 +114,12 @@ const chordButtons = document.getElementById("chordButtons");
 const bassRootSelector = document.getElementById("bassRootSelector");
 const chordRootSelector = document.getElementById("chordRootSelector");
 const sequenceKeyboard = document.getElementById("sequenceKeyboard");
+const sequenceKeyboardToolbarMount = document.getElementById("sequenceKeyboardToolbarMount");
 const appVersion = document.getElementById("appVersion");
 const toolNavButtons = document.querySelectorAll(".tool-nav-btn");
 const toolPanels = document.querySelectorAll(".tool-panel");
 const toolContextBlocks = document.querySelectorAll("[data-tool-context]");
+const sectionHelpButtons = document.querySelectorAll("[data-help-topic]");
 
 let appData = null;
 const appState = {
@@ -134,6 +141,7 @@ const appState = {
   metronomeVolume: 40,
   metronomePopoverOpen: false,
   newProgressionConfirmOpen: false,
+  sectionHelpTopic: "",
   demoMenuOpen: false,
   audioStatusMessage: "",
   sequenceTimeSignature: DEFAULT_TIME_SIGNATURE,
@@ -175,6 +183,140 @@ let isLoadingMusicDemos = false;
 const DEFAULT_MUSIC_DEMO_FILE = "Demo01-cIonian.json";
 const MUSIC_DEMOS_DIR_PATH = "./Music%20Demos/";
 const MUSIC_DEMOS_ENDPOINT_PATH = "./__music-demos";
+const SECTION_HELP_CONTENT = {
+  "progression-builder": {
+    title: "Progression Builder",
+    intro: "This is the main workspace for building, hearing, saving, and editing your progression.",
+    sections: [
+      {
+        title: "What It Does",
+        paragraphs: [
+          "Progression Builder brings the Keyboard, Chord Sequence, playback controls, timing controls, demos, and file actions together in one place."
+        ]
+      },
+      {
+        title: "How To Use It",
+        items: [
+          "Build chords on the Keyboard, or add them from Key Explorer, Chord Explorer, and Suggestion Engine.",
+          "Arrange and edit the progression in the Chord Sequence area.",
+          "Use Play sequence or Play from selected to hear the progression, with optional metronome support.",
+          "Use Demo, Save progression, Load progression, and Clear chord sequence to manage your work."
+        ]
+      }
+    ]
+  },
+  keyboard: {
+    title: "Keyboard",
+    intro: "The Keyboard is your manual chord play area for trying notes, hearing them, and saving the exact shape you choose.",
+    sections: [
+      {
+        title: "What It Does",
+        paragraphs: [
+          "It lets you click notes on the keyboard, hear them immediately, recognise the chord when possible, and store those exact notes in the progression."
+        ]
+      },
+      {
+        title: "How To Use It",
+        items: [
+          "Click keys to add or remove notes from the current chord.",
+          "Use Play to hear the selected notes and Add to save them as a new progression block.",
+          "Select a progression block first to use Update, Insert, Split, Duplicate, or Delete.",
+          "Manual keyboard saves keep the exact notes you chose, instead of auto-generating a different bass note."
+        ]
+      }
+    ]
+  },
+  "chord-sequence": {
+    title: "Chord Sequence",
+    intro: "The Chord Sequence is the visual timeline of your progression.",
+    sections: [
+      {
+        title: "What It Does",
+        paragraphs: [
+          "Each block represents a chord item, with width based on beat length and markers showing where bars begin."
+        ]
+      },
+      {
+        title: "How To Use It",
+        items: [
+          "Single-click a block to select and audition it.",
+          "Double-click a block to open the editor and adjust beats, sustain, and saved voicing notes.",
+          "Use Tempo, Time Signature, and Metronome to shape how the sequence plays back.",
+          "Use Demo to load an example progression and compare ideas quickly."
+        ]
+      }
+    ]
+  },
+  "key-explorer": {
+    title: "Key Explorer",
+    intro: "Key Explorer helps you learn a key by showing the mode details and the seven diatonic chords that belong to it.",
+    sections: [
+      {
+        title: "What It Does",
+        paragraphs: [
+          "Choose a scale root and mode, then see key details, scale notes, and the diatonic chord set for that key."
+        ]
+      },
+      {
+        title: "How To Use It",
+        items: [
+          "Pick the scale root on the left and the mode on the right.",
+          "Read the Key Details card for the tonic chord, scale notes, characteristic note, and mode character.",
+          "Click a chord card to hear it, then use the shared Inversion and Voicing bar to explore different shapes.",
+          "Use the plus button to add the currently selected version of that chord to the progression."
+        ]
+      }
+    ]
+  },
+  "chord-explorer": {
+    title: "Chord Explorer",
+    intro: "Chord Explorer is for trying any chord quality you want, whether it fits the current key or not.",
+    sections: [
+      {
+        title: "What It Does",
+        paragraphs: [
+          "It lets you choose a bass root and chord root, browse chord families, and compare how those chords relate to the current key."
+        ]
+      },
+      {
+        title: "How To Use It",
+        items: [
+          "Choose the bass root and chord root at the top of the panel.",
+          "Switch between Common Chords, Advanced Chords, and All Chords depending on how much you want to see.",
+          "Use the color legend to spot whether a chord is in-key, related, or outside the current key.",
+          "Click a chord to hear it, reshape it with the shared Inversion and Voicing bar, and use plus to add it to the progression."
+        ]
+      }
+    ]
+  },
+  "suggestion-engine": {
+    title: "Suggestion Engine",
+    intro: "Suggestion Engine offers possible next chords based on your current key, progression, and chosen feeling.",
+    sections: [
+      {
+        title: "What It Does",
+        paragraphs: [
+          "It tries to generate musically relevant ideas that you can audition and drop straight into the progression."
+        ]
+      },
+      {
+        title: "How To Use It",
+        items: [
+          "Choose a Feeling to guide the type of suggestions you want.",
+          "Use Refresh to ask for a new pass, or turn on auto-refresh if you want updates as you add chords.",
+          "Click a suggestion to hear it, then use the shared Inversion and Voicing bar to explore alternate shapes.",
+          "Use the plus button to add a suggestion directly into the progression."
+        ]
+      },
+      {
+        title: "Current State",
+        paragraphs: [
+          "This section is still MVP, so it is best treated as a creative idea generator rather than a final musical authority."
+        ]
+      }
+    ]
+  }
+};
 
 function syncKeyExplorerSelection() {
   const keyChords = appData?.musicData?.[appState.selectedKey]?.chords || [];
@@ -330,6 +472,85 @@ function renderAudioStatus() {
   }
 }
 
+function buildSectionHelpModalContent(topic) {
+  const helpContent = SECTION_HELP_CONTENT[topic];
+  if (!helpContent || !sectionHelpModalTitle || !sectionHelpModalBody) {
+    return;
+  }
+
+  sectionHelpModalTitle.textContent = helpContent.title;
+  sectionHelpModalBody.replaceChildren();
+
+  if (helpContent.intro) {
+    const intro = document.createElement("p");
+    intro.className = "section-help-modal-intro";
+    intro.textContent = helpContent.intro;
+    sectionHelpModalBody.appendChild(intro);
+  }
+
+  (helpContent.sections || []).forEach(section => {
+    const sectionElement = document.createElement("section");
+    sectionElement.className = "section-help-modal-section";
+
+    const heading = document.createElement("h3");
+    heading.className = "section-help-modal-section-title";
+    heading.textContent = section.title;
+    sectionElement.appendChild(heading);
+
+    (section.paragraphs || []).forEach(text => {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = text;
+      sectionElement.appendChild(paragraph);
+    });
+
+    if (Array.isArray(section.items) && section.items.length) {
+      const list = document.createElement("ul");
+      section.items.forEach(item => {
+        const listItem = document.createElement("li");
+        listItem.textContent = item;
+        list.appendChild(listItem);
+      });
+      sectionElement.appendChild(list);
+    }
+
+    sectionHelpModalBody.appendChild(sectionElement);
+  });
+}
+
+function renderSectionHelpModal() {
+  if (!sectionHelpModal) {
+    return;
+  }
+
+  const topic = String(appState.sectionHelpTopic || "").trim();
+  sectionHelpModal.hidden = !topic;
+  if (!topic) {
+    return;
+  }
+
+  buildSectionHelpModalContent(topic);
+}
+
+function closeSectionHelpModal() {
+  if (!appState.sectionHelpTopic) {
+    return;
+  }
+
+  appState.sectionHelpTopic = "";
+  renderSectionHelpModal();
+}
+
+function openSectionHelpModal(topic) {
+  const normalizedTopic = String(topic || "").trim();
+  if (!SECTION_HELP_CONTENT[normalizedTopic]) {
+    return;
+  }
+
+  appState.sectionHelpTopic = normalizedTopic;
+  renderSectionHelpModal();
+  sectionHelpModalClose?.focus();
+}
+
 async function attemptAudioPriming() {
   if (isPrimingAudio) {
     return;
@@ -375,6 +596,7 @@ window.addEventListener(AUDIO_STATUS_EVENT, event => {
 
 installAudioPrimingListeners();
 renderAudioStatus();
+renderSectionHelpModal();
 
 function updateKeyChordSet() {
   if (!appData || !appState.selectedKey) {
@@ -642,6 +864,12 @@ function renderProgressionBuilderUI() {
     sequenceTimeSignatureSelect.value = appState.sequenceTimeSignature;
   }
 
+  if (progressionSequenceKeyBadge) {
+    const [root = "", ...modeParts] = String(appState.selectedKey || "").trim().split(" ");
+    const mode = modeParts.join(" ").trim();
+    progressionSequenceKeyBadge.textContent = [root, mode].filter(Boolean).join("-");
+  }
+
   renderProgressionBlocks(
     progressionBlocks,
     appState.progressionItems,
@@ -731,19 +959,31 @@ function renderProgressionBuilderUI() {
       : "Play the progression from the selected chord";
   }
 
+  if (saveProgressionBtn) {
+    const hasProgressionItems = appState.progressionItems.length > 0;
+    setIconButtonState(saveProgressionBtn, {
+      label: "Save progression",
+      icon: "save-progression",
+      disabled: !hasProgressionItems
+    });
+    saveProgressionBtn.dataset.tooltip = hasProgressionItems
+      ? "Save the progression with tempo, time signature, and beat lengths"
+      : "Add at least one chord before saving the progression";
+  }
+
   if (newProgressionBtn) {
     const hasProgressionContent = Boolean(appState.progressionItems.length || progressionInput?.value?.trim());
     setIconButtonState(newProgressionBtn, {
-      label: "New progression",
-      icon: "clear",
+      label: "Clear chord sequence",
+      icon: "reset-progression",
       disabled: !hasProgressionContent
     });
     if (!hasProgressionContent) {
       closeNewProgressionConfirm();
     }
     newProgressionBtn.dataset.tooltip = hasProgressionContent
-      ? "Clear the current progression and start fresh"
-      : "Start a new progression";
+      ? "Clear every chord from the current sequence"
+      : "Add at least one chord before clearing the sequence";
   }
 
   refreshSequenceKeyboard();
@@ -1515,13 +1755,6 @@ function getIdentifiedSequenceVoicing() {
     return null;
   }
 
-  const bassMidi = midiNotes[0];
-  const doubledBassMidi = Number.isFinite(bassMidi) ? bassMidi - 12 : null;
-  const voicingMidiNotes = normalizeMidiList([
-    ...(Number.isFinite(doubledBassMidi) && doubledBassMidi >= PLAYBACK_MIN_MIDI ? [doubledBassMidi] : []),
-    ...midiNotes
-  ]);
-
   return {
     source: "keyboard",
     inversionLabel: String(identifiedSequenceChord?.inversionLabel || "").trim(),
@@ -1529,7 +1762,7 @@ function getIdentifiedSequenceVoicing() {
     voicingLabel: String(identifiedSequenceChord?.voicingLabel || "").trim(),
     voicingShortLabel: String(identifiedSequenceChord?.voicingShortLabel || "").trim(),
     velocityMode: BASIC_VOICING_MODE,
-    notes: voicingMidiNotes.map(midi => ({
+    notes: midiNotes.map(midi => ({
       midi,
       velocity: DEFAULT_NOTE_VELOCITY
     }))
@@ -1604,11 +1837,7 @@ function identifySequenceKeyboardChord() {
   const useUpperLaneAsChord =
     Boolean(upperLaneIdentifiedChord) &&
     allNotesRootPitchClass !== lowestVisiblePitchClass;
-  const chordMidiNotes = useUpperLaneAsChord ? upperLaneMidiNotes : visibleMidiNotes;
-  const bassMidiNotes = normalizeMidiList([
-    ...offscreenBassMidiNotes,
-    ...(useUpperLaneAsChord ? lowerLaneMidiNotes : [])
-  ]);
+  const bassMidiNotes = normalizeMidiList(offscreenBassMidiNotes);
   const identifiedChord = useUpperLaneAsChord
     ? upperLaneIdentifiedChord
     : allNotesIdentifiedChord;
@@ -1626,9 +1855,10 @@ function identifySequenceKeyboardChord() {
     ? pitchClassToDisplayNote(bassPitchClass)
     : null;
   const chordRootPitchClass = NOTE_TO_PC[normaliseRoot(identifiedChord.root)];
+  const baseCanonicalName = `${identifiedChord.root}${identifiedChord.suffix}`;
   const canonicalName = bassNote && chordRootPitchClass !== bassPitchClass
-    ? `${identifiedChord.root}${identifiedChord.suffix}/${bassNote}`
-    : identifiedChord.canonicalName;
+    ? `${baseCanonicalName}/${bassNote}`
+    : baseCanonicalName;
   const parsedIdentified = parseChordName(canonicalName);
 
   identifiedSequenceChord = parsedIdentified
@@ -1816,7 +2046,8 @@ function refreshSequenceKeyboard() {
           deleteSelectedProgressionChord();
         }
       }
-    }
+    },
+    sequenceKeyboardToolbarMount
   );
 }
 
@@ -2374,7 +2605,7 @@ async function init() {
     if (suggestBtn) suggestBtn.dataset.tooltip = "Refresh the current suggestions";
     if (playProgressionBtn) playProgressionBtn.dataset.tooltip = "Play all chords in the progression";
     if (playFromSelectedBtn) playFromSelectedBtn.dataset.tooltip = "Play the progression from the selected chord";
-    if (newProgressionBtn) newProgressionBtn.dataset.tooltip = "Start a new progression";
+    if (newProgressionBtn) newProgressionBtn.dataset.tooltip = "Add at least one chord before clearing the sequence";
     if (loadDemoProgressionBtn) loadDemoProgressionBtn.dataset.tooltip = "Open the Music Demos menu";
     if (saveProgressionBtn) saveProgressionBtn.dataset.tooltip = "Save the progression with tempo, time signature, and beat lengths";
     if (loadProgressionBtn) loadProgressionBtn.dataset.tooltip = "Load a saved progression file";
@@ -2384,6 +2615,9 @@ async function init() {
     if (sequenceTimeSignatureSelect) sequenceTimeSignatureSelect.dataset.tooltip = "Set the default beats per bar for new chord blocks";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
     if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
+    sectionHelpButtons.forEach(button => {
+      button.dataset.tooltip = "How to use this section";
+    });
 
     initTooltips();
 
@@ -2469,6 +2703,30 @@ async function init() {
       });
     }
 
+    if (sectionHelpModalClose) {
+      sectionHelpModalClose.addEventListener("click", event => {
+        event.stopPropagation();
+        closeSectionHelpModal();
+      });
+    }
+
+    sectionHelpButtons.forEach(button => {
+      button.addEventListener("click", event => {
+        event.stopPropagation();
+        const topic = button.getAttribute("data-help-topic");
+        if (!topic) {
+          return;
+        }
+
+        if (appState.sectionHelpTopic === topic) {
+          closeSectionHelpModal();
+          return;
+        }
+
+        openSectionHelpModal(topic);
+      });
+    });
+
     if (loadDemoProgressionBtn) {
       loadDemoProgressionBtn.addEventListener("click", event => {
         event.stopPropagation();
@@ -2495,6 +2753,20 @@ async function init() {
 
     document.addEventListener("click", event => {
       const target = event.target;
+      const helpTrigger = target?.closest?.("[data-help-topic]");
+      if (helpTrigger) {
+        event.stopPropagation();
+        const topic = helpTrigger.getAttribute("data-help-topic");
+        if (topic) {
+          if (appState.sectionHelpTopic === topic) {
+            closeSectionHelpModal();
+          } else {
+            openSectionHelpModal(topic);
+          }
+        }
+        return;
+      }
+
       if (appState.metronomePopoverOpen) {
         if (!(metronomePopover?.contains(target) || metronomeToggleBtn?.contains(target))) {
           closeMetronomePopover();
@@ -2513,6 +2785,14 @@ async function init() {
           closeNewProgressionConfirm();
         }
       }
+
+      if (appState.sectionHelpTopic) {
+        const clickedInsideHelpDialog = Boolean(target?.closest?.(".section-help-modal"));
+        const clickedHelpTrigger = Boolean(target?.closest?.("[data-help-topic]"));
+        if (!clickedInsideHelpDialog && !clickedHelpTrigger) {
+          closeSectionHelpModal();
+        }
+      }
     });
 
     document.addEventListener("keydown", event => {
@@ -2525,6 +2805,9 @@ async function init() {
         }
         if (appState.newProgressionConfirmOpen) {
           closeNewProgressionConfirm();
+        }
+        if (appState.sectionHelpTopic) {
+          closeSectionHelpModal();
         }
       }
     });

@@ -35,6 +35,7 @@ test("lets you build, auto-recognise, add, and clear a chord from the sequence k
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("No notes selected");
   await expect(playButton).toBeDisabled();
   await expect(saveButton).toBeDisabled();
+  await expect(clearButton).toBeDisabled();
 
   await keyboard.locator('[data-midi="60"]').click();
   await keyboard.locator('[data-midi="64"]').click();
@@ -55,6 +56,45 @@ test("lets you build, auto-recognise, add, and clear a chord from the sequence k
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("No notes selected");
   await expect(playButton).toBeDisabled();
   await expect(saveButton).toBeDisabled();
+  await expect(clearButton).toBeDisabled();
+});
+
+test("preserves manually entered keyboard notes without adding an extra bass note on save", async ({ page }) => {
+  await gotoApp(page);
+
+  const keyboard = page.locator("#sequenceKeyboard");
+  await keyboard.locator('[data-midi="60"]').click();
+  await keyboard.locator('[data-midi="64"]').click();
+  await keyboard.locator('[data-midi="67"]').click();
+
+  await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("C");
+  await keyboard.getByRole("button", { name: "Add" }).click();
+
+  await expect.poll(() =>
+    page.evaluate(() =>
+      window.appState?.progressionItems?.[0]?.voicing?.notes?.map(note => note.midi) ?? []
+    )
+  ).toEqual([60, 64, 67]);
+
+  await page.locator(".progression-block").first().dispatchEvent("dblclick");
+  await expect(page.locator("#progressionEditor .progression-editor-modal")).toBeVisible();
+  await expect(
+    page.locator("#progressionEditor .progression-editor-voicing-note")
+  ).toHaveText(["C4", "E4", "G4"]);
+});
+
+test("uses only the bass row for slash-bass recognition on the keyboard", async ({ page }) => {
+  await gotoApp(page);
+
+  const keyboard = page.locator("#sequenceKeyboard");
+  await keyboard.locator('[data-midi="45"]').click();
+  await keyboard.locator('[data-midi="64"]').click();
+  await keyboard.locator('[data-midi="69"]').click();
+  await keyboard.locator('[data-midi="72"]').click();
+
+  await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("Am");
+  await keyboard.getByRole("button", { name: "Add" }).click();
+  await expect(page.locator(".progression-block").first()).toHaveAttribute("data-progression-chord", "Am");
 });
 
 test("renders text progressions as selectable visual blocks and updates the editor", async ({ page }) => {
@@ -69,6 +109,9 @@ test("renders text progressions as selectable visual blocks and updates the edit
   await expect(page.locator(".progression-block-selected")).toHaveCount(1);
   await expect(blocks.nth(2)).toHaveAttribute("data-progression-chord", "G/Bb");
   await expect(blocks.nth(0)).not.toContainText("Bar 1");
+  await expect(blocks.nth(0)).toHaveAttribute("data-tooltip", /Chord: C/);
+  await expect(blocks.nth(0)).toHaveAttribute("data-tooltip", /Length: 4 beats/);
+  await expect(blocks.nth(0)).toHaveAttribute("data-tooltip", /Sustain: Off/);
 
   await blocks.nth(1).click();
   await expect(page.locator(".progression-block-selected")).toHaveCount(1);

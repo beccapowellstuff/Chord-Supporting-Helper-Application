@@ -39,14 +39,12 @@ test("updates chord explorer match states when the mode changes", async ({ page 
   });
 });
 
-test("keeps the selected key context visible in the chord explorer header", async ({ page }) => {
+test("keeps the chord explorer header focused on chord controls instead of repeating key context", async ({ page }) => {
   await gotoApp(page);
   await openTool(page, "Chord Explorer");
-  await selectMode(page, "lydian");
 
-  const headerContext = page.locator("#chordExplorerPanel .tool-context-inline");
-  await expect(headerContext.locator("[data-tool-context-root]")).toHaveText("C");
-  await expect(headerContext.locator("[data-tool-context-mode]")).toHaveText("Lydian");
+  await expect(page.locator("#chordExplorerPanel .tool-context-inline")).toHaveCount(0);
+  await expect(page.locator("#chordExplorerPanel .chord-explorer-legend-inline")).toBeVisible();
 });
 
 test("shows the shared inversion and voicing bar for the chord explorer", async ({ page }) => {
