@@ -205,6 +205,12 @@ So:
 - if you are interested in vibe coding, this project may be useful or interesting to follow
 - if you strongly dislike AI-assisted development, you should know up front that AI is part of how this project is being built
 
+## Thanks
+
+Vibe Chording has already benefited from thoughtful feedback, bug reports, UI observations, and general encouragement while it has been evolving.
+
+Special thanks currently go to the people acknowledged in [THANKS.md](./THANKS.md).
+
 ## Contributing
 
 Useful feedback includes:
