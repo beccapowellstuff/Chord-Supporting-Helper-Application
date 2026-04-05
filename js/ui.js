@@ -393,6 +393,145 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+function formatSelectorOptionLabel(option) {
+  const label = String(option?.label || "").trim();
+  return label;
+}
+
+function formatSelectionSummaryCode(inversionOption, voicingOption) {
+  const inversionCode = String(inversionOption?.shortLabel || "").trim().toLowerCase();
+  const voicingCode = String(voicingOption?.shortLabel || "").trim().toLowerCase();
+  const inversionLabel = String(inversionOption?.label || "").trim();
+  const voicingLabel = String(voicingOption?.label || "").trim();
+  const showInversion = inversionCode && inversionLabel && inversionLabel !== "Root";
+  const showVoicing = voicingCode && voicingLabel && voicingLabel !== "Close";
+
+  return `${showInversion ? inversionCode : ""}${showVoicing ? voicingCode : ""}`;
+}
+
+function getSelectionBarState(selectionController) {
+  const selectedChord = typeof selectionController?.getSelectedChord === "function"
+    ? selectionController.getSelectedChord()
+    : "";
+  const selectedInversionValue = typeof selectionController?.getSelectedInversionValue === "function"
+    ? String(selectionController.getSelectedInversionValue() ?? "0")
+    : "0";
+  const selectedVoicingValue = typeof selectionController?.getSelectedVoicingValue === "function"
+    ? String(selectionController.getSelectedVoicingValue() ?? "close")
+    : "close";
+  const selectedInversionOptions = selectedChord && typeof selectionController?.getInversionOptions === "function"
+    ? selectionController.getInversionOptions(selectedChord)
+    : [];
+  const selectedVoicingOptions = selectedChord && typeof selectionController?.getVoicingOptions === "function"
+    ? selectionController.getVoicingOptions(selectedChord)
+    : [];
+  const selectedInversionOption =
+    selectedInversionOptions.find(option => option.value === selectedInversionValue) || null;
+  const selectedVoicingOption =
+    selectedVoicingOptions.find(option => option.value === selectedVoicingValue) || null;
+
+  return {
+    selectedChord,
+    selectedInversionValue,
+    selectedVoicingValue,
+    selectedInversionOptions,
+    selectedVoicingOptions,
+    selectedInversionOption,
+    selectedVoicingOption,
+    selectedSummaryCode: selectedChord
+      ? formatSelectionSummaryCode(selectedInversionOption, selectedVoicingOption)
+      : ""
+  };
+}
+
+function buildSelectionBarMarkup({
+  selectedChord = "",
+  selectedInversionValue = "0",
+  selectedVoicingValue = "close",
+  selectedInversionOptions = [],
+  selectedVoicingOptions = [],
+  selectedInversionOption = null,
+  selectedVoicingOption = null,
+  selectedSummaryCode = "",
+  placeholderText = "Play a chord to choose inversion and voicing"
+} = {}) {
+  return `
+    <div class="key-mode-selection-bar ${selectedChord ? "" : "key-mode-selection-bar-idle"}">
+      <div class="key-mode-selection-current">
+        <span class="key-mode-selection-current-label">Chord Playing:</span>
+        ${selectedChord
+          ? `<span class="key-mode-selection-current-name">${escapeHtml(formatChordLabel(selectedChord))}</span>`
+          : `<span class="key-mode-selection-current-placeholder">${escapeHtml(placeholderText)}</span>`}
+      </div>
+      <div class="key-mode-selection-controls">
+        <label class="key-mode-selection-field">
+          <span class="key-mode-selection-field-label">Inversion</span>
+          <select
+            class="key-mode-chord-inversion-select"
+            ${selectedChord ? `data-selected-chord="${escapeHtml(selectedChord)}"` : ""}
+            aria-label="${selectedChord ? `Choose inversion for ${escapeHtml(formatChordLabel(selectedChord))}` : "Choose inversion"}"
+            ${selectedChord && selectedInversionOptions.length ? "" : "disabled"}>
+            ${selectedChord && selectedInversionOptions.length
+              ? selectedInversionOptions.map(option => `
+                  <option value="${escapeHtml(option.value)}" ${option.value === selectedInversionValue ? "selected" : ""}>${escapeHtml(formatSelectorOptionLabel(option))}</option>
+                `).join("")
+              : `<option value="">Select chord first</option>`}
+          </select>
+        </label>
+        <label class="key-mode-selection-field">
+          <span class="key-mode-selection-field-label">Voicing</span>
+          <select
+            class="key-mode-chord-voicing-select"
+            ${selectedChord ? `data-selected-chord="${escapeHtml(selectedChord)}"` : ""}
+            aria-label="${selectedChord ? `Choose voicing for ${escapeHtml(formatChordLabel(selectedChord))}` : "Choose voicing"}"
+            ${selectedChord && selectedVoicingOptions.length ? "" : "disabled"}>
+            ${selectedChord && selectedVoicingOptions.length
+              ? selectedVoicingOptions.map(option => `
+                  <option value="${escapeHtml(option.value)}" ${option.value === selectedVoicingValue ? "selected" : ""}>${escapeHtml(formatSelectorOptionLabel(option))}</option>
+                `).join("")
+              : `<option value="">Select chord first</option>`}
+          </select>
+        </label>
+        ${selectedSummaryCode
+          ? `<span class="key-mode-selection-summary-code" title="${escapeHtml(`${selectedInversionOption?.label || ""} • ${selectedVoicingOption?.label || ""}`)}">${escapeHtml(selectedSummaryCode)}</span>`
+          : ""}
+      </div>
+    </div>
+  `;
+}
+
+function appendSelectionBar(container, selectionController, placeholderText) {
+  const barHost = document.createElement("div");
+  barHost.innerHTML = buildSelectionBarMarkup({
+    ...getSelectionBarState(selectionController),
+    placeholderText
+  });
+  const selectionBar = barHost.firstElementChild;
+  if (selectionBar) {
+    container.appendChild(selectionBar);
+  }
+}
+
+function bindSelectionBarInteractions(container, selectionController) {
+  if (typeof selectionController?.playSelection !== "function") {
+    return;
+  }
+
+  container.querySelectorAll(".key-mode-chord-inversion-select, .key-mode-chord-voicing-select").forEach(select => {
+    select.addEventListener("change", () => {
+      const selectionBar = select.closest(".key-mode-selection-bar");
+      const chord = select.getAttribute("data-selected-chord");
+      const inversionValue = selectionBar?.querySelector(".key-mode-chord-inversion-select")?.value || "0";
+      const voicingValue = selectionBar?.querySelector(".key-mode-chord-voicing-select")?.value || "close";
+      if (!selectionBar || !chord) {
+        return;
+      }
+
+      selectionController.playSelection(chord, inversionValue, voicingValue);
+    });
+  });
+}
+
 export function getFriendlyChordName(chord) {
   const parsed = parseChordName(chord);
   if (parsed) {
@@ -474,6 +613,14 @@ function createSuggestionDetail(item, onChordClick, onChordAdd) {
   playBtn.textContent = "Play chord";
   playBtn.dataset.tooltip = "Play this chord";
   playBtn.addEventListener("click", () => {
+    if (typeof onChordClick?.playSelection === "function") {
+      if (typeof onChordClick.selectChord === "function") {
+        onChordClick.selectChord(item.chord);
+      }
+      onChordClick.playSelection(item.chord, "0", "close");
+      return;
+    }
+
     if (onChordClick) onChordClick(item.chord);
   });
 
@@ -538,6 +685,14 @@ function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setAct
   chordBtn.addEventListener("click", event => {
     event.stopPropagation();
     showDetail();
+    if (typeof onChordClick?.playSelection === "function") {
+      if (typeof onChordClick.selectChord === "function") {
+        onChordClick.selectChord(item.chord);
+      }
+      onChordClick.playSelection(item.chord, "0", "close");
+      return;
+    }
+
     if (onChordClick) onChordClick(item.chord);
   });
 
@@ -708,8 +863,10 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     wrapper.appendChild(section);
   });
 
+  appendSelectionBar(wrapper, onChordClick, "Play a chord to choose inversion and voicing");
   wrapper.appendChild(detailHost);
   resultsElement.appendChild(wrapper);
+  bindSelectionBarInteractions(wrapper, onChordClick);
 }
 
 export function renderError(resultsElement, message) {
@@ -723,6 +880,16 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
     return;
   }
 
+  const {
+    selectedChord,
+    selectedInversionValue,
+    selectedVoicingValue,
+    selectedInversionOptions,
+    selectedVoicingOptions,
+    selectedInversionOption,
+    selectedVoicingOption,
+    selectedSummaryCode
+  } = getSelectionBarState(onChordClick);
   const degreeLabels = (keyData.degreeLabels || []).map((roman, index) => [
     roman,
     keyData.degreeDescriptions?.[index] || ""
@@ -733,9 +900,10 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
       const displayParts = getChordLoaderDisplayParts(chord);
       const playTitle = escapeHtml(getChordTooltipText(chord));
       const addTitle = escapeHtml(`Add ${formatChordLabel(chord)} to progression`);
+      const selectedClass = selectedChord && chord === selectedChord ? " key-mode-chord-card-selected" : "";
 
       return `
-        <div class="key-mode-chord-card">
+        <div class="key-mode-chord-card${selectedClass}">
           <div class="key-mode-chord-meta">
             <div class="key-mode-chord-roman">${formatRomanNumeralLabel(roman)}</div>
             <div class="key-mode-chord-degree">${escapeHtml(functionName)}</div>
@@ -833,16 +1001,94 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
       <div class="key-mode-chords-grid">
         ${chordCards}
       </div>
+      <div class="key-mode-selection-bar ${selectedChord ? "" : "key-mode-selection-bar-idle"}">
+        <div class="key-mode-selection-current">
+          <span class="key-mode-selection-current-label">Chord Playing:</span>
+          ${selectedChord
+            ? `<span class="key-mode-selection-current-name">${escapeHtml(formatChordLabel(selectedChord))}</span>`
+            : `<span class="key-mode-selection-current-placeholder">Play a chord to choose inversion and voicing</span>`}
+        </div>
+        <div class="key-mode-selection-controls">
+          <label class="key-mode-selection-field">
+            <span class="key-mode-selection-field-label">Inversion</span>
+            <select
+              class="key-mode-chord-inversion-select"
+              ${selectedChord ? `data-selected-chord="${escapeHtml(selectedChord)}"` : ""}
+              aria-label="${selectedChord ? `Choose inversion for ${escapeHtml(formatChordLabel(selectedChord))}` : "Choose inversion"}"
+              ${selectedChord && selectedInversionOptions.length ? "" : "disabled"}>
+              ${selectedChord && selectedInversionOptions.length
+                ? selectedInversionOptions.map(option => `
+                    <option value="${escapeHtml(option.value)}" ${option.value === selectedInversionValue ? "selected" : ""}>${escapeHtml(formatSelectorOptionLabel(option))}</option>
+                  `).join("")
+                : `<option value="">Select chord first</option>`}
+            </select>
+          </label>
+          <label class="key-mode-selection-field">
+            <span class="key-mode-selection-field-label">Voicing</span>
+            <select
+              class="key-mode-chord-voicing-select"
+              ${selectedChord ? `data-selected-chord="${escapeHtml(selectedChord)}"` : ""}
+              aria-label="${selectedChord ? `Choose voicing for ${escapeHtml(formatChordLabel(selectedChord))}` : "Choose voicing"}"
+              ${selectedChord && selectedVoicingOptions.length ? "" : "disabled"}>
+              ${selectedChord && selectedVoicingOptions.length
+                ? selectedVoicingOptions.map(option => `
+                    <option value="${escapeHtml(option.value)}" ${option.value === selectedVoicingValue ? "selected" : ""}>${escapeHtml(formatSelectorOptionLabel(option))}</option>
+                  `).join("")
+                : `<option value="">Select chord first</option>`}
+            </select>
+          </label>
+          ${selectedSummaryCode
+            ? `<span class="key-mode-selection-summary-code" title="${escapeHtml(`${selectedInversionOption?.label || ""} • ${selectedVoicingOption?.label || ""}`)}">${escapeHtml(selectedSummaryCode)}</span>`
+            : ""}
+        </div>
+      </div>
     </div>
   `;
 
   if (onChordClick) {
-    element.querySelectorAll(".key-mode-chord-play, .key-summary-chord-btn").forEach(button => {
+    element.querySelectorAll(".key-mode-chord-play").forEach(button => {
       button.addEventListener("click", () => {
         const chord = button.getAttribute("data-chord");
-        if (chord) onChordClick(chord);
+        if (!chord) {
+          return;
+        }
+
+        if (typeof onChordClick.playSelection === "function") {
+          if (typeof onChordClick.selectChord === "function") {
+            onChordClick.selectChord(chord);
+          }
+          onChordClick.playSelection(chord, "0", "close");
+          return;
+        }
+
+        onChordClick(chord);
       });
     });
+
+    element.querySelectorAll(".key-summary-chord-btn").forEach(button => {
+      button.addEventListener("click", () => {
+        const chord = button.getAttribute("data-chord");
+        if (chord) {
+          onChordClick(chord);
+        }
+      });
+    });
+
+    if (typeof onChordClick.playSelection === "function") {
+      element.querySelectorAll(".key-mode-chord-inversion-select, .key-mode-chord-voicing-select").forEach(select => {
+        select.addEventListener("change", () => {
+          const selectionBar = select.closest(".key-mode-selection-bar");
+          const chord = select.getAttribute("data-selected-chord");
+          const inversionValue = selectionBar?.querySelector(".key-mode-chord-inversion-select")?.value || "0";
+          const voicingValue = selectionBar?.querySelector(".key-mode-chord-voicing-select")?.value || "close";
+          if (!selectionBar || !chord) {
+            return;
+          }
+
+          onChordClick.playSelection(chord, inversionValue, voicingValue);
+        });
+      });
+    }
   }
 
   if (onChordAdd) {
@@ -1000,6 +1246,14 @@ function buildChordGroupSection(group, rootNote, bassRoot, keyChordSet, onPlay, 
       document.querySelectorAll(".chord-btn").forEach(btn => btn.classList.remove("active"));
       button.classList.add("active");
       try {
+        if (typeof onPlay?.playSelection === "function") {
+          if (typeof onPlay.selectChord === "function") {
+            onPlay.selectChord(chordName);
+          }
+          await onPlay.playSelection(chordName, "0", "close");
+          return;
+        }
+
         if (onPlay) await onPlay(chordName);
       } finally {
         button.classList.remove("active");
@@ -1090,6 +1344,9 @@ export function renderChordLoader(element, rootNote, bassRoot, keyChordSet, onPl
 
     element.appendChild(row);
   });
+
+  appendSelectionBar(element, onPlay, "Play a chord to choose inversion and voicing");
+  bindSelectionBarInteractions(element, onPlay);
 }
 
 export function initTooltips() {

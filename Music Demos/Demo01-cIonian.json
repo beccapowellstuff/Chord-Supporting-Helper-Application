@@ -1,7 +1,7 @@
 {
   "type": "vibe-chording-progression",
   "version": 4,
-  "savedAt": "2026-04-04T11:36:56.867Z",
+  "savedAt": "2026-04-05T05:24:32.479Z",
   "key": {
     "name": "C Ionian",
     "root": "C",
@@ -35,10 +35,43 @@
     },
     {
       "position": 4,
-      "chord": "F",
+      "chord": "FMaj7",
       "durationBeats": 4,
       "sustain": true,
-      "voicing": null
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 41,
+            "velocity": 84
+          },
+          {
+            "midi": 53,
+            "velocity": 84
+          },
+          {
+            "midi": 64,
+            "velocity": 84
+          },
+          {
+            "midi": 65,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 72,
+            "velocity": 84
+          }
+        ]
+      }
     },
     {
       "position": 5,
@@ -63,10 +96,43 @@
     },
     {
       "position": 8,
-      "chord": "C",
+      "chord": "CMaj7",
       "durationBeats": 4,
       "sustain": true,
-      "voicing": null
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 36,
+            "velocity": 84
+          },
+          {
+            "midi": 48,
+            "velocity": 84
+          },
+          {
+            "midi": 59,
+            "velocity": 84
+          },
+          {
+            "midi": 60,
+            "velocity": 84
+          },
+          {
+            "midi": 64,
+            "velocity": 84
+          },
+          {
+            "midi": 67,
+            "velocity": 84
+          }
+        ]
+      }
     },
     {
       "position": 9,
@@ -91,19 +157,27 @@
     },
     {
       "position": 12,
-      "chord": "Dm7/F",
-      "durationBeats": 4,
+      "chord": "Dm7",
+      "durationBeats": 3,
       "sustain": true,
       "voicing": {
         "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
         "velocityMode": "basic",
         "notes": [
           {
-            "midi": 41,
+            "midi": 38,
             "velocity": 84
           },
           {
             "midi": 50,
+            "velocity": 84
+          },
+          {
+            "midi": 57,
             "velocity": 84
           },
           {
@@ -127,11 +201,15 @@
     },
     {
       "position": 13,
-      "chord": "Bdim",
+      "chord": "G#dim/B",
       "durationBeats": 1,
       "sustain": true,
       "voicing": {
         "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
         "velocityMode": "basic",
         "notes": [
           {
@@ -140,6 +218,14 @@
           },
           {
             "midi": 59,
+            "velocity": 84
+          },
+          {
+            "midi": 65,
+            "velocity": 84
+          },
+          {
+            "midi": 68,
             "velocity": 84
           },
           {
@@ -164,6 +250,10 @@
       "sustain": true,
       "voicing": {
         "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
         "velocityMode": "basic",
         "notes": [
           {
@@ -172,6 +262,10 @@
           },
           {
             "midi": 57,
+            "velocity": 84
+          },
+          {
+            "midi": 64,
             "velocity": 84
           },
           {
@@ -196,6 +290,10 @@
       "sustain": true,
       "voicing": {
         "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
         "velocityMode": "basic",
         "notes": [
           {
@@ -236,6 +334,10 @@
       "sustain": true,
       "voicing": {
         "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
         "velocityMode": "basic",
         "notes": [
           {
@@ -272,6 +374,10 @@
       "sustain": true,
       "voicing": {
         "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
         "velocityMode": "basic",
         "notes": [
           {
@@ -304,10 +410,14 @@
     {
       "position": 18,
       "chord": "Dm",
-      "durationBeats": 3,
+      "durationBeats": 2,
       "sustain": true,
       "voicing": {
         "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
         "velocityMode": "basic",
         "notes": [
           {
@@ -340,10 +450,14 @@
     {
       "position": 19,
       "chord": "C#",
-      "durationBeats": 1,
+      "durationBeats": 2,
       "sustain": true,
       "voicing": {
         "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
         "velocityMode": "basic",
         "notes": [
           {
@@ -376,10 +490,14 @@
     {
       "position": 20,
       "chord": "C",
-      "durationBeats": 7,
+      "durationBeats": 4,
       "sustain": true,
       "voicing": {
         "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
         "velocityMode": "basic",
         "notes": [
           {
@@ -404,6 +522,38 @@
           },
           {
             "midi": 72,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 21,
+      "chord": "Csus2",
+      "durationBeats": 4,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "Root",
+        "inversionShortLabel": "R",
+        "voicingLabel": "Open",
+        "voicingShortLabel": "O",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 36,
+            "velocity": 84
+          },
+          {
+            "midi": 67,
+            "velocity": 84
+          },
+          {
+            "midi": 72,
+            "velocity": 84
+          },
+          {
+            "midi": 74,
             "velocity": 84
           }
         ]

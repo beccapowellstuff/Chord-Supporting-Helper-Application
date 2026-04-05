@@ -1,14 +1,68 @@
 /**
- * synth.js — sample-based piano playback using Tone.Sampler
+ * synth.js - sample-based piano playback using Tone.Sampler
  */
 
+export const AUDIO_STATUS_EVENT = "vibechording:audio-status";
+
 let synth = null;
-let isInitialized = false;
+let initPromise = null;
 let isReady = false;
 let reverb = null;
 let filter = null;
 let limiter = null;
 let metronomeContext = null;
+let lastAudioStatus = {
+  state: "idle",
+  message: ""
+};
+
+function emitAudioStatus(state, message = "") {
+  if (lastAudioStatus.state === state && lastAudioStatus.message === message) {
+    return;
+  }
+
+  lastAudioStatus = { state, message };
+
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function" || typeof CustomEvent !== "function") {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent(AUDIO_STATUS_EVENT, {
+    detail: {
+      state,
+      message
+    }
+  }));
+}
+
+function disposeAudioNode(node) {
+  if (!node || typeof node.dispose !== "function") {
+    return;
+  }
+
+  try {
+    node.dispose();
+  } catch (error) {
+    console.warn("Could not dispose audio node:", error);
+  }
+}
+
+function resetSynthGraph() {
+  disposeAudioNode(synth);
+  disposeAudioNode(filter);
+  disposeAudioNode(reverb);
+  disposeAudioNode(limiter);
+
+  synth = null;
+  filter = null;
+  reverb = null;
+  limiter = null;
+  isReady = false;
+}
+
+function getAudioRetryMessage() {
+  return "Audio preview unavailable right now. Try another click to retry.";
+}
 
 function getNoteVelocity(velocity = 84) {
   const midiVelocity = Number(velocity);
@@ -20,53 +74,100 @@ function getNoteVelocity(velocity = 84) {
 }
 
 export async function initSoundFont() {
-  if (isInitialized && synth) {
+  if (synth && isReady) {
     return synth;
   }
 
-  try {
+  if (initPromise) {
+    return initPromise;
+  }
+
+  emitAudioStatus("loading");
+  initPromise = (async () => {
+    if (typeof Tone === "undefined") {
+      throw new Error("Tone.js is unavailable.");
+    }
+
     await Tone.start();
 
-    limiter = new Tone.Limiter(-3).toDestination();
-
-    reverb = new Tone.Reverb({
+    const nextLimiter = new Tone.Limiter(-3).toDestination();
+    const nextReverb = new Tone.Reverb({
       decay: 2.8,
       wet: 0.18
-    }).connect(limiter);
+    }).connect(nextLimiter);
 
-    await reverb.generate();
+    await nextReverb.generate();
 
-    filter = new Tone.Filter({
+    const nextFilter = new Tone.Filter({
       frequency: 2600,
       type: "lowpass",
       rolloff: -24
-    }).connect(reverb);
+    }).connect(nextReverb);
 
-    synth = new Tone.Sampler({
-      urls: {
-        C3: "samples/C3.wav",
-        "D#3": "samples/Ds3.wav",
-        "F#3": "samples/Fs3.wav",
-        A3: "samples/A3.wav"
-      },
-      release: 1.8,
-      onload: () => {
+    return new Promise((resolve, reject) => {
+      let nextSynth = null;
+      let didSettle = false;
+
+      const settleFailure = (error) => {
+        if (didSettle) {
+          return;
+        }
+
+        didSettle = true;
+        disposeAudioNode(nextSynth);
+        disposeAudioNode(nextFilter);
+        disposeAudioNode(nextReverb);
+        disposeAudioNode(nextLimiter);
+        reject(error);
+      };
+
+      const settleSuccess = () => {
+        if (didSettle) {
+          return;
+        }
+
+        didSettle = true;
+        synth = nextSynth;
+        filter = nextFilter;
+        reverb = nextReverb;
+        limiter = nextLimiter;
         isReady = true;
-        console.log("✓ Piano samples loaded");
-      },
-      onerror: (err) => {
-        console.error("✗ Failed loading samples:", err);
+        console.log("Piano samples loaded");
+        emitAudioStatus("ready");
+        resolve(synth);
+      };
+
+      try {
+        nextSynth = new Tone.Sampler({
+          urls: {
+            C3: "samples/C3.wav",
+            "D#3": "samples/Ds3.wav",
+            "F#3": "samples/Fs3.wav",
+            A3: "samples/A3.wav"
+          },
+          release: 1.8,
+          onload: settleSuccess,
+          onerror: (error) => {
+            console.error("Failed loading samples:", error);
+            settleFailure(new Error("Failed to load piano samples."));
+          }
+        }).connect(nextFilter);
+
+        nextSynth.volume.value = -12;
+      } catch (error) {
+        settleFailure(error);
       }
-    }).connect(filter);
-
-    synth.volume.value = -12;
-
-    isInitialized = true;
-    return synth;
-  } catch (error) {
+    });
+  })().catch(error => {
+    resetSynthGraph();
+    emitAudioStatus("error", getAudioRetryMessage());
     console.error("Failed to initialize piano sampler:", error);
-    return null;
-  }
+    throw error;
+  }).finally(() => {
+    initPromise = null;
+  });
+
+  return initPromise;
 }
 
 export async function playMidiNote(midiNumber, duration = 1.0, velocity = 0.45) {
@@ -83,7 +184,7 @@ export async function playMidiNote(midiNumber, duration = 1.0, velocity = 0.45) 
     const noteName = clampNoteToRange(midiToNoteName(midiNumber));
     synth.triggerAttackRelease(noteName, duration, Tone.now(), velocity);
   } catch (error) {
-    console.error("✗ Failed to play note:", error);
+    console.error("Failed to play note:", error);
   }
 }
 
@@ -104,7 +205,7 @@ export async function playMidiNotes(midiNumbers, duration = 1.0, velocity = 0.45
 
     synth.triggerAttackRelease(noteNames, duration, Tone.now(), velocity);
   } catch (error) {
-    console.error("✗ Failed to play notes:", error);
+    console.error("Failed to play notes:", error);
   }
 }
 
@@ -248,7 +349,7 @@ export async function playMidiNoteSpecs(noteSpecs, duration = 1.0) {
       synth.triggerAttackRelease(noteName, duration, now, getNoteVelocity(noteSpec?.velocity));
     });
   } catch (error) {
-    console.error("âœ— Failed to play note specs:", error);
+    console.error("Failed to play note specs:", error);
   }
 }
 
@@ -270,7 +371,7 @@ export async function startHeldMidiNotes(midiNumbers, velocity = 0.45) {
     synth.triggerAttack(noteNames, Tone.now(), velocity);
     return noteNames;
   } catch (error) {
-    console.error("âœ— Failed to start held notes:", error);
+    console.error("Failed to start held notes:", error);
     return [];
   }
 }
@@ -302,7 +403,7 @@ export async function startHeldMidiNoteSpecs(noteSpecs) {
 
     return noteNames;
   } catch (error) {
-    console.error("Ã¢Å“â€” Failed to start held note specs:", error);
+    console.error("Failed to start held note specs:", error);
     return [];
   }
 }
@@ -315,22 +416,28 @@ export function releaseHeldMidiNotes(noteNames) {
   try {
     synth.triggerRelease(noteNames, Tone.now());
   } catch (error) {
-    console.error("âœ— Failed to release held notes:", error);
+    console.error("Failed to release held notes:", error);
   }
 }
 
 export async function ensureAudioContext() {
   try {
-    if (!synth) {
+    if (!synth || !isReady) {
       await initSoundFont();
     } else {
       await Tone.start();
     }
+
     if (metronomeContext?.state === "suspended") {
       await metronomeContext.resume();
     }
+
+    emitAudioStatus("ready");
+    return true;
   } catch (error) {
-    console.error("✗ Failed to start audio context:", error);
+    emitAudioStatus("error", getAudioRetryMessage());
+    console.error("Failed to start audio context:", error);
+    throw error;
   }
 }
 
@@ -356,7 +463,7 @@ function clampNoteToRange(noteName) {
 
   // Keep playback in a sensible range so 4 samples do not get stretched too far.
   const minMidi = noteNameToMidi("C2");
-  const maxMidi = noteNameToMidi("C6");
+  const maxMidi = noteNameToMidi("B6");
 
   const clampedMidi = Math.max(minMidi, Math.min(maxMidi, midi));
   return midiToNoteName(clampedMidi);

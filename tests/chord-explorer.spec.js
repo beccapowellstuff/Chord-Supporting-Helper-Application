@@ -48,3 +48,23 @@ test("keeps the selected key context visible in the chord explorer header", asyn
   await expect(headerContext.locator("[data-tool-context-root]")).toHaveText("C");
   await expect(headerContext.locator("[data-tool-context-mode]")).toHaveText("Lydian");
 });
+
+test("shows the shared inversion and voicing bar for the chord explorer", async ({ page }) => {
+  await gotoApp(page);
+  await openTool(page, "Chord Explorer");
+
+  const selectionBar = page.locator("#chordButtons .key-mode-selection-bar");
+  await expect(selectionBar).toBeVisible();
+  await expect(selectionBar.locator(".key-mode-selection-current-name")).toHaveCount(0);
+  await expect(selectionBar.locator(".key-mode-selection-current-placeholder")).toHaveText(
+    "Play a chord to choose inversion and voicing"
+  );
+  await expect(selectionBar.locator(".key-mode-chord-inversion-select")).toBeDisabled();
+  await expect(selectionBar.locator(".key-mode-chord-voicing-select")).toBeDisabled();
+
+  await page.locator("#chordButtons .chord-group-core .chord-btn").first().click();
+
+  await expect(selectionBar.locator(".key-mode-selection-current-name")).toHaveText("C");
+  await expect(selectionBar.locator(".key-mode-chord-inversion-select")).toBeEnabled();
+  await expect(selectionBar.locator(".key-mode-chord-voicing-select")).toBeEnabled();
+});

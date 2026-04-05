@@ -67,7 +67,21 @@
                       <option value="2/4">2/4</option>
                     </select>
                   </label>
-                  <button id="loadDemoProgressionBtn" class="progression-sequence-demo-btn" type="button">Demo</button>
+                  <div class="progression-demo-menu-shell">
+                    <button
+                      id="loadDemoProgressionBtn"
+                      class="progression-sequence-demo-btn"
+                      type="button"
+                      aria-expanded="false"
+                      aria-haspopup="menu"
+                    >
+                      Demo
+                    </button>
+                    <div id="demoMenuPopover" class="progression-demo-popover" hidden>
+                      <div class="progression-demo-popover-title">Music Demos</div>
+                      <div id="demoMenuList" class="progression-demo-menu-list" role="menu" aria-label="Music demos"></div>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div id="progressionBlocks" class="progression-blocks" aria-label="Progression blocks"></div>
@@ -92,6 +106,23 @@
             <button id="loadProgressionBtn" class="sequence-panel-action-btn app-icon-button" type="button" aria-label="Load progression" data-icon="load-progression">
               <span class="visually-hidden">Load progression</span>
             </button>
+            <div class="sequence-panel-action-shell sequence-panel-action-shell-danger">
+              <button id="newProgressionBtn" class="sequence-panel-action-btn sequence-panel-action-btn-danger app-icon-button" type="button" aria-label="New progression" aria-expanded="false" aria-haspopup="dialog" data-icon="clear">
+                <span class="visually-hidden">New progression</span>
+              </button>
+              <div id="newProgressionConfirmPopover" class="progression-confirm-popover" hidden>
+                <div class="progression-confirm-popover-title">Clear Progression?</div>
+                <div class="progression-confirm-popover-text">Start fresh and remove the current progression?</div>
+                <div class="progression-confirm-popover-actions">
+                  <button id="confirmNewProgressionBtn" class="progression-confirm-popover-confirm" type="button">Yes</button>
+                  <button id="cancelNewProgressionBtn" class="progression-confirm-popover-cancel" type="button">No</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="audioStatus" class="tool-status tool-status-warning sequence-audio-status" role="status" aria-live="polite" hidden>
+            <span class="tool-status-icon" aria-hidden="true">!</span>
+            <span id="audioStatusMessage">Audio preview unavailable right now. Try another click to retry.</span>
           </div>
           <input id="loadProgressionInput" type="file" accept=".json,application/json" hidden>
         </div>

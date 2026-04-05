@@ -168,6 +168,18 @@ function normalizeVoicing(voicing, fallback = null) {
 
   return {
     source: typeof voicing?.source === "string" ? voicing.source : "keyboard",
+    inversionLabel: typeof voicing?.inversionLabel === "string"
+      ? voicing.inversionLabel.trim()
+      : (typeof fallback?.inversionLabel === "string" ? fallback.inversionLabel.trim() : ""),
+    inversionShortLabel: typeof voicing?.inversionShortLabel === "string"
+      ? voicing.inversionShortLabel.trim()
+      : (typeof fallback?.inversionShortLabel === "string" ? fallback.inversionShortLabel.trim() : ""),
+    voicingLabel: typeof voicing?.voicingLabel === "string"
+      ? voicing.voicingLabel.trim()
+      : (typeof fallback?.voicingLabel === "string" ? fallback.voicingLabel.trim() : ""),
+    voicingShortLabel: typeof voicing?.voicingShortLabel === "string"
+      ? voicing.voicingShortLabel.trim()
+      : (typeof fallback?.voicingShortLabel === "string" ? fallback.voicingShortLabel.trim() : ""),
     velocityMode,
     notes
   };
@@ -376,6 +388,44 @@ function formatBeatLabel(durationBeats) {
   return `${durationBeats} beat${durationBeats === 1 ? "" : "s"}`;
 }
 
+function formatProgressionVoicingSummary(item) {
+  const inversionLabel = String(item?.voicing?.inversionLabel || "").trim();
+  const voicingLabel = String(item?.voicing?.voicingLabel || "").trim();
+  const parts = [];
+
+  if (inversionLabel && inversionLabel !== "Root") {
+    parts.push(inversionLabel);
+  }
+
+  if (voicingLabel && voicingLabel !== "Close") {
+    parts.push(voicingLabel);
+  }
+
+  return parts.join(" • ");
+}
+
+function buildProgressionVoicingBadges(item) {
+  const inversionLabel = String(item?.voicing?.inversionLabel || "").trim();
+  const inversionShortLabel = String(item?.voicing?.inversionShortLabel || "").trim();
+  const voicingLabel = String(item?.voicing?.voicingLabel || "").trim();
+  const voicingShortLabel = String(item?.voicing?.voicingShortLabel || "").trim();
+  const normalizedInversion = inversionLabel && inversionLabel !== "Root"
+    ? inversionShortLabel.toLowerCase()
+    : "";
+  const normalizedVoicing = voicingLabel && voicingLabel !== "Close"
+    ? voicingShortLabel.toLowerCase()
+    : "";
+
+  if (!normalizedInversion && !normalizedVoicing) {
+    return [];
+  }
+
+  return [{
+    shortLabel: `${normalizedInversion}${normalizedVoicing}`,
+    label: formatProgressionVoicingSummary(item)
+  }];
+}
+
 export function renderProgressionBlocks(container, items, selectedId, playingId, beatsPerBar, onSelect, onEdit, onMove) {
   if (!container) return;
 
@@ -462,15 +512,30 @@ export function renderProgressionBlocks(container, items, selectedId, playingId,
       button.appendChild(beatMarkers);
     }
 
+    const metaRow = document.createElement("div");
+    metaRow.className = "progression-block-meta";
+    const voicingBadges = buildProgressionVoicingBadges(item);
+    const voicingSummary = formatProgressionVoicingSummary(item);
+    if (voicingBadges.length) {
+      voicingBadges.forEach(entry => {
+        const badge = document.createElement("span");
+        badge.className = "progression-block-voicing-badge";
+        badge.textContent = entry.shortLabel;
+        badge.dataset.tooltip = entry.label;
+        badge.setAttribute("aria-label", entry.label);
+        metaRow.appendChild(badge);
+      });
+
+      if (voicingSummary) {
+        metaRow.dataset.tooltip = voicingSummary;
+      }
+    }
+    button.appendChild(metaRow);
+
     const chordLabel = document.createElement("span");
     chordLabel.className = "progression-block-chord";
     chordLabel.textContent = item.label;
     button.appendChild(chordLabel);
-
-    const metaRow = document.createElement("div");
-    metaRow.className = "progression-block-meta";
-
-    button.appendChild(metaRow);
 
     button.addEventListener("click", () => {
       if (onSelect) onSelect(item.id);
@@ -749,6 +814,14 @@ export function renderProgressionEditor(container, selectedItem, selectedIndex, 
   subtitle.className = "progression-editor-subtitle";
   subtitle.textContent = `Selected item ${selectedIndex + 1} of ${totalItems}`;
   summary.appendChild(subtitle);
+
+  const voicingSummary = formatProgressionVoicingSummary(selectedItem);
+  if (voicingSummary) {
+    const voicingSubtitle = document.createElement("span");
+    voicingSubtitle.className = "progression-editor-subtitle";
+    voicingSubtitle.textContent = voicingSummary;
+    summary.appendChild(voicingSubtitle);
+  }
 
   const fields = document.createElement("div");
   fields.className = "progression-editor-fields";

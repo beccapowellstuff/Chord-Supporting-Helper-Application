@@ -48,3 +48,25 @@ test("refresh button reruns suggestions without needing a mood change", async ({
   await expect(page.locator("#results .suggestion-feedback-text").first()).toHaveText("C (I) -> F (IV) -> G (V) -> Am (vi)");
   await expect(page.locator("#results .suggestion-card")).toHaveCount(9);
 });
+
+test("shows the shared inversion and voicing bar for suggestion playback", async ({ page }) => {
+  await gotoApp(page);
+
+  await setProgressionText(page, "C, F, G");
+  await page.getByRole("button", { name: /Suggestion Engine/ }).click();
+
+  const selectionBar = page.locator("#results .key-mode-selection-bar");
+  await expect(selectionBar).toBeVisible();
+  await expect(selectionBar.locator(".key-mode-selection-current-name")).toHaveCount(0);
+  await expect(selectionBar.locator(".key-mode-selection-current-placeholder")).toHaveText(
+    "Play a chord to choose inversion and voicing"
+  );
+  await expect(selectionBar.locator(".key-mode-chord-inversion-select")).toBeDisabled();
+  await expect(selectionBar.locator(".key-mode-chord-voicing-select")).toBeDisabled();
+
+  await page.locator("#results .suggestion-card-chord").first().click();
+
+  await expect(selectionBar.locator(".key-mode-selection-current-name")).not.toHaveCount(0);
+  await expect(selectionBar.locator(".key-mode-chord-inversion-select")).toBeEnabled();
+  await expect(selectionBar.locator(".key-mode-chord-voicing-select")).toBeEnabled();
+});

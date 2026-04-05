@@ -133,7 +133,7 @@ The app is still intentionally lightweight. The core files are:
 | `js/theory.js` | Key, mode, chord, and transition data generation |
 | `js/dataLoader.js` | Loads data files and assembles app data |
 | `data/` | Mood, theory, and description data |
-| `c-ionian-progression.json` | Bundled demo progression |
+| `Music Demos/` | Bundled progression demos shown in the Demo menu |
 
 ## Browser Support
 
