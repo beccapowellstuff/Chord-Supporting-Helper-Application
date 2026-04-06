@@ -2251,14 +2251,14 @@ async function loadVersionLabel() {
     appVersion.textContent = version;
     if (version !== "unknown") {
       const versionAnchor = `v${String(version).replace(/\./g, "-")}`;
-      appVersion.href = `./version-changes.html#${versionAnchor}`;
+      appVersion.href = `./project-documents/version-changes.html#${versionAnchor}`;
     } else {
-      appVersion.href = "./version-changes.html";
+      appVersion.href = "./project-documents/version-changes.html";
     }
   } catch (error) {
     console.warn("Could not load app version:", error);
     appVersion.textContent = "unknown";
-    appVersion.href = "./version-changes.html";
+    appVersion.href = "./project-documents/version-changes.html";
   }
 }
 

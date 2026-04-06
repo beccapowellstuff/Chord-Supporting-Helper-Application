@@ -2,8 +2,9 @@
 
 Vibe Chording is a browser-based music idea tool for building chord progressions, exploring keys, and shaping harmonic direction without handing authorship over to AI.
 
-Current version: [v0.15.0](./VERSION_CHANGES.md#v0-15-0)  
-Full history: [Version Changes](./VERSION_CHANGES.md)
+Current version: [v0.15.0](./project-documents/VERSION_CHANGES.md#v0-15-0)  
+Full history: [Version Changes](./project-documents/VERSION_CHANGES.md)
+Project status: [GitHub Project Board](https://github.com/users/beccapowellstuff/projects/1/views/2)
 
 Public-facing product name: `Vibe Chording`  
 Current repository name: `Chord-Supporting-Helper-Application`
@@ -141,6 +142,7 @@ The app is still intentionally lightweight. The core files are:
 | `js/dataLoader.js` | Loads data files and assembles app data |
 | `data/` | Mood, theory, and description data |
 | `Music Demos/` | Bundled progression demos shown in the Demo menu |
+| `project-documents/` | Standalone project docs, roadmap, and release history |
 
 ## Browser Support
 
@@ -168,10 +170,10 @@ The app still uses circle-of-fifths style theory relationships in the background
 
 These link to the retroactive version summary file:
 
-- [v0.15.0](./VERSION_CHANGES.md#v0-15-0)
-- [v0.14.0](./VERSION_CHANGES.md#v0-14-0)
-- [v0.13.0](./VERSION_CHANGES.md#v0-13-0)
-- [v0.12.0](./VERSION_CHANGES.md#v0-12-0)
+- [v0.15.0](./project-documents/VERSION_CHANGES.md#v0-15-0)
+- [v0.14.0](./project-documents/VERSION_CHANGES.md#v0-14-0)
+- [v0.13.0](./project-documents/VERSION_CHANGES.md#v0-13-0)
+- [v0.12.0](./project-documents/VERSION_CHANGES.md#v0-12-0)
 
 ## Recent Releases
 
@@ -209,7 +211,7 @@ So:
 
 Vibe Chording has already benefited from thoughtful feedback, bug reports, UI observations, and general encouragement while it has been evolving.
 
-Special thanks currently go to the people acknowledged in [THANKS.md](./THANKS.md).
+Special thanks currently go to the people acknowledged in [THANKS.md](./project-documents/THANKS.md).
 
 ## Contributing
 

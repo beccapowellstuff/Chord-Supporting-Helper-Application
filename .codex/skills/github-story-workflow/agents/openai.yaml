@@ -1,0 +1,10 @@
+interface:
+  display_name: "GitHub Story Workflow"
+  short_description: "Create and move repo work items on the GitHub project board"
+  default_prompt: "Use $github-story-workflow to create, accept, move, close, or delete GitHub work items for this repository project."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "GitHub"
+      description: "GitHub connector for repository context"
