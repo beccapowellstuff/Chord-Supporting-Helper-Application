@@ -2,7 +2,6 @@
 
 Vibe Chording is a browser-based music idea tool for building chord progressions, exploring keys, and shaping harmonic direction without handing authorship over to AI.
 
-Current version: [v0.15.0](https://beccapowellstuff.github.io/Chord-Supporting-Helper-Application/project-documents/version-changes.html#v0-15-0)  
 Full history: [Version Changes](https://beccapowellstuff.github.io/Chord-Supporting-Helper-Application/project-documents/version-changes.html)
 Project status: [GitHub Project Board](https://github.com/users/beccapowellstuff/projects/1/views/2)
 

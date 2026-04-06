@@ -143,6 +143,8 @@
         This page gives a browser-friendly view of Vibe Chording's release history. The earlier entries are retroactive milestone summaries, designed to show how the app grew from a theory reference into a progression-focused builder and playback tool.
       </p>
       <div class="jump-links">
+        <a href="#v0-17-0">v0.17.0</a>
+        <a href="#v0-16-0">v0.16.0</a>
         <a href="#v0-15-0">v0.15.0</a>
         <a href="#v0-14-0">v0.14.0</a>
         <a href="#v0-13-0">v0.13.0</a>
@@ -162,6 +164,26 @@
     </section>
 
     <section class="release-list">
+      <article class="release-card" id="v0-17-0">
+        <h2>v0.17.0</h2>
+        <ul>
+          <li>Added sequence-scoped <code>Undo</code> and <code>Redo</code> toolbar actions so progression edits can be stepped backward and forward without affecting the rest of the app state.</li>
+          <li>Limited chord-sequence history to a short rolling stack and wired it through text edits, block editing, insert, duplicate, split, delete, reorder, clear, and load flows.</li>
+          <li>Added automated regression coverage for disabled button states, multi-step undo/redo behavior, clear-sequence recovery, and redo reset after a fresh edit.</li>
+          <li>Continued polishing progression-toolbar icon handling and button-state feedback around the new history controls.</li>
+        </ul>
+      </article>
+
+      <article class="release-card" id="v0-16-0">
+        <h2>v0.16.0</h2>
+        <ul>
+          <li>Added direct automated coverage for chord parsing, canonicalisation, enharmonic matching, slash chords, invalid-token reporting, and major/minor progression parsing.</li>
+          <li>Strengthened the safety net around <code>normaliseRoot</code>, <code>parseChordName</code>, <code>getChordNotes</code>, and the chord-equivalence path used by progression parsing.</li>
+          <li>Cleaned up project documentation links and removed outdated roadmap material so the README and release-history references point to the current project sources.</li>
+          <li>Refined repository documentation around project structure and maintenance workflow while keeping the app behavior stable.</li>
+        </ul>
+      </article>
+
       <article class="release-card" id="v0-15-0">
         <h2>v0.15.0</h2>
         <ul>
