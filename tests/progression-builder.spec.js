@@ -24,35 +24,52 @@ async function getPlaybackSnapshot(page) {
   });
 }
 
+function getSequenceKeyboardToolbar(page) {
+  return page.locator("#sequenceKeyboardToolbarMount");
+}
+
+async function selectSequenceKeyboardNotes(page, midiNotes) {
+  const keyboard = page.locator("#sequenceKeyboard");
+
+  for (const midi of midiNotes) {
+    const key = keyboard.locator(`[data-midi="${midi}"]`);
+    await key.dispatchEvent("click");
+    await expect(key).toHaveClass(/sequence-key-active/);
+  }
+}
+
+async function triggerSequenceKeyboardAction(button) {
+  await button.dispatchEvent("click");
+}
+
 test("lets you build, auto-recognise, add, and clear a chord from the sequence keyboard", async ({ page }) => {
   await gotoApp(page);
 
   const keyboard = page.locator("#sequenceKeyboard");
-  const playButton = keyboard.getByRole("button", { name: "Play" });
-  const saveButton = keyboard.getByRole("button", { name: "Add" });
-  const clearButton = keyboard.getByRole("button", { name: "Clear" });
+  const keyboardToolbar = getSequenceKeyboardToolbar(page);
+  const playButton = keyboardToolbar.getByRole("button", { name: "Play" });
+  const saveButton = keyboardToolbar.getByRole("button", { name: "Add" });
+  const clearButton = keyboardToolbar.getByRole("button", { name: "Clear" });
 
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("No notes selected");
   await expect(playButton).toBeDisabled();
   await expect(saveButton).toBeDisabled();
   await expect(clearButton).toBeDisabled();
 
-  await keyboard.locator('[data-midi="60"]').click();
-  await keyboard.locator('[data-midi="64"]').click();
-  await keyboard.locator('[data-midi="67"]').click();
+  await selectSequenceKeyboardNotes(page, [60, 64, 67]);
 
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("C");
   await expect(playButton).toBeEnabled();
   await expect(saveButton).toBeEnabled();
 
-  await saveButton.click();
+  await triggerSequenceKeyboardAction(saveButton);
   await expect(page.locator("#progression")).toHaveValue("C");
   await expect(page.locator(".progression-block")).toHaveCount(1);
   await expect(page.locator(".progression-block").first()).toHaveAttribute("data-progression-chord", "C");
   await expect(page.locator(".progression-block-selected")).toHaveCount(1);
   await expect(page.locator("#progressionEditor .progression-editor-modal")).toHaveCount(0);
 
-  await clearButton.click();
+  await triggerSequenceKeyboardAction(clearButton);
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("No notes selected");
   await expect(playButton).toBeDisabled();
   await expect(saveButton).toBeDisabled();
@@ -63,12 +80,11 @@ test("preserves manually entered keyboard notes without adding an extra bass not
   await gotoApp(page);
 
   const keyboard = page.locator("#sequenceKeyboard");
-  await keyboard.locator('[data-midi="60"]').click();
-  await keyboard.locator('[data-midi="64"]').click();
-  await keyboard.locator('[data-midi="67"]').click();
+  const keyboardToolbar = getSequenceKeyboardToolbar(page);
+  await selectSequenceKeyboardNotes(page, [60, 64, 67]);
 
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("C");
-  await keyboard.getByRole("button", { name: "Add" }).click();
+  await triggerSequenceKeyboardAction(keyboardToolbar.getByRole("button", { name: "Add" }));
 
   await expect.poll(() =>
     page.evaluate(() =>
@@ -87,13 +103,11 @@ test("uses only the bass row for slash-bass recognition on the keyboard", async 
   await gotoApp(page);
 
   const keyboard = page.locator("#sequenceKeyboard");
-  await keyboard.locator('[data-midi="45"]').click();
-  await keyboard.locator('[data-midi="64"]').click();
-  await keyboard.locator('[data-midi="69"]').click();
-  await keyboard.locator('[data-midi="72"]').click();
+  const keyboardToolbar = getSequenceKeyboardToolbar(page);
+  await selectSequenceKeyboardNotes(page, [45, 64, 69, 72]);
 
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("Am");
-  await keyboard.getByRole("button", { name: "Add" }).click();
+  await triggerSequenceKeyboardAction(keyboardToolbar.getByRole("button", { name: "Add" }));
   await expect(page.locator(".progression-block").first()).toHaveAttribute("data-progression-chord", "Am");
 });
 
@@ -221,7 +235,7 @@ test("renders the progression as compact wrapped chord blocks with beat-based wi
 test("splits a selected progression chord into two shorter beat blocks", async ({ page }) => {
   await gotoApp(page);
 
-  const splitButton = page.locator("#sequenceKeyboard").getByRole("button", { name: "Split" });
+  const splitButton = getSequenceKeyboardToolbar(page).getByRole("button", { name: "Split" });
   await expect(splitButton).toBeDisabled();
 
   const savedProgression = {
@@ -247,7 +261,7 @@ test("splits a selected progression chord into two shorter beat blocks", async (
   await expect(blocks.first()).toHaveAttribute("data-duration", "5");
   await expect(splitButton).toBeEnabled();
 
-  await splitButton.click();
+  await triggerSequenceKeyboardAction(splitButton);
 
   await expect(blocks).toHaveCount(2);
   await expect(blocks.nth(0)).toHaveAttribute("data-progression-chord", "C");
@@ -258,7 +272,7 @@ test("splits a selected progression chord into two shorter beat blocks", async (
   await expect(page.locator("#progression")).toHaveValue("C | C");
 
   await blocks.nth(1).click();
-  await splitButton.click();
+  await triggerSequenceKeyboardAction(splitButton);
 
   await expect(page.locator(".progression-block")).toHaveCount(3);
   await expect(page.locator(".progression-block").nth(1)).toHaveAttribute("data-duration", "1");
