@@ -81,6 +81,8 @@ const suggestBtn = document.getElementById("suggestBtn");
 const autoSuggestToggle = document.getElementById("autoSuggestToggle");
 const playProgressionBtn = document.getElementById("playProgressionBtn");
 const playFromSelectedBtn = document.getElementById("playFromSelectedBtn");
+const undoProgressionBtn = document.getElementById("undoProgressionBtn");
+const redoProgressionBtn = document.getElementById("redoProgressionBtn");
 const newProgressionBtn = document.getElementById("newProgressionBtn");
 const newProgressionConfirmPopover = document.getElementById("newProgressionConfirmPopover");
 const confirmNewProgressionBtn = document.getElementById("confirmNewProgressionBtn");
@@ -170,6 +172,7 @@ const SEQUENCE_KEYBOARD_MAX_MIDI = 95; // B6
 const PLAYBACK_MIN_MIDI = 36; // C2
 const TOOL_PANEL_TRANSITION_MS = 180;
 const DEFAULT_METRONOME_VOLUME = 40;
+const MAX_PROGRESSION_UNDO_STEPS = 5;
 let activeToolPanelId = "keyExplorerPanel";
 let toolPanelTransitionTimeout = null;
 let progressionPreviewToken = 0;
@@ -179,6 +182,8 @@ let removeAudioPrimingListeners = null;
 let isPrimingAudio = false;
 let musicDemoEntries = [];
 let isLoadingMusicDemos = false;
+let progressionUndoHistory = [];
+let progressionRedoHistory = [];
 
 const DEFAULT_MUSIC_DEMO_FILE = "Demo01-cIonian.json";
 const MUSIC_DEMOS_DIR_PATH = "./Music%20Demos/";
@@ -971,6 +976,30 @@ function renderProgressionBuilderUI() {
       : "Add at least one chord before saving the progression";
   }
 
+  if (undoProgressionBtn) {
+    const canUndoProgression = progressionUndoHistory.length > 0;
+    setIconButtonState(undoProgressionBtn, {
+      label: "Undo",
+      icon: "undo",
+      disabled: !canUndoProgression
+    });
+    undoProgressionBtn.dataset.tooltip = canUndoProgression
+      ? "Undo the last chord sequence change"
+      : "Make a chord sequence change to undo";
+  }
+
+  if (redoProgressionBtn) {
+    const canRedoProgression = progressionRedoHistory.length > 0;
+    setIconButtonState(redoProgressionBtn, {
+      label: "Redo",
+      icon: "redo",
+      disabled: !canRedoProgression
+    });
+    redoProgressionBtn.dataset.tooltip = canRedoProgression
+      ? "Redo the last undone chord sequence change"
+      : "Undo a chord sequence change to redo it";
+  }
+
   if (newProgressionBtn) {
     const hasProgressionContent = Boolean(appState.progressionItems.length || progressionInput?.value?.trim());
     setIconButtonState(newProgressionBtn, {
@@ -993,10 +1022,15 @@ function setProgressionItems(items, options = {}) {
   const {
     selectedId = null,
     preserveSelection = false,
-    syncText = true
+    syncText = true,
+    recordUndo = false
   } = options;
 
   const nextItems = Array.isArray(items) ? items : [];
+  if (recordUndo && !progressionItemsMatch(nextItems, appState.progressionItems)) {
+    pushProgressionUndoSnapshot();
+    progressionRedoHistory = [];
+  }
   const availableIds = new Set(nextItems.map(item => item.id));
 
   let nextSelectedId = null;
@@ -1038,7 +1072,8 @@ function importProgressionTextToState(text, options = {}) {
   appState.progressionInvalidTokens = invalid;
   setProgressionItems(items, {
     selectedId: options.selectedId || null,
-    preserveSelection: options.preserveSelection || false
+    preserveSelection: options.preserveSelection || false,
+    recordUndo: options.recordUndo || false
   });
 }
 
@@ -1067,7 +1102,7 @@ function appendChordToProgression(chordName, overrides = {}) {
   );
   const selectedId = nextItems.at(-1)?.id || null;
 
-  setProgressionItems(nextItems, { selectedId });
+  setProgressionItems(nextItems, { selectedId, recordUndo: true });
 
   if (selectedId) {
     void previewProgressionItemSelection(selectedId);
@@ -1131,7 +1166,8 @@ function moveProgressionItem(draggedId, targetId, placement = "before") {
 
   setProgressionItems(currentItems, {
     selectedId: movedItem.id,
-    preserveSelection: true
+    preserveSelection: true,
+    recordUndo: true
   });
 
   if (appState.editingProgressionItemId === movedItem.id) {
@@ -1164,7 +1200,8 @@ function updateSelectedProgressionChord(chordName, overrides = {}) {
 
   setProgressionItems(rebuiltItems, {
     selectedId,
-    preserveSelection: true
+    preserveSelection: true,
+    recordUndo: true
   });
 
   if (autoSuggestToggle?.checked && appData) {
@@ -1190,7 +1227,8 @@ function updateSelectedProgressionDurationBeats(durationBeats) {
 
   setProgressionItems(rebuiltItems, {
     selectedId,
-    preserveSelection: true
+    preserveSelection: true,
+    recordUndo: true
   });
 }
 
@@ -1212,7 +1250,8 @@ function updateSelectedProgressionSustain(sustain) {
 
   setProgressionItems(rebuiltItems, {
     selectedId,
-    preserveSelection: true
+    preserveSelection: true,
+    recordUndo: true
   });
 }
 
@@ -1240,7 +1279,8 @@ function updateSelectedProgressionVoicingMode(mode) {
 
   setProgressionItems(rebuiltItems, {
     selectedId,
-    preserveSelection: true
+    preserveSelection: true,
+    recordUndo: true
   });
 }
 
@@ -1279,7 +1319,8 @@ function updateSelectedProgressionVoicingNoteVelocity(noteIndex, velocity) {
 
   setProgressionItems(rebuiltItems, {
     selectedId,
-    preserveSelection: true
+    preserveSelection: true,
+    recordUndo: true
   });
 }
 
@@ -1309,7 +1350,7 @@ function duplicateSelectedProgressionChord() {
     appState.editingProgressionAnchorRect = null;
   }
 
-  setProgressionItems(nextItems, { selectedId: duplicateItem.id });
+  setProgressionItems(nextItems, { selectedId: duplicateItem.id, recordUndo: true });
 
   if (appState.editingProgressionItemId === duplicateItem.id) {
     appState.editingProgressionAnchorRect = getProgressionBlockAnchorRect(duplicateItem.id, null);
@@ -1344,7 +1385,7 @@ function insertSelectedProgressionChord(placement = "after") {
   nextItems.splice(insertionIndex, 0, insertedItem);
 
   appState.insertChoiceOpen = false;
-  setProgressionItems(nextItems, { selectedId: insertedItem.id });
+  setProgressionItems(nextItems, { selectedId: insertedItem.id, recordUndo: true });
   refreshSequenceKeyboard();
 
   if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
@@ -1391,7 +1432,7 @@ function splitSelectedProgressionChord() {
   }
 
   appState.insertChoiceOpen = false;
-  setProgressionItems(nextItems, { selectedId: splitItem.id });
+  setProgressionItems(nextItems, { selectedId: splitItem.id, recordUndo: true });
 
   if (appState.editingProgressionItemId === splitItem.id) {
     appState.editingProgressionAnchorRect = getProgressionBlockAnchorRect(splitItem.id, null);
@@ -1426,7 +1467,7 @@ function deleteSelectedProgressionChord() {
     appState.editingProgressionItemId = null;
     appState.editingProgressionAnchorRect = null;
   }
-  setProgressionItems(nextItems, { selectedId: fallbackSelection });
+  setProgressionItems(nextItems, { selectedId: fallbackSelection, recordUndo: true });
 
   if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
     runSuggestions();
@@ -1513,6 +1554,11 @@ function handleSaveProgression() {
 function handleNewProgression() {
   closeNewProgressionConfirm();
 
+  if (appState.progressionItems.length) {
+    pushProgressionUndoSnapshot();
+    progressionRedoHistory = [];
+  }
+
   if (appState.isPlayingProgression) {
     stopActiveProgressionPlayback();
   }
@@ -1540,7 +1586,7 @@ function applyLoadedProgressionData(data) {
   appState.sequenceTempoBpm = normalizeTempoBpm(sequenceSettings?.tempoBpm);
   appState.sequenceTimeSignature = normalizeTimeSignature(sequenceSettings?.timeSignature);
   appState.progressionInvalidTokens = invalid;
-  setProgressionItems(items, { selectedId: null });
+  setProgressionItems(items, { selectedId: null, recordUndo: true });
 
   if (activeToolPanelId === "suggestionEnginePanel" && appData) {
     runSuggestions();
@@ -2262,6 +2308,80 @@ async function loadVersionLabel() {
   }
 }
 
+function cloneProgressionItems(items = []) {
+  if (typeof structuredClone === "function") {
+    return structuredClone(Array.isArray(items) ? items : []);
+  }
+
+  return JSON.parse(JSON.stringify(Array.isArray(items) ? items : []));
+}
+
+function buildProgressionUndoSnapshot() {
+  return {
+    items: cloneProgressionItems(appState.progressionItems),
+    selectedId: appState.selectedProgressionItemId
+  };
+}
+
+function progressionItemsMatch(leftItems = [], rightItems = []) {
+  return JSON.stringify(Array.isArray(leftItems) ? leftItems : []) === JSON.stringify(Array.isArray(rightItems) ? rightItems : []);
+}
+
+function pushProgressionUndoSnapshot(snapshot = buildProgressionUndoSnapshot()) {
+  progressionUndoHistory = [...progressionUndoHistory, snapshot].slice(-MAX_PROGRESSION_UNDO_STEPS);
+}
+
+function pushProgressionRedoSnapshot(snapshot = buildProgressionUndoSnapshot()) {
+  progressionRedoHistory = [...progressionRedoHistory, snapshot].slice(-MAX_PROGRESSION_UNDO_STEPS);
+}
+
+function restoreProgressionUndoSnapshot(snapshot) {
+  if (!snapshot) {
+    return;
+  }
+
+  closeNewProgressionConfirm();
+
+  if (appState.isPlayingProgression) {
+    stopActiveProgressionPlayback();
+  }
+
+  appState.progressionInvalidTokens = [];
+  appState.insertChoiceOpen = false;
+  appState.editingProgressionItemId = null;
+  appState.editingProgressionAnchorRect = null;
+  clearSequenceKeyboardState();
+  setProgressionItems(cloneProgressionItems(snapshot.items), {
+    selectedId: snapshot.selectedId || null
+  });
+
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+    runSuggestions();
+  }
+}
+
+function handleUndoProgression() {
+  const snapshot = progressionUndoHistory.pop();
+  if (!snapshot) {
+    renderProgressionBuilderUI();
+    return;
+  }
+
+  pushProgressionRedoSnapshot();
+  restoreProgressionUndoSnapshot(snapshot);
+}
+
+function handleRedoProgression() {
+  const snapshot = progressionRedoHistory.pop();
+  if (!snapshot) {
+    renderProgressionBuilderUI();
+    return;
+  }
+
+  pushProgressionUndoSnapshot();
+  restoreProgressionUndoSnapshot(snapshot);
+}
+
 function refreshKeyUI() {
   syncKeyExplorerSelection();
   updateToolContext();
@@ -2605,6 +2725,8 @@ async function init() {
     if (suggestBtn) suggestBtn.dataset.tooltip = "Refresh the current suggestions";
     if (playProgressionBtn) playProgressionBtn.dataset.tooltip = "Play all chords in the progression";
     if (playFromSelectedBtn) playFromSelectedBtn.dataset.tooltip = "Play the progression from the selected chord";
+    if (undoProgressionBtn) undoProgressionBtn.dataset.tooltip = "Make a chord sequence change to undo";
+    if (redoProgressionBtn) redoProgressionBtn.dataset.tooltip = "Undo a chord sequence change to redo it";
     if (newProgressionBtn) newProgressionBtn.dataset.tooltip = "Add at least one chord before clearing the sequence";
     if (loadDemoProgressionBtn) loadDemoProgressionBtn.dataset.tooltip = "Open the Music Demos menu";
     if (saveProgressionBtn) saveProgressionBtn.dataset.tooltip = "Save the progression with tempo, time signature, and beat lengths";
@@ -2623,7 +2745,7 @@ async function init() {
 
     feelingSelect.addEventListener("change", refreshSuggestionsIfReady);
     progressionInput.addEventListener("input", () => {
-      importProgressionTextToState(progressionInput.value, { preserveSelection: false });
+      importProgressionTextToState(progressionInput.value, { preserveSelection: false, recordUndo: true });
     });
 
     if (sequenceTempoBpmInput) {
@@ -2675,6 +2797,18 @@ async function init() {
     if (playFromSelectedBtn) {
       playFromSelectedBtn.addEventListener("click", () => {
         void handlePlayProgression("selected");
+      });
+    }
+
+    if (undoProgressionBtn) {
+      undoProgressionBtn.addEventListener("click", () => {
+        handleUndoProgression();
+      });
+    }
+
+    if (redoProgressionBtn) {
+      redoProgressionBtn.addEventListener("click", () => {
+        handleRedoProgression();
       });
     }
 

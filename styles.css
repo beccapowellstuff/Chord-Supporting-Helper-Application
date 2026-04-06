@@ -1369,6 +1369,8 @@ button:active {
 .app-icon-button[data-icon="reset-progression"] { --icon-mask: url("./graphics/reset-progression.svg"); }
 .app-icon-button[data-icon="play-sequence"] { --icon-mask: url("./graphics/play-sequence.svg"); }
 .app-icon-button[data-icon="play-from"] { --icon-mask: url("./graphics/play-from.svg"); }
+.app-icon-button[data-icon="undo"] { --icon-mask: url("./graphics/undo.svg"); }
+.app-icon-button[data-icon="redo"] { --icon-mask: url("./graphics/redo.svg"); }
 .app-icon-button[data-icon="save-progression"] { --icon-mask: url("./graphics/save-progression.svg"); }
 .app-icon-button[data-icon="load-progression"] { --icon-mask: url("./graphics/load-progression.svg"); }
 .app-icon-button[data-icon="metronome"] { --icon-mask: url("./graphics/metronome.svg"); }
