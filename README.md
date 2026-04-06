@@ -123,26 +123,75 @@ Right-click `index.html` and choose `Open with Live Server`.
 
 ## Project Structure
 
-The app is still intentionally lightweight. The core files are:
+The app is still intentionally lightweight, but the repo now has a few clearer working areas:
 
-| File | Purpose |
+```text
+Chord-Supporting-Helper-Application/
+|- index.html
+|- styles.css
+|- package.json
+|- README.md
+|- js/
+|  |- app.js
+|  |- progressionBuilder.js
+|  |- playgroundKeyboard.js
+|  |- engine.js
+|  |- ui.js
+|  |- playback.js
+|  |- synth.js
+|  |- chordNotes.js
+|  |- chordVoicing.js
+|  |- theory.js
+|  |- dataLoader.js
+|  `- rootSelector.js
+|- data/
+|- graphics/
+|- assets/
+|- samples/
+|- Music Demos/
+|- tests/
+|- scripts/
+|- project-documents/
+|- .github/
+|  `- workflows/
+`- .codex/
+   `- skills/
+```
+
+| Path | Purpose |
 |---|---|
-| `index.html` | Main UI shell |
-| `styles.css` | App styling |
-| `js/app.js` | Entry point, state, event wiring |
-| `js/progressionBuilder.js` | Chord sequence model, save/load, block rendering, edit popover |
-| `js/playgroundKeyboard.js` | Sequence keyboard and bass-lane UI |
-| `js/engine.js` | Suggestion engine and progression parsing |
-| `js/ui.js` | Shared rendering for theory and suggestion UI |
-| `js/playback.js` | Progression and chord playback flow |
-| `js/synth.js` | Tone.js sampler wrapper |
-| `js/chordNotes.js` | Note, interval, chord, and MIDI helpers |
-| `js/chordVoicing.js` | Generated voicing logic |
-| `js/theory.js` | Key, mode, chord, and transition data generation |
-| `js/dataLoader.js` | Loads data files and assembles app data |
-| `data/` | Mood, theory, and description data |
-| `Music Demos/` | Bundled progression demos shown in the Demo menu |
-| `project-documents/` | Standalone project docs, roadmap, and release history |
+| `index.html` | Main app shell and layout |
+| `styles.css` | Global styling for the app UI |
+| `js/app.js` | Main entry point, startup flow, app state, and event wiring |
+| `js/progressionBuilder.js` | Progression builder model, block rendering, editing, and save/load behavior |
+| `js/playgroundKeyboard.js` | On-screen keyboard, note selection, and manual voicing capture |
+| `js/engine.js` | Suggestion engine logic and progression parsing |
+| `js/ui.js` | Shared UI rendering helpers for theory and suggestion views |
+| `js/playback.js` | Chord and progression playback orchestration |
+| `js/synth.js` | Tone.js sampler setup and note-trigger helpers |
+| `js/chordNotes.js` | Chord, interval, note, and MIDI utility helpers |
+| `js/chordVoicing.js` | Voicing generation and inversion-related logic |
+| `js/theory.js` | Key, mode, scale, chord, and transition data generation |
+| `js/dataLoader.js` | Loads the JSON data files and assembles runtime data |
+| `js/rootSelector.js` | Shared root-note selector UI behavior |
+| `data/` | Static app data such as keys, modes, moods, and chord descriptions |
+| `graphics/` | App icons, branding images, favicon, and source artwork files |
+| `assets/` | Extra brand/supporting visual assets |
+| `samples/` | Audio sample files used by playback |
+| `Music Demos/` | Bundled progression demo JSON files shown in the Demo menu |
+| `tests/` | Playwright end-to-end coverage plus syntax-check helpers |
+| `scripts/` | Project automation scripts such as release cleanup |
+| `project-documents/` | Roadmap, release history, acknowledgements, and other project-facing docs |
+| `.github/workflows/` | GitHub Actions automation |
+| `.codex/` | Repo-local Codex workflow/skill configuration |
+
+Generated or local-support folders you may also see:
+
+| Path | Purpose |
+|---|---|
+| `node_modules/` | Installed development dependencies |
+| `playwright-report/` | Generated Playwright HTML reports |
+| `test-results/` | Generated test output and artifacts |
 
 ## Browser Support
 
