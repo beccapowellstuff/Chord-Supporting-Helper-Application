@@ -372,6 +372,13 @@ if ($currentBranch -ne $branchToMerge) {
     Invoke-GitMutation -Description "Switch to source branch $branchToMerge" -Arguments @("switch", $branchToMerge)
 }
 
+Invoke-GitMutation -Description "Fetch $Remote/$MainBranch" -Arguments @("fetch", $Remote, $MainBranch)
+Ensure-RemoteBranchExists -RemoteName $Remote -BranchName $MainBranch
+Ensure-BranchMergedIntoTarget -BranchName "$Remote/$MainBranch" -TargetRef $branchToMerge
+Write-Host ("Verified: {0} already contains the latest {1}/{2}." -f $branchToMerge, $Remote, $MainBranch)
+
+Invoke-NpmMutation -Description "Run test gate with npm test" -Arguments @("test")
+
 Invoke-NpmMutation -Description "Bump package version with npm run $VersionScript" -Arguments @("run", $VersionScript)
 
 $endingVersion = Get-PackageVersion -RepoRoot $repoRoot
@@ -388,9 +395,6 @@ if ($endingVersion -ne $startingVersion) {
 else {
     Write-Host "Version did not change, so no version-bump commit was created."
 }
-
-Invoke-GitMutation -Description "Fetch $Remote/$MainBranch" -Arguments @("fetch", $Remote, $MainBranch)
-Ensure-RemoteBranchExists -RemoteName $Remote -BranchName $MainBranch
 
 Invoke-GitMutation -Description "Switch to $MainBranch" -Arguments @("switch", $MainBranch)
 Invoke-GitMutation -Description "Fast-forward local $MainBranch from $Remote/$MainBranch" -Arguments @("merge", "--ff-only", "$Remote/$MainBranch")
