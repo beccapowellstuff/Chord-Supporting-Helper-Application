@@ -141,6 +141,76 @@ test("renders text progressions as selectable visual blocks and updates the edit
   await expect(page.locator("#progressionEditor")).toContainText("Beats");
 });
 
+test("undoes and redoes recent chord-sequence changes without changing tempo", async ({ page }) => {
+  await gotoApp(page);
+
+  const undoButton = page.getByRole("button", { name: "Undo" });
+  const redoButton = page.getByRole("button", { name: "Redo" });
+  const tempoInput = page.locator("#sequenceTempoBpm");
+  const sequenceStates = [
+    "C",
+    "C | F",
+    "C | F | G",
+    "C | F | G | Am",
+    "C | F | G | Am | Dm",
+    "C | F | G | Am | Dm | Em"
+  ];
+
+  await tempoInput.fill("90");
+  await tempoInput.dispatchEvent("change");
+  await expect(tempoInput).toHaveValue("90");
+
+  for (const state of sequenceStates) {
+    await setProgressionText(page, state);
+    await expect.poll(() => page.locator("#progression").inputValue()).toBe(state);
+  }
+
+  await expect(undoButton).toBeEnabled();
+  await expect(redoButton).toBeDisabled();
+
+  for (const state of sequenceStates.slice(0, -1).reverse()) {
+    await undoButton.click();
+    await expect.poll(() => page.locator("#progression").inputValue()).toBe(state);
+    await expect(tempoInput).toHaveValue("90");
+  }
+
+  await expect(redoButton).toBeEnabled();
+  await expect(undoButton).toBeDisabled();
+  await expect.poll(() => page.locator("#progression").inputValue()).toBe("C");
+
+  for (const state of sequenceStates.slice(1)) {
+    await redoButton.click();
+    await expect.poll(() => page.locator("#progression").inputValue()).toBe(state);
+    await expect(tempoInput).toHaveValue("90");
+  }
+
+  await expect(redoButton).toBeDisabled();
+  await expect.poll(() => page.locator("#progression").inputValue()).toBe("C | F | G | Am | Dm | Em");
+});
+
+test("clears redo history after a fresh chord-sequence edit", async ({ page }) => {
+  await gotoApp(page);
+
+  const undoButton = page.getByRole("button", { name: "Undo" });
+  const redoButton = page.getByRole("button", { name: "Redo" });
+
+  await setProgressionText(page, "C | F");
+  await expect.poll(() => page.locator("#progression").inputValue()).toBe("C | F");
+
+  await setProgressionText(page, "C | F | G");
+  await expect(undoButton).toBeEnabled();
+  await expect(redoButton).toBeDisabled();
+
+  await undoButton.click();
+  await expect.poll(() => page.locator("#progression").inputValue()).toBe("C | F");
+  await expect(redoButton).toBeEnabled();
+
+  await setProgressionText(page, "C | F | Am");
+  await expect.poll(() => page.locator("#progression").inputValue()).toBe("C | F | Am");
+  await expect(undoButton).toBeEnabled();
+  await expect(redoButton).toBeDisabled();
+});
+
 test("renders the progression as compact wrapped chord blocks with beat-based widths", async ({ page }) => {
   await gotoApp(page);
   await page.setViewportSize({ width: 820, height: 900 });

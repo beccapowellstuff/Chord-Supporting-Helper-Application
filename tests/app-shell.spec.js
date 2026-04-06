@@ -8,6 +8,8 @@ test("loads the main app shell with builder and tool navigation", async ({ page 
   await expect(page.locator(".sequence-panel-title")).toHaveText("Progression Builder");
   await expect(page.getByRole("button", { name: "Play sequence" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Play from" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Undo" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Redo" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Save progression" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Key Explorer" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Chord Explorer" })).toHaveAttribute("aria-pressed", "false");
@@ -104,6 +106,31 @@ test("keeps the progression when new progression is cancelled", async ({ page })
   await expect(page.locator(".progression-block")).toHaveCount(3);
   await expect.poll(() => page.locator("#progression").inputValue()).toBe("C | F | G");
   await expect(confirmPopover).toBeHidden();
+});
+
+test("undo restores the previous chord sequence after clearing it", async ({ page }) => {
+  await gotoApp(page);
+
+  const undoButton = page.getByRole("button", { name: "Undo" });
+  const redoButton = page.getByRole("button", { name: "Redo" });
+
+  await setProgressionText(page, "C | F | G");
+  await expect(undoButton).toBeEnabled();
+  await expect(redoButton).toBeDisabled();
+
+  await page.getByRole("button", { name: "Clear chord sequence" }).click();
+  await page.getByRole("button", { name: "Yes" }).click();
+
+  await expect(page.locator(".progression-block")).toHaveCount(0);
+  await undoButton.click();
+
+  await expect(page.locator(".progression-block")).toHaveCount(3);
+  await expect.poll(() => page.locator("#progression").inputValue()).toBe("C | F | G");
+  await expect(redoButton).toBeEnabled();
+
+  await redoButton.click();
+  await expect(page.locator(".progression-block")).toHaveCount(0);
+  await expect.poll(() => page.locator("#progression").inputValue()).toBe("");
 });
 
 test("plays distinct notes across the top keyboard octave", async ({ page }) => {
