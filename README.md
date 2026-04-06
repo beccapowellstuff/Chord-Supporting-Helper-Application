@@ -2,8 +2,8 @@
 
 Vibe Chording is a browser-based music idea tool for building chord progressions, exploring keys, and shaping harmonic direction without handing authorship over to AI.
 
-Current version: [v0.15.0](./project-documents/VERSION_CHANGES.md#v0-15-0)  
-Full history: [Version Changes](./project-documents/VERSION_CHANGES.md)
+Current version: [v0.15.0](./project-documents/version-changes.html#v0-15-0)  
+Full history: [Version Changes](./project-documents/version-changes.html)
 Project status: [GitHub Project Board](https://github.com/users/beccapowellstuff/projects/1/views/2)
 
 Public-facing product name: `Vibe Chording`  
@@ -214,37 +214,6 @@ Vibe Chording is being built around a few principles:
 - support experimentation without turning into a full DAW
 
 The app still uses circle-of-fifths style theory relationships in the background, but the current key picker is not presented as a literal circle UI anymore. In the docs, it is better described as a visual key selector.
-
-## Release Milestones
-
-These link to the retroactive version summary file:
-
-- [v0.15.0](./project-documents/VERSION_CHANGES.md#v0-15-0)
-- [v0.14.0](./project-documents/VERSION_CHANGES.md#v0-14-0)
-- [v0.13.0](./project-documents/VERSION_CHANGES.md#v0-13-0)
-- [v0.12.0](./project-documents/VERSION_CHANGES.md#v0-12-0)
-
-## Recent Releases
-
-### v0.15.0
-
-- cleaned up the Progression Builder layout and merged the sequence and keyboard actions into one clearer toolbar row
-- added a distinct `Clear chord sequence` action and icon with safer confirmation and disabled states
-- added richer chord-block hover details for full chord names, duration, sustain, and voicing
-- fixed manual keyboard saves so they preserve the exact notes you entered
-- fixed slash-bass recognition so the dedicated bass lane controls the bass note
-- added contextual help popups across the main builder and exploration panels
-- simplified section titles, labels, and other UX details to reduce confusion
-
-### v0.14.0
-
-- fixed audio initialisation so one failed synth start does not permanently break playback
-- replaced the old placeholder Playwright coverage with app-specific browser tests
-- added shared inversion and voicing controls for Key Explorer, Chord Explorer, and Suggestion Engine
-- added triad voicing presets, progression voicing badges, and octave-aware keyboard note tooltips
-- improved progression playback behavior and expanded automated playback checks
-- replaced the one-off demo loader with a `Music Demos` menu that can list multiple demo JSON files
-- added an in-app clear/new progression flow and more builder-state polish
 
 ## Vibe Coding Note
 
