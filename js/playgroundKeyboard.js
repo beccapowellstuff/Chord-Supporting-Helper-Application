@@ -1,7 +1,7 @@
 import { DISPLAY_CHROMATIC, NOTE_TO_PC, noteToMidi, pitchClassToDisplayNote } from "./chordNotes.js";
 
 const KEYBOARD_OCTAVES = [3, 4, 5, 6];
-const BASS_LANE_OCTAVE = 2;
+const BASS_LANE_OCTAVES = [1, 2];
 const WHITE_PITCH_CLASSES = new Set([0, 2, 4, 5, 7, 9, 11]);
 const BLACK_KEY_AFTER_WHITE_INDEXES = [0, 1, 3, 4, 5];
 
@@ -56,21 +56,21 @@ function buildKeyboardLayout() {
 const KEYBOARD_LAYOUT = buildKeyboardLayout();
 
 function buildBassLaneLayout() {
-  const keys = [];
+  return BASS_LANE_OCTAVES.flatMap(octave =>
+    DISPLAY_CHROMATIC.map(noteLabel => {
+      const midi = noteToMidi(noteLabel, octave);
+      if (midi == null) {
+        return null;
+      }
 
-  for (let pitchClass = 0; pitchClass < 12; pitchClass += 1) {
-    const noteLabel = pitchClassToDisplayNote(pitchClass);
-    const midi = noteToMidi(noteLabel, BASS_LANE_OCTAVE);
-    if (midi == null) continue;
-
-    keys.push({
-      midi,
-      noteLabel,
-      pitchClass
-    });
-  }
-
-  return keys;
+      return {
+        midi,
+        noteLabel,
+        octave,
+        pitchClass: NOTE_TO_PC[noteLabel]
+      };
+    }).filter(Boolean)
+  );
 }
 
 const BASS_LANE_KEYS = buildBassLaneLayout();
@@ -243,8 +243,21 @@ export function renderSequenceKeyboard(
   titleRow.appendChild(chordName);
 
   titleBlock.appendChild(titleRow);
-
   header.appendChild(titleBlock);
+
+  const headerTools = document.createElement("div");
+  headerTools.className = "sequence-keyboard-header-tools";
+
+  const clearButton = buildSequenceIconButton(
+    "Clear",
+    "clear",
+    !canPlay,
+    canPlay ? "Clear Keyboard Selected Notes" : "Select notes to clear them",
+    onClear
+  );
+  headerTools.appendChild(clearButton);
+
+  header.appendChild(headerTools);
 
   const actions = document.createElement("div");
   actions.className = "sequence-keyboard-actions sequence-keyboard-toolbar";
@@ -365,15 +378,6 @@ export function renderSequenceKeyboard(
   );
   actions.appendChild(deleteButton);
 
-  const clearButton = buildSequenceIconButton(
-    "Clear",
-    "clear",
-    !canPlay,
-    canPlay ? "Clear selected notes" : "Select notes to clear them",
-    onClear
-  );
-  actions.appendChild(clearButton);
-
   shell.appendChild(header);
 
   const piano = document.createElement("div");
@@ -428,27 +432,28 @@ export function renderSequenceKeyboard(
   bassLaneLabel.textContent = "Bass";
   bassLane.appendChild(bassLaneLabel);
 
+  const bassLaneMidiSet = new Set(BASS_LANE_KEYS.map(key => key.midi));
   const bassActiveSet = new Set(
-    activeMidiNotes.filter(midi => BASS_LANE_KEYS.some(key => key.midi === midi))
+    activeMidiNotes.filter(midi => bassLaneMidiSet.has(midi))
   );
   const bassFlashSet = new Set(
-    flashMidiNotes.filter(midi => BASS_LANE_KEYS.some(key => key.midi === midi))
+    flashMidiNotes.filter(midi => bassLaneMidiSet.has(midi))
   );
 
   const bassKeys = document.createElement("div");
   bassKeys.className = "sequence-bass-keys";
 
-  BASS_LANE_KEYS.forEach(key => {
-    bassKeys.appendChild(
-      buildSequenceKey(
-        key.midi,
-        key.noteLabel,
-        "sequence-bass-key",
-        bassActiveSet,
-        bassFlashSet,
-        onKeyToggle
-      )
+  BASS_LANE_KEYS.forEach((key, index) => {
+    const button = buildSequenceKey(
+      key.midi,
+      key.noteLabel,
+      "sequence-bass-key",
+      bassActiveSet,
+      bassFlashSet,
+      onKeyToggle
     );
+    button.dataset.octave = String(key.octave);
+    bassKeys.appendChild(button);
   });
 
   bassLane.appendChild(bassKeys);

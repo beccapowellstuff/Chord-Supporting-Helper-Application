@@ -11,7 +11,7 @@ export const ADVANCED_VOICING_MODE = "advanced";
 const DEFAULT_DURATION_BEATS = 4;
 const MIN_DURATION_BEATS = 1;
 const MAX_DURATION_BEATS = 8;
-const MIN_CUSTOM_VOICING_MIDI = 36;
+const MIN_CUSTOM_VOICING_MIDI = 24;
 const SUPPORTED_TIME_SIGNATURES = new Set(["2/4", "3/4", "4/4"]);
 
 function createProgressionItemId() {

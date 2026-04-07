@@ -49,18 +49,20 @@ test("lets you build, auto-recognise, add, and clear a chord from the sequence k
   const keyboardToolbar = getSequenceKeyboardToolbar(page);
   const playButton = keyboardToolbar.getByRole("button", { name: "Play" });
   const saveButton = keyboardToolbar.getByRole("button", { name: "Add" });
-  const clearButton = keyboardToolbar.getByRole("button", { name: "Clear" });
+  const clearButton = keyboard.getByRole("button", { name: "Clear" });
 
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("No notes selected");
   await expect(playButton).toBeDisabled();
   await expect(saveButton).toBeDisabled();
   await expect(clearButton).toBeDisabled();
+  await expect(clearButton).toHaveAttribute("title", "Select notes to clear them");
 
   await selectSequenceKeyboardNotes(page, [60, 64, 67]);
 
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("C");
   await expect(playButton).toBeEnabled();
   await expect(saveButton).toBeEnabled();
+  await expect(clearButton).toHaveAttribute("title", "Clear Keyboard Selected Notes");
 
   await triggerSequenceKeyboardAction(saveButton);
   await expect(page.locator("#progression")).toHaveValue("C");
@@ -109,6 +111,28 @@ test("uses only the bass row for slash-bass recognition on the keyboard", async 
   await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("Am");
   await triggerSequenceKeyboardAction(keyboardToolbar.getByRole("button", { name: "Add" }));
   await expect(page.locator(".progression-block").first()).toHaveAttribute("data-progression-chord", "Am");
+});
+
+test("lets you choose octave-1 bass notes without changing the recognised chord quality", async ({ page }) => {
+  await gotoApp(page);
+
+  const keyboard = page.locator("#sequenceKeyboard");
+  const keyboardToolbar = getSequenceKeyboardToolbar(page);
+
+  await expect(keyboard.locator(".sequence-bass-key")).toHaveCount(24);
+  await expect(keyboard.locator('.sequence-bass-key[data-midi="24"]')).toHaveAttribute("title", "C(1)");
+  await expect(keyboard.locator('.sequence-bass-key[data-midi="36"]')).toHaveAttribute("title", "C(2)");
+
+  await selectSequenceKeyboardNotes(page, [35, 60, 64, 67]);
+
+  await expect(keyboard.locator(".sequence-keyboard-chord-name")).toHaveText("C/B");
+  await triggerSequenceKeyboardAction(keyboardToolbar.getByRole("button", { name: "Add" }));
+  await expect(page.locator(".progression-block").first()).toHaveAttribute("data-progression-chord", "C/B");
+  await expect.poll(() =>
+    page.evaluate(() =>
+      window.appState?.progressionItems?.[0]?.voicing?.notes?.map(note => note.midi) ?? []
+    )
+  ).toEqual([35, 60, 64, 67]);
 });
 
 test("renders text progressions as selectable visual blocks and updates the editor", async ({ page }) => {
@@ -560,4 +584,77 @@ test("saves and loads a progression file with sequence timing and beat lengths",
   await expect(page.locator("#progression")).toHaveValue("C | F | G");
   await expect(page.locator(".progression-block")).toHaveCount(3);
   await expect(page.locator(".progression-block").nth(2)).toHaveAttribute("data-progression-chord", "G");
+});
+
+test("saves and reloads octave-1 keyboard bass notes in progression voicings", async ({ page }) => {
+  await gotoApp(page);
+
+  const keyboardToolbar = getSequenceKeyboardToolbar(page);
+  await selectSequenceKeyboardNotes(page, [35, 60, 64, 67]);
+  await triggerSequenceKeyboardAction(keyboardToolbar.getByRole("button", { name: "Add" }));
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Save progression" }).click();
+  const download = await downloadPromise;
+  const downloadPath = await download.path();
+  const raw = await readFile(downloadPath, "utf8");
+  const savedProgression = JSON.parse(raw);
+
+  expect(savedProgression.items).toEqual([
+    expect.objectContaining({
+      position: 1,
+      chord: "C/B",
+      voicing: expect.objectContaining({
+        notes: [
+          { midi: 35, velocity: 84 },
+          { midi: 60, velocity: 84 },
+          { midi: 64, velocity: 84 },
+          { midi: 67, velocity: 84 }
+        ]
+      })
+    })
+  ]);
+
+  await setProgressionText(page, "");
+  await page.locator("#loadProgressionInput").setInputFiles({
+    name: "saved-low-bass-progression.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(savedProgression), "utf8")
+  });
+
+  await expect(page.locator("#progression")).toHaveValue("C/B");
+  await expect.poll(() =>
+    page.evaluate(() =>
+      window.appState?.progressionItems?.[0]?.voicing?.notes?.map(note => note.midi) ?? []
+    )
+  ).toEqual([35, 60, 64, 67]);
+});
+
+test("restores the saved key and mode when loading a progression file", async ({ page }) => {
+  await gotoApp(page);
+
+  const savedProgression = {
+    type: "vibe-chording-progression",
+    version: 4,
+    key: {
+      name: "D Dorian",
+      root: "D",
+      mode: "Dorian"
+    },
+    sequence: {
+      tempoBpm: 98,
+      timeSignature: "4/4"
+    },
+    items: [
+      { position: 1, chord: "Dm7", durationBeats: 4, sustain: true, voicing: null },
+      { position: 2, chord: "G", durationBeats: 4, sustain: true, voicing: null },
+      { position: 3, chord: "A7", durationBeats: 4, sustain: false, voicing: null }
+    ]
+  };
+
+  await loadStructuredProgression(page, savedProgression, "d-dorian-progression.json");
+
+  await expect(page.locator("#progressionSequenceKeyBadge")).toHaveText("D-Dorian");
+  await expect(page.locator("#progression")).toHaveValue("Dm7 | G | A7");
+  await expect.poll(() => page.evaluate(() => window.appState?.selectedKey)).toBe("D Dorian");
 });

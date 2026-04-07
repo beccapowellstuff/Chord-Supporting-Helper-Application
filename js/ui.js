@@ -593,11 +593,19 @@ function createSuggestionDetail(item, onChordClick, onChordAdd) {
 
   const meta = document.createElement("div");
   meta.className = "suggestion-detail-meta";
+
+  if (item.presentation?.intentLabel) {
+    const intent = document.createElement("span");
+    intent.className = "suggestion-detail-intent";
+    intent.textContent = item.presentation.intentLabel;
+    meta.appendChild(intent);
+  }
+
   appendChordLabelContent(meta, item.chord);
 
   const fn = document.createElement("span");
   fn.className = "suggestion-detail-function";
-  fn.textContent = `(${formatRomanNumeralLabel(item.fn)})`;
+  fn.textContent = `${item.presentation?.summaryLabel || "Suggested move"} · ${formatRomanNumeralLabel(item.fn)}`;
   meta.appendChild(fn);
 
   const reason = document.createElement("div");
@@ -642,44 +650,169 @@ function createSuggestionDetail(item, onChordClick, onChordAdd) {
   return detail;
 }
 
-const SUGGESTION_BUCKET_ORDER = [
-  {
-    id: "inKey",
-    title: "In Key",
-    description: "Grounded moves from the current key and mode."
-  },
-  {
-    id: "related",
-    title: "Related",
-    description: "Borrowed or parallel colours that still stay close."
-  },
-  {
-    id: "outside",
-    title: "Out of Key",
-    description: "Bolder chromatic or applied moves."
-  }
-];
+const PRIMARY_SUGGESTION_SECTION = {
+  id: "best",
+  title: "Best Next Moves",
+  description: "The strongest continuations for what your progression is doing right now."
+};
 
-function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setActiveCard, getActiveCard) {
+const MAX_FEATURED_SUGGESTIONS = 4;
+
+const SECONDARY_SUGGESTION_SECTION = {
+  id: "more",
+  title: "Other Good Paths",
+  description: "Alternative ways to continue, each labelled by the job it does."
+};
+
+function chordsMatchEntryFamily(chord, entry) {
+  if (!entry?.chord) {
+    return false;
+  }
+
+  const candidateInfo = parseChordName(chord);
+  const entryInfo = parseChordName(entry.chord);
+  if (!candidateInfo || !entryInfo) {
+    return chord === entry?.chord;
+  }
+
+  return candidateInfo.root === entryInfo.root && candidateInfo.suffix === entryInfo.suffix;
+}
+
+function suggestionMatchesAny(chord, entries = []) {
+  return (Array.isArray(entries) ? entries : []).some(entry => chordsMatchEntryFamily(chord, entry));
+}
+
+function suggestionMatchesPreferredTarget(chord, preferredTargets = []) {
+  return (Array.isArray(preferredTargets) ? preferredTargets : []).some(target => {
+    if (!target) {
+      return false;
+    }
+
+    return chordsMatchEntryFamily(chord, { chord: target });
+  });
+}
+
+function isTonicHoldSuggestion(item, progressionState) {
+  if (!progressionState?.lastChord) {
+    return false;
+  }
+
+  const chordInfo = parseChordName(item?.chord || "");
+  const lastInfo = parseChordName(progressionState.lastChord);
+  if (!chordInfo || !lastInfo) {
+    return item?.chord === progressionState?.lastChord;
+  }
+
+  const sameRoot = chordInfo.root === lastInfo.root;
+  const tonicFn = String(item?.fn || "").trim();
+  return sameRoot && ["I", "i"].includes(tonicFn);
+}
+
+function getSuggestionPresentation(item, progressionState) {
+  const matchesReopen = suggestionMatchesAny(item.chord, progressionState?.reopenCandidates);
+  const matchesTension = suggestionMatchesAny(item.chord, progressionState?.tensionCandidates);
+  const matchesPreferredTarget = suggestionMatchesPreferredTarget(item.chord, progressionState?.preferredTargets);
+  const isHold = isTonicHoldSuggestion(item, progressionState);
+  const normalizedFn = String(item?.fn || "").trim();
+  const isReturnToCenter = progressionState?.cadenceExpectation === "return to center"
+    && matchesPreferredTarget
+    && item.bucket === "inKey"
+    && ["I", "i", "V", "v"].includes(normalizedFn);
+
+  if (isHold) {
+    return {
+      sectionId: "hold",
+      intentLabel: "Hold landing",
+      summaryLabel: "Let the resolution breathe",
+      tone: "hold"
+    };
+  }
+
+  if (isReturnToCenter) {
+    const isKeyCenterReturn = ["I", "i"].includes(normalizedFn);
+    return {
+      sectionId: "return",
+      intentLabel: isKeyCenterReturn ? "Return to key centre" : "Shift to new centre",
+      summaryLabel: isKeyCenterReturn
+        ? "Settle back into the selected home key"
+        : "Treat this as the progression's new local home",
+      tone: "hold"
+    };
+  }
+
+  if (matchesTension || item.bucket === "outside") {
+    return {
+      sectionId: "tension",
+      intentLabel: "Rebuild tension",
+      summaryLabel: "Set up another arrival",
+      tone: "tension"
+    };
+  }
+
+  if (matchesReopen) {
+    return {
+      sectionId: "reopen",
+      intentLabel: "Reopen the loop",
+      summaryLabel: "Bring the motion back",
+      tone: "reopen"
+    };
+  }
+
+  if (item.bucket === "related") {
+    return {
+      sectionId: "colour",
+      intentLabel: "Add colour",
+      summaryLabel: "Borrowed colour that still fits",
+      tone: "colour"
+    };
+  }
+
+  return {
+    sectionId: "reopen",
+    intentLabel: "Keep it moving",
+    summaryLabel: "Stay connected to the phrase",
+    tone: "reopen"
+  };
+}
+
+function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setActiveCard, getActiveCard, options = {}) {
+  const { featured = false } = options;
   const card = document.createElement("div");
-  card.className = "suggestion-card";
-  card.dataset.bucket = item.bucket || "inKey";
+  card.className = "suggestion-card chord-button-wrapper";
+  card.dataset.intent = item.presentation?.tone || "reopen";
 
   const chordBtn = document.createElement("button");
-  chordBtn.className = "suggestion-card-chord";
+  chordBtn.className = "suggestion-card-chord chord-btn";
+  chordBtn.dataset.matchLevel = featured ? "primary" : "related";
+  chordBtn.dataset.chord = item.chord;
   chordBtn.dataset.tooltip = `Play ${formatChordLabel(item.chord)}`;
   chordBtn.type = "button";
-  appendChordLabelContent(chordBtn, item.chord);
+
+  const displayParts = getChordLoaderDisplayParts(item.chord);
+  const mainLabel = document.createElement("span");
+  mainLabel.className = "chord-btn-main";
+  mainLabel.textContent = displayParts.main;
+  chordBtn.appendChild(mainLabel);
+
+  const detailText = item.presentation?.intentLabel || "";
+  if (detailText) {
+    chordBtn.classList.add("chord-btn-two-line");
+    const detailLabel = document.createElement("span");
+    detailLabel.className = "chord-btn-detail";
+    detailLabel.textContent = detailText;
+    chordBtn.appendChild(detailLabel);
+  }
 
   const showDetail = () => {
-    const activeCard = getActiveCard();
-    if (activeCard) {
-      activeCard.classList.remove("active");
+    const activeButton = getActiveCard();
+    if (activeButton) {
+      activeButton.classList.remove("active");
     }
-    setActiveCard(card);
-    card.classList.add("active");
+    setActiveCard(chordBtn);
+    chordBtn.classList.add("active");
     detailHost.innerHTML = "";
     detailHost.appendChild(createSuggestionDetail(item, onChordClick, onChordAdd));
+    detailHost.scrollIntoView({ block: "nearest", behavior: "smooth" });
   };
 
   chordBtn.addEventListener("click", event => {
@@ -696,12 +829,8 @@ function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setAct
     if (onChordClick) onChordClick(item.chord);
   });
 
-  const fnLabel = document.createElement("div");
-  fnLabel.className = "suggestion-card-fn";
-  fnLabel.textContent = formatRomanNumeralLabel(item.fn);
-
   const addBtn = document.createElement("button");
-  addBtn.className = "suggestion-card-add-btn";
+  addBtn.className = "suggestion-card-add-btn chord-add-btn";
   addBtn.textContent = "+";
   addBtn.dataset.tooltip = `Add ${formatChordLabel(item.chord)} to progression`;
   addBtn.type = "button";
@@ -714,7 +843,6 @@ function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setAct
   card.addEventListener("click", showDetail);
 
   card.appendChild(chordBtn);
-  card.appendChild(fnLabel);
   card.appendChild(addBtn);
   return card;
 }
@@ -751,7 +879,7 @@ export function populateModeSelect(styleSelect, modeGroups) {
 }
 
 export function renderSuggestions(resultsElement, payload, musicData, selectedKey, onChordClick, onChordAdd) {
-  const { suggestions, parsedProgression = [], invalidChords = [] } = payload;
+  const { suggestions, parsedProgression = [], invalidChords = [], progressionState = null } = payload;
 
   resultsElement.innerHTML = "";
 
@@ -783,7 +911,9 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
   if (!suggestions.length) {
     const empty = document.createElement("div");
     empty.className = "suggestions-empty";
-    empty.textContent = "No suggestions found.";
+    empty.textContent = parsedProgression.length
+      ? "No suggestions found."
+      : "Add a chord to the sequence to get next-step suggestions.";
     wrapper.appendChild(empty);
     resultsElement.appendChild(wrapper);
     return;
@@ -797,34 +927,50 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
 
   let activeCard = null;
 
-  SUGGESTION_BUCKET_ORDER.forEach(bucket => {
-    const bucketSuggestions = suggestions.filter(item => (item.bucket || "inKey") === bucket.id);
-    if (!bucketSuggestions.length) {
+  const decoratedSuggestions = suggestions.map(item => ({
+    ...item,
+    presentation: getSuggestionPresentation(item, progressionState)
+  }));
+
+  const bestSuggestions = [...decoratedSuggestions]
+    .sort((a, b) => (b?.score || 0) - (a?.score || 0))
+    .slice(0, MAX_FEATURED_SUGGESTIONS);
+  const bestChordSet = new Set(bestSuggestions.map(item => item.chord));
+
+  const appendSuggestionSection = (sectionMeta, sectionSuggestions, options = {}) => {
+    if (!sectionSuggestions.length) {
       return;
     }
 
     const section = document.createElement("section");
-    section.className = "suggestion-bucket";
-    section.dataset.suggestionBucket = bucket.id;
+    section.className = `suggestion-group chord-group ${options.best ? "chord-group-strong" : "chord-group-soft"}`;
+    section.dataset.suggestionSection = sectionMeta.id;
 
     const header = document.createElement("div");
-    header.className = "suggestion-bucket-header";
+    header.className = "suggestion-group-header";
 
     const title = document.createElement("div");
-    title.className = "suggestion-bucket-title";
-    title.textContent = bucket.title;
+    title.className = "suggestion-group-title";
+    title.textContent = sectionMeta.title;
 
     const description = document.createElement("div");
-    description.className = "suggestion-bucket-description";
-    description.textContent = bucket.description;
+    description.className = "suggestion-group-description";
+    description.textContent = sectionMeta.description;
 
     header.appendChild(title);
     header.appendChild(description);
     section.appendChild(header);
 
-    const bucketGrid = grid.cloneNode(false);
-    bucketSuggestions.forEach(item => {
-      bucketGrid.appendChild(createSuggestionCard(
+    const sectionGrid = grid.cloneNode(false);
+    if (options.best) {
+      sectionGrid.classList.add("suggestions-grid-best");
+    }
+    if (options.secondary) {
+      sectionGrid.classList.add("suggestions-grid-secondary");
+    }
+
+    sectionSuggestions.forEach(item => {
+      sectionGrid.appendChild(createSuggestionCard(
         item,
         detailHost,
         onChordClick,
@@ -832,16 +978,45 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
         card => {
           activeCard = card;
         },
-        () => activeCard
+        () => activeCard,
+        { featured: Boolean(options.best) }
       ));
     });
 
-    section.appendChild(bucketGrid);
+    section.appendChild(sectionGrid);
     wrapper.appendChild(section);
+  };
+
+  appendSuggestionSection(PRIMARY_SUGGESTION_SECTION, bestSuggestions, { best: true });
+
+  const secondarySuggestions = decoratedSuggestions
+    .filter(item => !bestChordSet.has(item.chord))
+    .sort((a, b) => (b?.score || 0) - (a?.score || 0));
+
+  appendSuggestionSection(SECONDARY_SUGGESTION_SECTION, secondarySuggestions, {
+    secondary: true,
+    compact: true
   });
 
-  appendSelectionBar(wrapper, onChordClick, "Play a chord to choose inversion and voicing");
   wrapper.appendChild(detailHost);
+  appendSelectionBar(wrapper, onChordClick, "Play a chord to choose inversion and voicing");
+
+  const selectedChord = typeof onChordClick?.getSelectedChord === "function"
+    ? onChordClick.getSelectedChord()
+    : "";
+  if (selectedChord) {
+    const selectedSuggestion = decoratedSuggestions.find(item => item?.chord === selectedChord);
+    const selectedButton = [...wrapper.querySelectorAll(".suggestion-card-chord")]
+      .find(button => button.getAttribute("data-chord") === selectedChord);
+
+    if (selectedSuggestion && selectedButton) {
+      selectedButton.classList.add("active");
+      activeCard = selectedButton;
+      detailHost.innerHTML = "";
+      detailHost.appendChild(createSuggestionDetail(selectedSuggestion, onChordClick, onChordAdd));
+    }
+  }
+
   resultsElement.appendChild(wrapper);
   bindSelectionBarInteractions(wrapper, onChordClick);
 }
