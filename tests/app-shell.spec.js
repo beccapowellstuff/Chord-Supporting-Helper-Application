@@ -68,6 +68,7 @@ test("opens the demo menu and shows bundled music demos", async ({ page }) => {
   await demoButton.click();
   await expect(demoPopover).toBeVisible();
   await expect(page.locator("#demoMenuList .progression-demo-menu-item").first()).toHaveText("Demo01-cIonian");
+  await expect(page.locator("#demoMenuList .progression-demo-menu-item").nth(1)).toHaveText("Demo02-dDorian");
 });
 
 test("lets you clear the progression with the new action", async ({ page }) => {

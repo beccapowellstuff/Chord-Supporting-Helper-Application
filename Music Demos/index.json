@@ -1,0 +1,14 @@
+{
+  "demos": [
+    {
+      "fileName": "Demo01-cIonian.json",
+      "label": "Demo01-cIonian",
+      "path": "./Music%20Demos/Demo01-cIonian.json"
+    },
+    {
+      "fileName": "Demo02-dDorian.json",
+      "label": "Demo02-dDorian",
+      "path": "./Music%20Demos/Demo02-dDorian.json"
+    }
+  ]
+}

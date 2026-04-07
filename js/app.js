@@ -193,6 +193,7 @@ let progressionRedoHistory = [];
 
 const DEFAULT_MUSIC_DEMO_FILE = "Demo01-cIonian.json";
 const MUSIC_DEMOS_DIR_PATH = "./Music%20Demos/";
+const MUSIC_DEMOS_MANIFEST_PATH = "./Music%20Demos/index.json";
 const MUSIC_DEMOS_ENDPOINT_PATH = "./__music-demos";
 const SECTION_HELP_CONTENT = {
   "progression-builder": {
@@ -1693,6 +1694,22 @@ function normalizeMusicDemoEntries(entries = []) {
 }
 
 async function fetchMusicDemoEntries() {
+  const manifestUrl = new URL(MUSIC_DEMOS_MANIFEST_PATH, window.location.href);
+  manifestUrl.searchParams.set("ts", String(Date.now()));
+
+  try {
+    const response = await fetch(manifestUrl, { cache: "no-store" });
+    if (response.ok) {
+      const payload = await response.json();
+      const demos = normalizeMusicDemoEntries(payload?.demos);
+      if (demos.length) {
+        return demos;
+      }
+    }
+  } catch (error) {
+    console.warn("Could not load demo manifest:", error);
+  }
+
   const endpointUrl = new URL(MUSIC_DEMOS_ENDPOINT_PATH, window.location.href);
   endpointUrl.searchParams.set("ts", String(Date.now()));
 
@@ -1739,9 +1756,14 @@ async function fetchMusicDemoEntries() {
 
   return normalizeMusicDemoEntries([
     {
-      fileName: DEFAULT_MUSIC_DEMO_FILE,
-      label: DEFAULT_MUSIC_DEMO_FILE.replace(/\.json$/i, ""),
-      path: `${MUSIC_DEMOS_DIR_PATH}${encodeURIComponent(DEFAULT_MUSIC_DEMO_FILE)}`
+      fileName: "Demo01-cIonian.json",
+      label: "Demo01-cIonian",
+      path: `${MUSIC_DEMOS_DIR_PATH}${encodeURIComponent("Demo01-cIonian.json")}`
+    },
+    {
+      fileName: "Demo02-dDorian.json",
+      label: "Demo02-dDorian",
+      path: `${MUSIC_DEMOS_DIR_PATH}${encodeURIComponent("Demo02-dDorian.json")}`
     }
   ]);
 }
