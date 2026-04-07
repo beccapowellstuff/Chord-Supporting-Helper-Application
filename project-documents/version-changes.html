@@ -143,6 +143,7 @@
         This page gives a browser-friendly view of Vibe Chording's release history. The earlier entries are retroactive milestone summaries, designed to show how the app grew from a theory reference into a progression-focused builder and playback tool.
       </p>
       <div class="jump-links">
+        <a href="#v0-18-0">v0.18.0</a>
         <a href="#v0-17-0">v0.17.0</a>
         <a href="#v0-16-0">v0.16.0</a>
         <a href="#v0-15-0">v0.15.0</a>
@@ -164,6 +165,19 @@
     </section>
 
     <section class="release-list">
+      <article class="release-card" id="v0-18-0">
+        <h2>v0.18.0</h2>
+        <ul>
+          <li>Reworked the Suggestion Engine to read more of the progression story instead of relying mainly on the last chord, including cadence memory, borrowed-colour analysis, slash-bass cues, exact chord-family reuse, top-line awareness, and a new temporary local-centre / recent-arrival layer.</li>
+          <li>Expanded suggestion generation and ranking so the engine can surface broader continuation families, reduce wasted repeats and duplicate tonic-family suggestions, prefer clearer root-position returns, and better distinguish return, reopen, tension, and colour moves.</li>
+          <li>Added a much richer Suggestion Debug view with progression-plus-top-note export, harmonic read, centre read, cadence and palette summaries, overall ranking, copy-to-clipboard support, and a default-hidden debug panel toggled from a compact bug-style icon.</li>
+          <li>Refreshed Suggestion Engine presentation to use the app's tighter chord-tile language, clearer intent labels like <code>Return to key centre</code> and <code>Shift to new centre</code>, compact layouts, and preserved detail-panel explanations when clicking suggestions.</li>
+          <li>Expanded automated browser coverage around suggestion ranking, debug visibility and copy behavior, local-centre detection, top-note context, slash-bass influence, resolution handling, and duplicate-suppression edge cases.</li>
+          <li>Improved progression-builder workflow details outside the suggestion engine too: keyboard bass selection now supports octave 1 and 2 properly, low bass notes survive add/save/load/playback, the keyboard clear action moved into the keyboard header, and progression/demo loads now restore the saved key and mode correctly.</li>
+          <li>Added another bundled demo progression and continued UI polish around music-demo popovers, toolbar icons, and sequence controls while keeping the package version unchanged until the release is formally cut.</li>
+        </ul>
+      </article>
+
       <article class="release-card" id="v0-17-0">
         <h2>v0.17.0</h2>
         <ul>

@@ -110,6 +110,10 @@ const audioStatus = document.getElementById("audioStatus");
 const audioStatusMessage = document.getElementById("audioStatusMessage");
 const sequenceTimeSignatureSelect = document.getElementById("sequenceTimeSignature");
 const results = document.getElementById("results");
+const suggestionDebugPanel = document.getElementById("suggestionDebugPanel");
+const suggestionDebugOutput = document.getElementById("suggestionDebugOutput");
+const toggleSuggestionDebugBtn = document.getElementById("toggleSuggestionDebugBtn");
+const copySuggestionDebugBtn = document.getElementById("copySuggestionDebugBtn");
 const rootContainer = document.getElementById("rootContainer");
 const keyInfo = document.getElementById("keyInfo");
 const chordButtons = document.getElementById("chordButtons");
@@ -154,10 +158,12 @@ const appState = {
   editingProgressionAnchorRect: null,
   playingProgressionItemId: null,
   isPlayingProgression: false,
-  progressionInvalidTokens: []
+  progressionInvalidTokens: [],
+  suggestionDebugVisible: false
 };
 window.appState = appState;
 let sequenceKeyboardMidiNotes = [];
+let suggestionDebugCopyResetTimer = null;
 let sequenceKeyboardFlashMidiNotes = [];
 let sequenceKeyboardDisplayMidiNotes = [];
 let identifiedSequenceChord = null;
@@ -1572,21 +1578,76 @@ function handleNewProgression() {
   setProgressionItems([], { selectedId: null });
 }
 
+function resolveSavedProgressionKey(data) {
+  const musicData = appData?.musicData;
+  if (!musicData || !data || typeof data !== "object") {
+    return null;
+  }
+
+  const savedName = String(data.key?.name || "").trim();
+  if (savedName && musicData[savedName]) {
+    return savedName;
+  }
+
+  const savedRoot = normaliseRoot(
+    String(data.key?.root || savedName.split(" ")[0] || "").trim()
+  );
+  const savedMode = String(
+    data.key?.mode || savedName.split(" ").slice(1).join(" ")
+  ).trim().toLowerCase();
+
+  if (!savedRoot || !savedMode) {
+    return null;
+  }
+
+  const savedPc = NOTE_TO_PC[savedRoot];
+  if (savedPc == null) {
+    return null;
+  }
+
+  return Object.keys(musicData).find(keyName => {
+    const keyData = musicData[keyName];
+    const keyRoot = normaliseRoot(keyData?.root);
+    return NOTE_TO_PC[keyRoot] === savedPc && String(keyData?.mode || "").trim().toLowerCase() === savedMode;
+  }) || null;
+}
+
 function applyLoadedProgressionData(data) {
+  const resolvedSavedKey = resolveSavedProgressionKey(data);
+  const importKeyData =
+    (resolvedSavedKey ? appData?.musicData?.[resolvedSavedKey] : null) ||
+    getCurrentKeyData();
   const {
     items,
     invalid,
     sequenceSettings
-  } = importProgressionFromSavedData(data, getCurrentKeyData(), appState.progressionItems);
+  } = importProgressionFromSavedData(data, importKeyData, appState.progressionItems);
 
   if (!items.length) {
     throw new Error("No chords found");
+  }
+
+  const keyChanged = Boolean(resolvedSavedKey && resolvedSavedKey !== appState.selectedKey);
+  if (resolvedSavedKey) {
+    appState.selectedKey = resolvedSavedKey;
+    updateKeyChordSet();
+
+    if (keyChanged) {
+      const rootNote = resolvedSavedKey.split(" ")[0] || "C";
+      appState.selectedChordRoot = rootNote;
+      appState.selectedBassRoot = rootNote;
+    }
   }
 
   appState.sequenceTempoBpm = normalizeTempoBpm(sequenceSettings?.tempoBpm);
   appState.sequenceTimeSignature = normalizeTimeSignature(sequenceSettings?.timeSignature);
   appState.progressionInvalidTokens = invalid;
   setProgressionItems(items, { selectedId: null, recordUndo: true });
+
+  if (keyChanged) {
+    refreshChordPlaygroundUI();
+    refreshKeyUI();
+  }
 
   if (activeToolPanelId === "suggestionEnginePanel" && appData) {
     runSuggestions();
@@ -2538,6 +2599,231 @@ function refreshSuggestionsIfReady() {
   }
 }
 
+function renderSuggestionDebugVisibility() {
+  if (suggestionDebugPanel) {
+    suggestionDebugPanel.hidden = !appState.suggestionDebugVisible;
+  }
+
+  if (toggleSuggestionDebugBtn) {
+    const label = appState.suggestionDebugVisible ? "Hide Suggestion Debug" : "Show Suggestion Debug";
+    toggleSuggestionDebugBtn.setAttribute("aria-pressed", String(appState.suggestionDebugVisible));
+    toggleSuggestionDebugBtn.setAttribute("aria-label", label);
+    toggleSuggestionDebugBtn.dataset.tooltip = appState.suggestionDebugVisible
+      ? "Hide the suggestion debug panel"
+      : "Show the suggestion debug panel";
+  }
+}
+
+function setSuggestionDebugCopyButtonState(copied = false) {
+  if (!copySuggestionDebugBtn) {
+    return;
+  }
+
+  copySuggestionDebugBtn.classList.toggle("suggestion-debug-copy-btn-copied", copied);
+  copySuggestionDebugBtn.dataset.tooltip = copied ? "Copied AI Brief" : "Copy AI Brief";
+  copySuggestionDebugBtn.setAttribute("aria-label", copied ? "Copied AI Brief" : "Copy AI Brief");
+}
+
+async function copyTextToClipboard(text) {
+  const value = String(text || "");
+  if (!value) {
+    return false;
+  }
+
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return true;
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = value;
+  textArea.setAttribute("readonly", "readonly");
+  textArea.style.position = "fixed";
+  textArea.style.opacity = "0";
+  document.body.appendChild(textArea);
+  textArea.select();
+  textArea.setSelectionRange(0, textArea.value.length);
+
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } finally {
+    document.body.removeChild(textArea);
+  }
+
+  return copied;
+}
+
+async function handleCopySuggestionDebug() {
+  if (!suggestionDebugOutput) {
+    return;
+  }
+
+  const text = String(suggestionDebugOutput.textContent || "").trim();
+  if (!text || text === "No suggestion debug yet.") {
+    return;
+  }
+
+  try {
+    const copied = await copyTextToClipboard(text);
+    if (!copied) {
+      return;
+    }
+
+    if (suggestionDebugCopyResetTimer) {
+      clearTimeout(suggestionDebugCopyResetTimer);
+    }
+
+    setSuggestionDebugCopyButtonState(true);
+    suggestionDebugCopyResetTimer = window.setTimeout(() => {
+      setSuggestionDebugCopyButtonState(false);
+      suggestionDebugCopyResetTimer = null;
+    }, 1600);
+  } catch (error) {
+    console.error("✗ Could not copy suggestion debug:", error);
+  }
+}
+
+function midiToDebugNoteLabel(midi) {
+  const numericMidi = Number(midi);
+  if (!Number.isFinite(numericMidi)) {
+    return "";
+  }
+
+  const pitchClass = ((numericMidi % 12) + 12) % 12;
+  const octave = Math.floor(numericMidi / 12) - 1;
+  const noteName = pitchClassToDisplayNote(pitchClass);
+  return noteName ? `${noteName}${octave}` : "";
+}
+
+function formatProgressionWithTopNotes(items) {
+  const progressionItems = Array.isArray(items) ? items : [];
+  if (!progressionItems.length) {
+    return "";
+  }
+
+  const segments = progressionItems.map(item => {
+    const chord = String(item?.chord || "").trim();
+    if (!chord) {
+      return "";
+    }
+
+    const notes = Array.isArray(item?.voicing?.notes)
+      ? item.voicing.notes
+          .map(note => Number(note?.midi))
+          .filter(Number.isFinite)
+          .sort((a, b) => a - b)
+      : [];
+    const topNote = notes.length ? midiToDebugNoteLabel(notes.at(-1)) : "";
+    return topNote ? `${chord}[${topNote}]` : chord;
+  }).filter(Boolean);
+
+  return segments.some(segment => /\[[^\]]+\]$/.test(segment))
+    ? segments.join(" | ")
+    : "";
+}
+
+function renderSuggestionDebug(suggestionPayload) {
+  if (!suggestionDebugOutput) {
+    return;
+  }
+
+  const analysis = suggestionPayload?.progressionState;
+  const suggestions = Array.isArray(suggestionPayload?.suggestions) ? suggestionPayload.suggestions : [];
+  if (!analysis) {
+    suggestionDebugOutput.textContent = "No suggestion debug yet.";
+    if (copySuggestionDebugBtn) {
+      copySuggestionDebugBtn.disabled = true;
+      setSuggestionDebugCopyButtonState(false);
+    }
+    return;
+  }
+
+  const formatSuggestionBucketLine = (bucketId, label) => {
+    const bucketSuggestions = suggestions.filter(item => (item?.bucket || "inKey") === bucketId);
+    if (!bucketSuggestions.length) {
+      return `${label}: (none)`;
+    }
+
+    return `${label}: ${bucketSuggestions
+      .map(item => `${item.chord} [${item.fn}] (${item.score})`)
+      .join(", ")}`;
+  };
+
+  const formatTopNoteLine = entries => {
+    const matches = (Array.isArray(entries) ? entries : [])
+      .filter(item => Number(item?.topNoteBonus) > 0)
+      .sort((a, b) => (b?.topNoteBonus || 0) - (a?.topNoteBonus || 0) || (b?.score || 0) - (a?.score || 0));
+    if (!matches.length) {
+      return "(none)";
+    }
+
+    return matches
+      .map(item => `${item.chord} [+${item.topNoteBonus} ${item.topNoteRelation}${item.topNoteMotionAssist ? ", motion assist" : ""}]`)
+      .join(", ");
+  };
+
+  const overallRanking = [...suggestions]
+    .sort((a, b) => (b?.score || 0) - (a?.score || 0))
+    .map(item => `${item.chord} [${item.fn}] (${item.score})`);
+  const topLineSummary = analysis.topNoteLabel
+    ? analysis.previousTopNoteLabel
+      ? `${analysis.previousTopNoteLabel} -> ${analysis.topNoteLabel} (${analysis.topNoteMotionLabel || "none"})`
+      : analysis.topNoteLabel
+    : "";
+  const lastChordSummary = analysis.lastChord
+    ? `${analysis.lastChord}${analysis.lastFunction ? ` [${analysis.lastFunction}]` : ""}`
+    : "(none)";
+  const harmonicRead = `${analysis.harmonicLanguage || "(unknown)"} (mode confidence: ${analysis.modeConfidence || "(unknown)"})`;
+  const cadenceRead = analysis.latestCadence && analysis.latestCadence !== "none"
+    ? `${analysis.latestCadence}${analysis.strongestCadence && analysis.strongestCadence !== analysis.latestCadence ? ` | strongest: ${analysis.strongestCadence}` : ""}`
+    : (analysis.strongestCadence && analysis.strongestCadence !== "none" ? analysis.strongestCadence : "none");
+  const paletteSummary = [
+    analysis.establishedInKeyChords?.length
+      ? `in-key ${analysis.establishedInKeyChords.map(entry => entry.chord).join(", ")}`
+      : "",
+    analysis.establishedBorrowedChords?.length
+      ? `borrowed ${analysis.establishedBorrowedChords.map(entry => entry.chord).join(", ")}`
+      : ""
+  ].filter(Boolean).join(" | ") || "(none)";
+  const progressionWithTopNotes = formatProgressionWithTopNotes(appState.progressionItems);
+
+    const centreRead = analysis.localCenterActive
+      ? `Centre read: global ${analysis.globalCenter || "(none)"} | local pull ${analysis.localCenterExactChord || analysis.localCenterChord || "(none)"} (${analysis.localCenterConfidence || "unknown"}${analysis.localCenterSource ? `, ${analysis.localCenterSource}` : ""})`
+      : `Centre read: global ${analysis.globalCenter || "(none)"}`;
+
+    const lines = [
+      `Progression: ${analysis.progressionText || "(empty)"}`,
+      progressionWithTopNotes ? `Progression + top notes: ${progressionWithTopNotes}` : "",
+      `Key and mode: ${appState.selectedKey || "(none)"} | Feeling: ${feelingSelect?.value || "(none)"}`,
+      centreRead,
+      `Last chord: ${lastChordSummary}`,
+      `Harmonic read: ${harmonicRead}`,
+    `Direction: ${analysis.stability} -> ${analysis.cadenceExpectation} | Phrase: ${analysis.phrasePosition || "(unknown)"}`,
+    `Cadence read: ${cadenceRead}`,
+    analysis.repeatedEnding ? "Pattern cue: repeated ending" : "",
+    analysis.slashBass ? `Slash bass: ${analysis.slashBass}${analysis.slashBassTarget ? ` -> ${analysis.slashBassTarget}` : ""}` : "",
+    topLineSummary ? `Top line: ${topLineSummary}` : "",
+    `Established palette: ${paletteSummary}`,
+    `Tension candidates: ${analysis.tensionCandidates?.length ? analysis.tensionCandidates.map(entry => entry.chord).join(", ") : "(none)"}`,
+    `Preferred targets: ${analysis.preferredTargets.length ? analysis.preferredTargets.join(", ") : "(none)"}`,
+    `Why: ${analysis.summaryNotes.length ? analysis.summaryNotes.join(" | ") : "(none)"}`,
+    `Top-note influence: ${formatTopNoteLine(suggestions)}`,
+    `Suggestion set: ${suggestions.length} shown`,
+    `Overall ranking: ${overallRanking.length ? overallRanking.join(", ") : "(none)"}`,
+    "Shown suggestions:",
+    formatSuggestionBucketLine("inKey", "In Key"),
+    formatSuggestionBucketLine("related", "Related"),
+    formatSuggestionBucketLine("outside", "Out of Key")
+  ].filter(Boolean);
+
+  suggestionDebugOutput.textContent = lines.join("\n");
+  if (copySuggestionDebugBtn) {
+    copySuggestionDebugBtn.disabled = false;
+    setSuggestionDebugCopyButtonState(false);
+  }
+}
+
 function runSuggestions() {
   const suggestionPayload = getSuggestions({
     musicData: appData.musicData,
@@ -2546,9 +2832,12 @@ function runSuggestions() {
     moodReasonText: appData.moodReasonText,
     selectedKey: appState.selectedKey,
     progression: progressionItemsToText(appState.progressionItems),
-    feeling: feelingSelect.value
+    feeling: feelingSelect.value,
+    progressionItems: appState.progressionItems
   });
 
+  renderSuggestionDebug(suggestionPayload);
+  renderSuggestionDebugVisibility();
   syncSuggestionEngineSelection(suggestionPayload.suggestions);
 
   const onSuggestedChordClick = Object.assign(async chordName => {
@@ -2681,6 +2970,7 @@ async function init() {
     console.log("✓ Data loaded");
 
     populateFeelings(feelingSelect, appData.moodBoosts);
+    renderSuggestionDebugVisibility();
     appState.selectedChordRoot = appState.selectedKey.split(" ")[0];
     appState.selectedBassRoot = appState.selectedChordRoot;
     updateKeyChordSet();
@@ -2737,6 +3027,8 @@ async function init() {
     if (sequenceTimeSignatureSelect) sequenceTimeSignatureSelect.dataset.tooltip = "Set the default beats per bar for new chord blocks";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
     if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
+    if (toggleSuggestionDebugBtn) toggleSuggestionDebugBtn.dataset.tooltip = "Show the suggestion debug panel";
+    if (copySuggestionDebugBtn) copySuggestionDebugBtn.dataset.tooltip = "Copy AI Brief";
     sectionHelpButtons.forEach(button => {
       button.dataset.tooltip = "How to use this section";
     });
@@ -2786,6 +3078,19 @@ async function init() {
 
     if (suggestBtn) {
       suggestBtn.addEventListener("click", refreshSuggestionsIfReady);
+    }
+
+    if (toggleSuggestionDebugBtn) {
+      toggleSuggestionDebugBtn.addEventListener("click", () => {
+        appState.suggestionDebugVisible = !appState.suggestionDebugVisible;
+        renderSuggestionDebugVisibility();
+      });
+    }
+
+    if (copySuggestionDebugBtn) {
+      copySuggestionDebugBtn.addEventListener("click", () => {
+        void handleCopySuggestionDebug();
+      });
     }
 
     if (playProgressionBtn) {
