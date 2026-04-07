@@ -13,10 +13,30 @@
  * Exports: parseProgression, getSuggestions
  * Depends on: chordNotes (NOTE_TO_PC, normaliseRoot, parseChordName)
  */
-import { NOTE_TO_PC, normaliseRoot, parseChordName } from "./chordNotes.js";
+import { NOTE_TO_PC, normaliseRoot, parseChordName, pitchClassToDisplayNote } from "./chordNotes.js";
 
 const SHARP_PITCH_CLASSES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const FLAT_PITCH_CLASSES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+const STABLE_ARRIVAL_SUFFIXES = new Set([
+  "",
+  "m",
+  "add9",
+  "add11",
+  "add13",
+  "Maj7",
+  "Maj9",
+  "Maj11",
+  "Maj13",
+  "m7",
+  "m9",
+  "m11",
+  "m13",
+  "sus2",
+  "sus4",
+  "madd9",
+  "madd11",
+  "madd13"
+]);
 const MAX_BUCKET_SUGGESTIONS = 5;
 const SUGGESTION_BUCKETS = [
   {
@@ -383,7 +403,70 @@ function midiToDisplayNote(midi) {
 
   const pitchClass = ((midi % 12) + 12) % 12;
   const octave = Math.floor(midi / 12) - 1;
-  return `${FLAT_PITCH_CLASSES[pitchClass] || "?"}${octave}`;
+  return `${pitchClassToDisplayNote(pitchClass) || "?"}${octave}`;
+}
+
+function isStableArrivalChord(chord) {
+  const parsed = parseChordName(chord);
+  if (!parsed) {
+    return false;
+  }
+
+  const family = getQualityFamily(parsed.suffix || "major");
+  return family === "major" || family === "minor" || STABLE_ARRIVAL_SUFFIXES.has(parsed.suffix || "");
+}
+
+function isDominantToTarget(chord, targetRoot) {
+  const targetPc = getPitchClass(targetRoot);
+  const chordPc = getPitchClass(getChordRoot(chord));
+  if (targetPc == null || chordPc == null) {
+    return false;
+  }
+
+  const interval = (chordPc - targetPc + 12) % 12;
+  const quality = getChordQuality(chord);
+  const family = getQualityFamily(quality);
+  return interval === 7 && (quality.includes("7") || family === "major" || family === "dim");
+}
+
+function isLeadingToneToTarget(chord, targetRoot) {
+  const targetPc = getPitchClass(targetRoot);
+  const chordPc = getPitchClass(getChordRoot(chord));
+  if (targetPc == null || chordPc == null) {
+    return false;
+  }
+
+  const interval = (chordPc - targetPc + 12) % 12;
+  return interval === 11 && getQualityFamily(getChordQuality(chord)) === "dim";
+}
+
+function isPredominantToTarget(chord, targetRoot) {
+  const targetPc = getPitchClass(targetRoot);
+  const chordPc = getPitchClass(getChordRoot(chord));
+  if (targetPc == null || chordPc == null) {
+    return false;
+  }
+
+  const interval = (chordPc - targetPc + 12) % 12;
+  const quality = getChordQuality(chord);
+  const family = getQualityFamily(quality);
+  return interval === 2 && (family === "minor" || family === "dim" || quality.includes("m7b5"));
+}
+
+function chordSupportsTargetCentre(chord, targetRoot) {
+  if (!chord || !targetRoot) {
+    return false;
+  }
+
+  const details = parseChordName(chord);
+  if (!details) {
+    return false;
+  }
+
+  const normalizedTarget = normaliseRoot(targetRoot);
+  const root = normaliseRoot(details.root);
+  const bass = details.bass ? normaliseRoot(details.bass) : null;
+  return root === normalizedTarget || bass === normalizedTarget;
 }
 
 function getPitchClassDistance(fromPitchClass, toPitchClass) {
@@ -470,6 +553,16 @@ function evaluateTopNoteInfluence(progressionState, candidate) {
     if (candidatePitchClasses.some(pitchClass => expectedPitchClasses.includes(pitchClass))) {
       bonus += 1;
       motionAssist = true;
+    }
+  }
+
+  if (bonus === 0) {
+    if (progressionState.topNoteMotion === 0 && closestTopNoteDistance >= 3) {
+      bonus -= 2;
+      relation = "breaks held top note";
+    } else if (closestTopNoteDistance >= 4) {
+      bonus -= 1;
+      relation = "pulls away from top note";
     }
   }
 
@@ -1101,6 +1194,142 @@ function detectCadenceSignals(parsed, keyData) {
   };
 }
 
+function detectRecentArrival(parsed) {
+  if (parsed.length < 2) {
+    return {
+      active: false,
+      chord: null,
+      exactChord: null,
+      root: null,
+      qualityFamily: null,
+      confidence: "none",
+      strength: 0,
+      source: "none",
+      targets: [],
+      summary: ""
+    };
+  }
+
+  const lastChord = parsed.at(-1)?.original || null;
+  const lastDetails = parseChordName(lastChord);
+
+  if (!lastDetails || !isStableArrivalChord(lastChord)) {
+    return {
+      active: false,
+      chord: null,
+      exactChord: null,
+      root: null,
+      qualityFamily: null,
+      confidence: "none",
+      strength: 0,
+      source: "none",
+      targets: [],
+      summary: ""
+    };
+  }
+
+  const qualityFamily = getQualityFamily(getChordQuality(lastChord));
+  const lastRoot = lastDetails.root;
+  const exactChord = getBaseChordLabel(lastChord);
+  const simpleChord = canonicaliseTypedChord(`${lastRoot}${qualityFamily === "minor" ? "m" : ""}`);
+
+  let strength = 0;
+  let source = "none";
+  let arrivalSourceIndex = -1;
+
+  for (let index = parsed.length - 2; index >= Math.max(0, parsed.length - 5); index -= 1) {
+    const sourceChord = parsed[index]?.original || null;
+    if (!sourceChord) {
+      continue;
+    }
+
+    if (isDominantToTarget(sourceChord, lastRoot)) {
+      strength += 2;
+      source = "dominant arrival";
+      arrivalSourceIndex = index;
+      break;
+    }
+
+    if (isLeadingToneToTarget(sourceChord, lastRoot)) {
+      strength += 1;
+      source = "leading-tone arrival";
+      arrivalSourceIndex = index;
+      break;
+    }
+  }
+
+  if (strength <= 0 || arrivalSourceIndex < 0) {
+    return {
+      active: false,
+      chord: null,
+      exactChord: null,
+      root: null,
+      qualityFamily: null,
+      confidence: "none",
+      strength: 0,
+      source: "none",
+      targets: [],
+      summary: ""
+    };
+  }
+
+  const arrivalBridge = parsed
+    .slice(arrivalSourceIndex + 1, parsed.length - 1)
+    .map(item => item?.original || null)
+    .filter(Boolean);
+  const supportingBridgeCount = arrivalBridge.filter(chord => chordSupportsTargetCentre(chord, lastRoot)).length;
+
+  if (arrivalBridge.length && supportingBridgeCount === 0) {
+    return {
+      active: false,
+      chord: null,
+      exactChord: null,
+      root: null,
+      qualityFamily: null,
+      confidence: "none",
+      strength: 0,
+      source: "none",
+      targets: [],
+      summary: ""
+    };
+  }
+
+  if (supportingBridgeCount > 0) {
+    strength += Math.min(2, supportingBridgeCount);
+    source = source === "dominant arrival" ? "sustained dominant arrival" : "sustained leading-tone arrival";
+  }
+
+  const preparationChord = parsed[arrivalSourceIndex - 1]?.original || null;
+  if (preparationChord && isPredominantToTarget(preparationChord, lastRoot)) {
+    strength += 1;
+    source = source.includes("dominant") ? "predominant-dominant arrival" : "prepared arrival";
+  }
+
+  const targets = uniquePreferredTargets([
+    exactChord,
+    simpleChord,
+    buildRelativeChord(lastRoot, 5, qualityFamily === "minor" ? "m" : ""),
+    buildRelativeChord(lastRoot, 7, qualityFamily === "minor" ? "m" : ""),
+    qualityFamily === "minor"
+      ? buildRelativeChord(lastRoot, 8, "", true)
+      : buildRelativeChord(lastRoot, 9, "m")
+  ].filter(Boolean));
+  const confidence = strength >= 4 ? "high" : "medium";
+
+  return {
+    active: true,
+    chord: simpleChord || exactChord,
+    exactChord,
+    root: lastRoot,
+    qualityFamily,
+    confidence,
+    strength,
+    source,
+    targets,
+    summary: `${source} into ${exactChord || simpleChord || lastRoot}`
+  };
+}
+
 function collectLoopAndTensionCandidates(parsed, keyData) {
   const tonicChord = keyData.chords[0];
   const reopenMap = new Map();
@@ -1251,6 +1480,7 @@ function inferProgressionExpectation({
   keyData,
   modeConfidence,
   cadenceSignals,
+  recentArrival,
   reopenCandidates,
   tensionCandidates,
   establishedBorrowedChords
@@ -1273,6 +1503,19 @@ function inferProgressionExpectation({
   const reopenTargets = reopenCandidates.map(entry => entry.chord);
   const tensionTargets = tensionCandidates.map(entry => entry.chord);
   const borrowedTargets = establishedBorrowedChords.map(entry => entry.chord);
+
+  if (recentArrival?.active && !lastIsTonic) {
+    return {
+      stability: "recent arrival",
+      cadenceExpectation: "expand around local centre",
+      preferredFunctions: [],
+      preferredTargets: uniquePreferredTargets(recentArrival.targets),
+      summaryNotes: [
+        `A recent arrival has just landed on ${recentArrival.exactChord || recentArrival.chord}.`,
+        "The next move should usually confirm that arrival or expand away from it gently before resetting the wider key story."
+      ]
+    };
+  }
 
   if (lastIsTonic && cadenceSignals.latestCadence !== "none") {
     return {
@@ -1443,6 +1686,7 @@ function analyzeProgressionState(parsed, keyData, progression = "", progressionI
   const { exactReopenCandidates, exactTensionCandidates } = collectExactLoopAndTensionCandidates(parsed, keyData);
   const topVoicingContext = getTopVoicingContext(progressionItems, parsed);
   const cadenceSignals = detectCadenceSignals(parsed, keyData);
+  const recentArrival = detectRecentArrival(parsed);
   const inKeyCount = parsed.filter(item => item?.inKey).length;
   const borrowedMinorGravity = detectBorrowedMinorGravity(parsed, keyData);
   const modeConfidence = getModeConfidenceLabel(
@@ -1460,6 +1704,7 @@ function analyzeProgressionState(parsed, keyData, progression = "", progressionI
     keyData,
     modeConfidence,
     cadenceSignals,
+    recentArrival,
     reopenCandidates,
     tensionCandidates,
     establishedBorrowedChords
@@ -1497,6 +1742,12 @@ function analyzeProgressionState(parsed, keyData, progression = "", progressionI
     );
   }
 
+  if (recentArrival?.active) {
+    summaryNotes.push(
+      `Local-centre pull: ${recentArrival.exactChord || recentArrival.chord} (${recentArrival.confidence} confidence, ${recentArrival.source}).`
+    );
+  }
+
   return {
     progressionText: String(progression || "").trim(),
     parsedChordCount: parsed.length,
@@ -1524,6 +1775,7 @@ function analyzeProgressionState(parsed, keyData, progression = "", progressionI
       )),
       recentCadence: cadenceSignals.latestCadence
     }),
+    globalCenter: keyData.chords[0],
     modeConfidence,
     harmonicLanguage,
     borrowedChordCount: establishedBorrowedChords.reduce((total, entry) => total + entry.count, 0),
@@ -1539,6 +1791,14 @@ function analyzeProgressionState(parsed, keyData, progression = "", progressionI
     tensionCandidates,
     exactReopenCandidates,
     exactTensionCandidates,
+    localCenterActive: recentArrival.active,
+    localCenterChord: recentArrival.chord,
+    localCenterExactChord: recentArrival.exactChord,
+    localCenterRoot: recentArrival.root,
+    localCenterQualityFamily: recentArrival.qualityFamily,
+    localCenterConfidence: recentArrival.confidence,
+    localCenterSource: recentArrival.source,
+    localCenterTargets: recentArrival.targets,
     stability: expectation.stability,
     cadenceExpectation: expectation.cadenceExpectation,
     preferredFunctions: expectation.preferredFunctions.map(normaliseFunctionLabel),
@@ -1581,10 +1841,16 @@ function getProgressionStateBonus({ progressionState, candidate, candidateFn, bu
   const sameRootBorrowedEntry = findSameRootEntry(progressionState.establishedBorrowedChords);
   const sameRootTensionEntry = findSameRootEntry(progressionState.tensionCandidates);
   const sameAsLastChord = progressionState.lastChord && chordsEquivalent(progressionState.lastChord, candidate);
+  const matchesLocalCenter = progressionState.localCenterActive
+    && (progressionState.localCenterTargets || []).some(target =>
+      chordsEquivalent(target, candidate) || chordsShareFamily(target, candidate)
+    );
+  const matchesGlobalCenter = progressionState.globalCenter
+    && (chordsEquivalent(progressionState.globalCenter, candidate) || chordsShareFamily(progressionState.globalCenter, candidate));
   let bonus = 0;
 
   if (preferredTargetEntry) {
-    bonus += 4;
+    bonus += progressionState.localCenterActive ? 6 : 4;
   }
 
   if (normalizedCandidateFn && progressionState.preferredFunctions.includes(normalizedCandidateFn)) {
@@ -1613,6 +1879,22 @@ function getProgressionStateBonus({ progressionState, candidate, candidateFn, bu
     bonus += 2;
   }
 
+  if (progressionState.localCenterActive) {
+    if (matchesLocalCenter) {
+      bonus += 8;
+    }
+
+    if (matchesGlobalCenter && !matchesLocalCenter) {
+      bonus -= 5;
+    }
+
+    if (bucket === "outside" && !matchesLocalCenter) {
+      bonus -= 4;
+    } else if (bucket === "related" && matchesLocalCenter) {
+      bonus += 3;
+    }
+  }
+
   if (progressionState.stability === "borrowed" && progressionState.cadenceExpectation === "return to center") {
     if (["I", "i"].includes(normalizedCandidateFn)) {
       bonus += 12;
@@ -1630,7 +1912,7 @@ function getProgressionStateBonus({ progressionState, candidate, candidateFn, bu
   }
 
   if (reopenEntry) {
-    bonus += 4 + Math.min(2, Math.max(0, (reopenEntry.count || 0) - 1));
+    bonus += (progressionState.localCenterActive ? 2 : 4) + Math.min(2, Math.max(0, (reopenEntry.count || 0) - 1));
   }
 
   if (tensionEntry) {
@@ -1638,6 +1920,8 @@ function getProgressionStateBonus({ progressionState, candidate, candidateFn, bu
       bonus += bucket === "outside"
         ? 1
         : 1;
+    } else if (progressionState.localCenterActive && !matchesLocalCenter) {
+      bonus += bucket === "outside" ? 1 : 0;
     } else {
       bonus += bucket === "outside"
         ? 4 + Math.min(2, Math.max(0, (tensionEntry.count || 0) - 1))
@@ -1658,15 +1942,17 @@ function getProgressionStateBonus({ progressionState, candidate, candidateFn, bu
   }
 
   if (establishedInKeyEntry && bucket === "inKey") {
-    bonus += 2 + Math.min(2, Math.max(0, (establishedInKeyEntry.count || 0) - 1));
+    bonus += (progressionState.localCenterActive && !matchesLocalCenter ? 1 : 2)
+      + Math.min(2, Math.max(0, (establishedInKeyEntry.count || 0) - 1));
   }
 
   if (exactInKeyEntry && bucket === "inKey") {
-    bonus += 3;
+    bonus += progressionState.localCenterActive && !matchesLocalCenter ? 1 : 3;
   }
 
   if (establishedBorrowedEntry && bucket !== "inKey") {
-    bonus += 4 + Math.min(2, Math.max(0, (establishedBorrowedEntry.count || 0) - 1));
+    bonus += (progressionState.localCenterActive && matchesLocalCenter ? 5 : 4)
+      + Math.min(2, Math.max(0, (establishedBorrowedEntry.count || 0) - 1));
   }
 
   if (exactBorrowedSpellEntry && bucket !== "inKey") {
@@ -1680,8 +1966,26 @@ function getProgressionStateBonus({ progressionState, candidate, candidateFn, bu
   if (exactTensionSpellEntry) {
     if (progressionState.stability === "borrowed" && progressionState.cadenceExpectation === "return to center") {
       bonus += bucket === "outside" ? 0 : 1;
+    } else if (progressionState.localCenterActive && !matchesLocalCenter) {
+      bonus += 0;
     } else {
       bonus += bucket === "outside" ? 4 : 2;
+    }
+  }
+
+  if (progressionState.localCenterActive && progressionState.cadenceExpectation === "expand around local centre") {
+    if (matchesLocalCenter) {
+      bonus += 6;
+    } else if (bucket === "outside") {
+      bonus -= 4;
+    }
+  }
+
+  if (progressionState.phrasePosition === "turnaround") {
+    if (matchesLocalCenter || ["I", "i", "IV", "iv", "V", "v", "VI", "vi"].includes(normalizedCandidateFn)) {
+      bonus += 2;
+    } else if (bucket === "outside") {
+      bonus -= 2;
     }
   }
 
@@ -1752,7 +2056,17 @@ function getProgressionStateBonus({ progressionState, candidate, candidateFn, bu
     }
   }
 
-  bonus += evaluateTopNoteInfluence(progressionState, candidate).bonus;
+  const topNoteInfluence = evaluateTopNoteInfluence(progressionState, candidate);
+  bonus += topNoteInfluence.bonus;
+
+  if (
+    progressionState.localCenterActive &&
+    !matchesLocalCenter &&
+    !matchesGlobalCenter &&
+    topNoteInfluence.bonus < 0
+  ) {
+    bonus += topNoteInfluence.bonus;
+  }
 
   return bonus;
 }
@@ -1893,6 +2207,20 @@ function getSuggestionPriorityScore(entry) {
   const isInversion = Boolean(parsed?.bass && normaliseRoot(parsed.bass) !== normaliseRoot(parsed.root));
   let priority = (entry?.score || 0) + (getChordSpecificityScore(entry?.chord) * 0.75);
 
+  if (entry?.progressionState?.localCenterActive) {
+    const matchesLocalCenter = (entry.progressionState.localCenterTargets || []).some(target =>
+      chordsEquivalent(target, entry.chord) || chordsShareFamily(target, entry.chord)
+    );
+
+    if (matchesLocalCenter) {
+      priority += 4;
+    }
+
+    if (entry?.inKey && isInversion) {
+      priority -= 2;
+    }
+  }
+
   if (entry?.progressionState?.stability === "borrowed" && entry?.progressionState?.cadenceExpectation === "return to center") {
     if (entry?.inKey && isInversion) {
       priority -= 5;
@@ -1938,8 +2266,12 @@ function shouldSuppressRepeatedSuggestion({ progressionState, candidate, candida
   const normalizedCandidateFn = normaliseFunctionLabel(candidateFn || "");
   const isHoldLandingCandidate = ["I", "i"].includes(normalizedCandidateFn)
     && ["resolved", "cadential landing"].includes(progressionState.stability);
+  const isLocalArrivalHold = progressionState.localCenterActive
+    && (progressionState.localCenterTargets || []).some(target =>
+      chordsEquivalent(target, candidate) || chordsShareFamily(target, candidate)
+    );
 
-  return !isHoldLandingCandidate;
+  return !isHoldLandingCandidate && !isLocalArrivalHold;
 }
 
 function getMoodFunctionWeight(profile, candidateFn, boostedFunctions) {

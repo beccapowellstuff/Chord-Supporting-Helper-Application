@@ -1,7 +1,7 @@
 {
   "type": "vibe-chording-progression",
   "version": 4,
-  "savedAt": "2026-04-07T03:45:31.974Z",
+  "savedAt": "2026-04-07T04:56:34.270Z",
   "key": {
     "name": "D Dorian",
     "root": "D",
@@ -594,7 +594,7 @@
       "position": 17,
       "chord": "G#dim/B",
       "durationBeats": 2,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -632,9 +632,9 @@
     },
     {
       "position": 18,
-      "chord": "G#dim",
+      "chord": "Fdim/G#",
       "durationBeats": 2,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -664,7 +664,7 @@
             "velocity": 84
           },
           {
-            "midi": 74,
+            "midi": 77,
             "velocity": 84
           }
         ]
@@ -674,7 +674,7 @@
       "position": 19,
       "chord": "Am",
       "durationBeats": 2,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -714,7 +714,7 @@
       "position": 20,
       "chord": "Am/C",
       "durationBeats": 2,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -754,7 +754,7 @@
       "position": 21,
       "chord": "Bb",
       "durationBeats": 2,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -794,7 +794,7 @@
       "position": 22,
       "chord": "Bb/F",
       "durationBeats": 2,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -834,7 +834,7 @@
       "position": 23,
       "chord": "Esus4/B",
       "durationBeats": 2,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -874,7 +874,7 @@
       "position": 24,
       "chord": "E",
       "durationBeats": 2,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -913,7 +913,7 @@
     {
       "position": 25,
       "chord": "Asus4",
-      "durationBeats": 2,
+      "durationBeats": 4,
       "sustain": true,
       "voicing": {
         "source": "keyboard",
@@ -953,7 +953,7 @@
     {
       "position": 26,
       "chord": "Dadd9/A",
-      "durationBeats": 2,
+      "durationBeats": 4,
       "sustain": true,
       "voicing": {
         "source": "keyboard",
@@ -1001,8 +1001,8 @@
     {
       "position": 27,
       "chord": "Aadd9",
-      "durationBeats": 4,
-      "sustain": false,
+      "durationBeats": 8,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -1037,14 +1037,6 @@
           },
           {
             "midi": 73,
-            "velocity": 84
-          },
-          {
-            "midi": 76,
-            "velocity": 84
-          },
-          {
-            "midi": 81,
             "velocity": 84
           }
         ]

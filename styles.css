@@ -1845,21 +1845,61 @@ h2 {
 }
 
 .suggest-debug-toggle-btn {
-  width: auto;
-  min-width: 0;
+  position: relative;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
   margin-bottom: 0;
-  padding: 8px 12px;
+  padding: 0;
   flex: 0 0 auto;
-  border-radius: 999px;
-  border: 1px solid rgba(200, 95, 143, 0.32);
+  border-radius: 8px;
+  border: 1px solid rgba(200, 95, 143, 0.24);
   background: rgba(255, 255, 255, 0.86);
   color: var(--accent-dark);
-  font-size: 12px;
-  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(118, 50, 84, 0.08);
 }
 
 .suggest-debug-toggle-btn:hover {
   background: rgba(244, 216, 230, 0.92);
+}
+
+.suggest-debug-toggle-btn::before,
+.suggest-debug-toggle-btn::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.suggest-debug-toggle-btn::before {
+  top: 6px;
+  width: 9px;
+  height: 9px;
+  border: 1.6px solid currentColor;
+  border-radius: 50% 50% 44% 44%;
+  background:
+    radial-gradient(circle at 35% 45%, currentColor 0 1px, transparent 1.2px),
+    radial-gradient(circle at 65% 45%, currentColor 0 1px, transparent 1.2px),
+    rgba(255, 255, 255, 0.94);
+}
+
+.suggest-debug-toggle-btn::after {
+  top: 4px;
+  width: 10px;
+  height: 3px;
+  border-top: 1.6px solid currentColor;
+  border-radius: 999px;
+  clip-path: polygon(0 100%, 14% 0, 50% 100%, 86% 0, 100% 100%, 100% 100%, 0 100%);
+}
+
+.suggest-debug-toggle-btn[aria-pressed="true"] {
+  background: linear-gradient(180deg, rgba(201, 92, 144, 0.98), rgba(176, 68, 123, 0.98));
+  color: white;
+  border-color: rgba(136, 46, 92, 0.92);
+}
+
+.suggest-debug-toggle-btn[aria-pressed="true"]:hover {
+  background: linear-gradient(180deg, rgba(209, 101, 151, 0.98), rgba(184, 76, 130, 0.98));
 }
 
 p {

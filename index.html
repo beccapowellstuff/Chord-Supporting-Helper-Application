@@ -258,10 +258,12 @@
                   <input id="autoSuggestToggle" type="checkbox">
                   <span>Auto-refresh suggestions when adding chords</span>
                 </label>
-                <button id="toggleSuggestionDebugBtn" class="suggest-debug-toggle-btn" type="button">Hide Debug</button>
+                <button id="toggleSuggestionDebugBtn" class="suggest-debug-toggle-btn" type="button" aria-label="Show Suggestion Debug" aria-pressed="false">
+                  <span class="visually-hidden">Show Suggestion Debug</span>
+                </button>
               </div>
 
-              <section id="suggestionDebugPanel" class="suggestion-debug-panel" aria-live="polite">
+              <section id="suggestionDebugPanel" class="suggestion-debug-panel" aria-live="polite" hidden>
                 <div class="suggestion-debug-header">
                   <div class="suggestion-debug-title">Suggestion Debug</div>
                   <button id="copySuggestionDebugBtn" class="suggestion-debug-copy-btn" type="button" aria-label="Copy AI Brief" disabled>

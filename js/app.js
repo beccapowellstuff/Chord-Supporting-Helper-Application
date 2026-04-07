@@ -159,7 +159,7 @@ const appState = {
   playingProgressionItemId: null,
   isPlayingProgression: false,
   progressionInvalidTokens: [],
-  suggestionDebugVisible: true
+  suggestionDebugVisible: false
 };
 window.appState = appState;
 let sequenceKeyboardMidiNotes = [];
@@ -2605,8 +2605,9 @@ function renderSuggestionDebugVisibility() {
   }
 
   if (toggleSuggestionDebugBtn) {
-    toggleSuggestionDebugBtn.textContent = appState.suggestionDebugVisible ? "Hide Debug" : "Show Debug";
+    const label = appState.suggestionDebugVisible ? "Hide Suggestion Debug" : "Show Suggestion Debug";
     toggleSuggestionDebugBtn.setAttribute("aria-pressed", String(appState.suggestionDebugVisible));
+    toggleSuggestionDebugBtn.setAttribute("aria-label", label);
     toggleSuggestionDebugBtn.dataset.tooltip = appState.suggestionDebugVisible
       ? "Hide the suggestion debug panel"
       : "Show the suggestion debug panel";
@@ -2787,12 +2788,17 @@ function renderSuggestionDebug(suggestionPayload) {
   ].filter(Boolean).join(" | ") || "(none)";
   const progressionWithTopNotes = formatProgressionWithTopNotes(appState.progressionItems);
 
-  const lines = [
-    `Progression: ${analysis.progressionText || "(empty)"}`,
-    progressionWithTopNotes ? `Progression + top notes: ${progressionWithTopNotes}` : "",
-    `Key and mode: ${appState.selectedKey || "(none)"} | Feeling: ${feelingSelect?.value || "(none)"}`,
-    `Last chord: ${lastChordSummary}`,
-    `Harmonic read: ${harmonicRead}`,
+    const centreRead = analysis.localCenterActive
+      ? `Centre read: global ${analysis.globalCenter || "(none)"} | local pull ${analysis.localCenterExactChord || analysis.localCenterChord || "(none)"} (${analysis.localCenterConfidence || "unknown"}${analysis.localCenterSource ? `, ${analysis.localCenterSource}` : ""})`
+      : `Centre read: global ${analysis.globalCenter || "(none)"}`;
+
+    const lines = [
+      `Progression: ${analysis.progressionText || "(empty)"}`,
+      progressionWithTopNotes ? `Progression + top notes: ${progressionWithTopNotes}` : "",
+      `Key and mode: ${appState.selectedKey || "(none)"} | Feeling: ${feelingSelect?.value || "(none)"}`,
+      centreRead,
+      `Last chord: ${lastChordSummary}`,
+      `Harmonic read: ${harmonicRead}`,
     `Direction: ${analysis.stability} -> ${analysis.cadenceExpectation} | Phrase: ${analysis.phrasePosition || "(unknown)"}`,
     `Cadence read: ${cadenceRead}`,
     analysis.repeatedEnding ? "Pattern cue: repeated ending" : "",
@@ -3021,7 +3027,7 @@ async function init() {
     if (sequenceTimeSignatureSelect) sequenceTimeSignatureSelect.dataset.tooltip = "Set the default beats per bar for new chord blocks";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
     if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
-    if (toggleSuggestionDebugBtn) toggleSuggestionDebugBtn.dataset.tooltip = "Hide the suggestion debug panel";
+    if (toggleSuggestionDebugBtn) toggleSuggestionDebugBtn.dataset.tooltip = "Show the suggestion debug panel";
     if (copySuggestionDebugBtn) copySuggestionDebugBtn.dataset.tooltip = "Copy AI Brief";
     sectionHelpButtons.forEach(button => {
       button.dataset.tooltip = "How to use this section";

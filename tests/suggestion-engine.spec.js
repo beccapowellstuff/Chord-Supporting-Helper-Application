@@ -144,16 +144,18 @@ test("lets you hide and show the suggestion debug panel", async ({ page }) => {
   await setProgressionText(page, "C, F, G");
   await page.getByRole("button", { name: /Suggestion Engine/ }).click();
 
-  const toggle = page.getByRole("button", { name: "Hide Debug" });
   const panel = page.locator("#suggestionDebugPanel");
+  const showToggle = page.getByRole("button", { name: "Show Suggestion Debug" });
 
-  await expect(panel).toBeVisible();
-  await toggle.click();
   await expect(panel).toBeHidden();
-  await expect(page.getByRole("button", { name: "Show Debug" })).toBeVisible();
+  await expect(showToggle).toBeVisible();
 
-  await page.getByRole("button", { name: "Show Debug" }).click();
+  await showToggle.click();
   await expect(panel).toBeVisible();
+
+  const hideToggle = page.getByRole("button", { name: "Hide Suggestion Debug" });
+  await hideToggle.click();
+  await expect(panel).toBeHidden();
 });
 
 test("copies the current suggestion debug as an AI brief", async ({ page }) => {
@@ -173,6 +175,7 @@ test("copies the current suggestion debug as an AI brief", async ({ page }) => {
 
   await setProgressionText(page, "C, F, G");
   await page.getByRole("button", { name: /Suggestion Engine/ }).click();
+  await page.getByRole("button", { name: "Show Suggestion Debug" }).click();
 
   const copyButton = page.getByRole("button", { name: "Copy AI Brief" });
   await expect(copyButton).toBeEnabled();
@@ -327,4 +330,25 @@ test("prefers a root-position resolution over an inversion colour in return-to-c
 
   expect(chordLabels).toContain("Am");
   expect(chordLabels).not.toContain("Am/C");
+});
+
+test("tracks a recent local-centre arrival and softens old key-memory resets", async ({ page }) => {
+  await gotoApp(page);
+
+  await selectRoot(page, "D");
+  await selectMode(page, "dorian");
+  await setProgressionText(page, "Dm7 | G | C | F | Em7b5 | A7/C# | Dm | G#dim/B | E | Asus4 | Dadd9/A | Aadd9");
+  await page.getByRole("button", { name: /Suggestion Engine/ }).click();
+  await page.selectOption("#feeling", "Sad");
+  await page.locator("#suggestBtn").click();
+
+  const debug = page.locator("#suggestionDebugOutput");
+  await expect(debug).toContainText("Centre read: global Dm | local pull Aadd9");
+  await expect(debug).toContainText("Direction: recent arrival -> expand around local centre");
+
+  const bestChords = (await page.locator('[data-suggestion-section="best"] .suggestion-card-chord .chord-btn-main').allTextContents())
+    .map(normalizeSuggestionLabel);
+
+  expect(bestChords.some(label => ["Aadd9", "A", "D", "E", "F#m"].includes(label))).toBe(true);
+  expect(bestChords[0]).not.toBe("Dm");
 });
