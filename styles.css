@@ -2692,6 +2692,8 @@ p {
 }
 
 .sequence-piano-whites {
+  position: relative;
+  z-index: 1;
   display: grid;
   grid-template-columns: repeat(28, minmax(0, 1fr));
   gap: 2px;
@@ -2704,6 +2706,7 @@ p {
   inset: 0 0 auto 0;
   height: 0;
   width: 100%;
+  z-index: 2;
 }
 
 .sequence-key {
@@ -2734,6 +2737,7 @@ p {
 
 .sequence-key-black {
   position: absolute;
+  z-index: 3;
   top: 0;
   width: calc((100% / 28) * 0.62);
   min-height: 78px;

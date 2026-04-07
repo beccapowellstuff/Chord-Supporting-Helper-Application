@@ -416,6 +416,7 @@ export function renderSequenceKeyboard(
       onKeyToggle
     );
     button.style.left = `${((key.afterWhiteIndex + 1) * 100) / KEYBOARD_LAYOUT.whiteCount}%`;
+    button.style.transform = "translateX(-50%)";
     blacks.appendChild(button);
   });
 
