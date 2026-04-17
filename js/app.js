@@ -140,6 +140,17 @@ const bassRootSelector = document.getElementById("bassRootSelector");
 const chordRootSelector = document.getElementById("chordRootSelector");
 const sequenceKeyboard = document.getElementById("sequenceKeyboard");
 const sequenceKeyboardToolbarMount = document.getElementById("sequenceKeyboardToolbarMount");
+const suggestionEngineStatusIcon = document.querySelector('[data-tool-panel="suggestionEnginePanel"] .tool-nav-status-icon');
+const aiExploreStatusIcon = document.querySelector('[data-tool-panel="aiExplorePanel"] .tool-nav-status-icon');
+const aiExploreStatus = document.getElementById("aiExploreStatus");
+const aiExploreStatusMessage = document.getElementById("aiExploreStatusMessage");
+const aiExploreConnectBtn = document.getElementById("aiExploreConnectBtn");
+const aiExploreBaseUrl = document.getElementById("aiExploreBaseUrl");
+const aiExploreSelectedModel = document.getElementById("aiExploreSelectedModel");
+const aiExploreLoadedState = document.getElementById("aiExploreLoadedState");
+const aiExplorePromptInput = document.getElementById("aiExplorePromptInput");
+const aiExploreSubmitBtn = document.getElementById("aiExploreSubmitBtn");
+const aiExploreResponseOutput = document.getElementById("aiExploreResponseOutput");
 const appVersion = document.getElementById("appVersion");
 const toolNavButtons = document.querySelectorAll(".tool-nav-btn");
 const toolPanels = document.querySelectorAll(".tool-panel");
@@ -186,7 +197,19 @@ const appState = {
   aiSettingsStatus: {
     type: "idle",
     message: "Load models to choose which AI model to save."
-  }
+  },
+  aiExploreStatus: {
+    type: "idle",
+    message: "Choose an LM Studio model in Settings, then connect to start exploring prompts."
+  },
+  aiExploreAvailableModels: [],
+  aiExploreLoadedInstanceId: "",
+  aiExploreSelectedModelLoaded: false,
+  aiExploreCheckingConnection: false,
+  aiExploreConnecting: false,
+  aiExploreSubmitting: false,
+  aiExplorePrompt: "",
+  aiExploreResponse: "No response yet."
 };
 window.appState = appState;
 let sequenceKeyboardMidiNotes = [];
@@ -602,6 +625,18 @@ function normalizeAiSettingsBaseUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "") || DEFAULT_APP_SETTINGS.preferences.ai.baseUrl;
 }
 
+function getSavedAiSettings() {
+  return mergeWithDefaultSettings(appState.appSettings).preferences.ai;
+}
+
+function getAiExploreBaseUrl() {
+  return normalizeAiSettingsBaseUrl(getSavedAiSettings().baseUrl);
+}
+
+function getAiExploreSelectedModel() {
+  return String(getSavedAiSettings().selectedModel || "").trim();
+}
+
 function getAiSettingsModelLabel(model) {
   const displayName = String(model?.display_name || "").trim();
   const key = String(model?.key || "").trim();
@@ -617,6 +652,43 @@ function setAiSettingsStatus(type, message) {
     type,
     message: String(message || "").trim()
   };
+}
+
+function setAiExploreStatus(type, message) {
+  appState.aiExploreStatus = {
+    type,
+    message: String(message || "").trim()
+  };
+}
+
+function getAiExploreLoadedInstanceId(model) {
+  const loadedInstances = Array.isArray(model?.loaded_instances) ? model.loaded_instances : [];
+  const firstInstance = loadedInstances[0];
+  if (typeof firstInstance === "string") {
+    return firstInstance.trim();
+  }
+
+  return String(firstInstance?.instance_id || firstInstance?.id || "").trim();
+}
+
+async function fetchAiModels(baseUrl) {
+  const response = await fetch(`${baseUrl}/api/v1/models`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`LM Studio returned ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`);
+  }
+
+  const payload = await response.json();
+  if (!payload || !Array.isArray(payload.models)) {
+    throw new Error("LM Studio response did not include a models array.");
+  }
+
+  return payload.models.filter(model => String(model?.type || "llm") === "llm");
 }
 
 function renderAiSettingsModelOptions() {
@@ -726,6 +798,10 @@ function handleSaveAppSettings() {
   appState.appSettings = saveAppSettings(nextSettings);
   appState.appSettingsModalOpen = false;
   syncAppSettingsDraftFromSavedState();
+  appState.aiExploreAvailableModels = [];
+  appState.aiExploreLoadedInstanceId = "";
+  appState.aiExploreSelectedModelLoaded = false;
+  setAiExploreStatus("idle", "Settings saved. Open AI Explore and connect to the selected model.");
 
   if (shouldApplyDefaultTempoToCurrentSequence(previousDefaultTempoBpm)) {
     appState.sequenceTempoBpm = appState.appSettings.preferences.defaultTempoBpm;
@@ -733,6 +809,10 @@ function handleSaveAppSettings() {
 
   renderAppSettingsModal();
   renderProgressionBuilderUI();
+
+  if (activeToolPanelId === "aiExplorePanel") {
+    void refreshAiExploreModelStatus({ silent: true });
+  }
 }
 
 async function handleLoadAiModels() {
@@ -743,23 +823,7 @@ async function handleLoadAiModels() {
   renderAppSettingsModal();
 
   try {
-    const response = await fetch(`${aiBaseUrl}/api/v1/models`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json"
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`LM Studio returned ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`);
-    }
-
-    const payload = await response.json();
-    if (!payload || !Array.isArray(payload.models)) {
-      throw new Error("LM Studio response did not include a models array.");
-    }
-
-    appState.aiSettingsModels = payload.models.filter(model => String(model?.type || "llm") === "llm");
+    appState.aiSettingsModels = await fetchAiModels(aiBaseUrl);
     if (!appState.aiSettingsModels.length) {
       setAiSettingsStatus("error", "LM Studio did not return any LLM models.");
       renderAppSettingsModal();
@@ -780,6 +844,261 @@ async function handleLoadAiModels() {
   }
 
   renderAppSettingsModal();
+}
+
+function renderAiExploreUI() {
+  const baseUrl = getAiExploreBaseUrl();
+  const selectedModel = getAiExploreSelectedModel();
+  const isModelConfigured = Boolean(selectedModel);
+  const isLoaded = Boolean(appState.aiExploreSelectedModelLoaded && appState.aiExploreLoadedInstanceId);
+  const isBusy = Boolean(appState.aiExploreCheckingConnection || appState.aiExploreConnecting || appState.aiExploreSubmitting);
+  const hasPrompt = Boolean(String(appState.aiExplorePrompt || "").trim());
+
+  if (aiExploreBaseUrl) {
+    aiExploreBaseUrl.textContent = baseUrl || "-";
+  }
+
+  if (aiExploreSelectedModel) {
+    aiExploreSelectedModel.textContent = selectedModel || "No model saved in Settings";
+  }
+
+  if (aiExploreLoadedState) {
+    aiExploreLoadedState.textContent = isModelConfigured
+      ? (isLoaded ? `Loaded (${appState.aiExploreLoadedInstanceId})` : "Not loaded")
+      : "No model selected";
+  }
+
+  if (aiExploreStatus) {
+    aiExploreStatus.className = `tool-status tool-status-${appState.aiExploreStatus?.type || "idle"}`;
+  }
+
+  if (aiExploreStatusMessage) {
+    aiExploreStatusMessage.textContent = appState.aiExploreStatus?.message || "";
+  }
+
+  const statusIcon = aiExploreStatus?.querySelector(".tool-status-icon");
+  if (statusIcon) {
+    statusIcon.textContent = appState.aiExploreStatus?.type === "error"
+      ? "!"
+      : appState.aiExploreStatus?.type === "success"
+        ? "+"
+        : "i";
+  }
+
+  if (aiExploreConnectBtn) {
+    aiExploreConnectBtn.disabled = !isModelConfigured || isLoaded || isBusy;
+    aiExploreConnectBtn.textContent = appState.aiExploreConnecting
+      ? "Connecting..."
+      : appState.aiExploreCheckingConnection
+        ? "Checking..."
+        : "Connect";
+  }
+
+  if (aiExplorePromptInput) {
+    aiExplorePromptInput.disabled = !isLoaded || isBusy;
+    if (aiExplorePromptInput.value !== appState.aiExplorePrompt) {
+      aiExplorePromptInput.value = appState.aiExplorePrompt;
+    }
+    aiExplorePromptInput.placeholder = isLoaded
+      ? "Type a prompt to send to the connected LM Studio model."
+      : "Connect to the selected model first, then type a prompt here.";
+  }
+
+  if (aiExploreSubmitBtn) {
+    aiExploreSubmitBtn.disabled = !isLoaded || isBusy || !hasPrompt;
+    aiExploreSubmitBtn.textContent = appState.aiExploreSubmitting ? "Submitting..." : "Submit";
+  }
+
+  if (aiExploreResponseOutput) {
+    const nextResponseText = appState.aiExploreResponse || "No response yet.";
+    if (aiExploreResponseOutput.textContent !== nextResponseText) {
+      aiExploreResponseOutput.textContent = nextResponseText;
+    }
+  }
+}
+
+async function refreshAiExploreModelStatus(options = {}) {
+  const { silent = false } = options;
+  const baseUrl = getAiExploreBaseUrl();
+  const selectedModel = getAiExploreSelectedModel();
+
+  appState.aiExploreCheckingConnection = true;
+  appState.aiExploreAvailableModels = [];
+  appState.aiExploreLoadedInstanceId = "";
+  appState.aiExploreSelectedModelLoaded = false;
+
+  if (!selectedModel) {
+    setAiExploreStatus("idle", "Pick an LM Studio model in Settings before trying to connect.");
+    appState.aiExploreCheckingConnection = false;
+    renderAiExploreUI();
+    return;
+  }
+
+  if (!silent) {
+    setAiExploreStatus("loading", "Checking LM Studio for the selected model...");
+  }
+  renderAiExploreUI();
+
+  try {
+    const models = await fetchAiModels(baseUrl);
+    appState.aiExploreAvailableModels = models;
+    const matchingModel = models.find(model => String(model?.key || "").trim() === selectedModel) || null;
+
+    if (!matchingModel) {
+      setAiExploreStatus("error", "The saved model was not returned by LM Studio. Reload models in Settings and choose a valid model.");
+      return;
+    }
+
+    const loadedInstanceId = getAiExploreLoadedInstanceId(matchingModel);
+    appState.aiExploreLoadedInstanceId = loadedInstanceId;
+    appState.aiExploreSelectedModelLoaded = Boolean(loadedInstanceId);
+
+    if (loadedInstanceId) {
+      setAiExploreStatus("success", "Selected model is already loaded and ready for prompts.");
+    } else {
+      setAiExploreStatus("idle", "Selected model is available but not loaded yet. Click Connect to load it.");
+    }
+  } catch (error) {
+    appState.aiExploreAvailableModels = [];
+    appState.aiExploreLoadedInstanceId = "";
+    appState.aiExploreSelectedModelLoaded = false;
+    setAiExploreStatus(
+      "error",
+      error instanceof Error ? error.message : "Could not reach LM Studio to check model status."
+    );
+  } finally {
+    appState.aiExploreCheckingConnection = false;
+    renderAiExploreUI();
+  }
+}
+
+async function handleAiExploreConnect() {
+  const baseUrl = getAiExploreBaseUrl();
+  const selectedModel = getAiExploreSelectedModel();
+  if (!selectedModel) {
+    setAiExploreStatus("error", "No model is saved in Settings yet.");
+    renderAiExploreUI();
+    return;
+  }
+
+  appState.aiExploreConnecting = true;
+  setAiExploreStatus("loading", `Loading ${selectedModel} in LM Studio...`);
+  renderAiExploreUI();
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/models/load`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: selectedModel
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`LM Studio returned ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`);
+    }
+
+    await response.json();
+    setAiExploreStatus("success", "Model loaded. Checking connection state...");
+  } catch (error) {
+    appState.aiExploreConnecting = false;
+    setAiExploreStatus(
+      "error",
+      error instanceof Error ? error.message : "Could not load the selected model in LM Studio."
+    );
+    renderAiExploreUI();
+    return;
+  }
+
+  appState.aiExploreConnecting = false;
+  await refreshAiExploreModelStatus({ silent: true });
+}
+
+function getAiExploreMessageText(payload) {
+  const outputItems = Array.isArray(payload?.output) ? payload.output : [];
+  const messageParts = outputItems
+    .filter(item => item?.type === "message")
+    .map(item => String(item?.content || "").trim())
+    .filter(Boolean);
+
+  if (messageParts.length) {
+    return messageParts.join("\n\n");
+  }
+
+  const firstReason = outputItems.find(item => item?.type === "reasoning");
+  if (firstReason?.content) {
+    return String(firstReason.content).trim();
+  }
+
+  return "";
+}
+
+async function handleAiExploreSubmit() {
+  const baseUrl = getAiExploreBaseUrl();
+  const selectedModel = getAiExploreSelectedModel();
+  const prompt = String(appState.aiExplorePrompt || "").trim();
+
+  if (!selectedModel) {
+    setAiExploreStatus("error", "No model is saved in Settings yet.");
+    renderAiExploreUI();
+    return;
+  }
+
+  if (!appState.aiExploreSelectedModelLoaded) {
+    setAiExploreStatus("error", "Connect to the selected model before sending a prompt.");
+    renderAiExploreUI();
+    return;
+  }
+
+  if (!prompt) {
+    setAiExploreStatus("error", "Type a prompt before you submit.");
+    renderAiExploreUI();
+    return;
+  }
+
+  appState.aiExploreSubmitting = true;
+  appState.aiExploreResponse = "Waiting for LM Studio...";
+  setAiExploreStatus("loading", "Sending prompt to LM Studio...");
+  renderAiExploreUI();
+
+  try {
+    const response = await fetch(`${baseUrl}/api/v1/chat`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: selectedModel,
+        input: prompt,
+        store: false,
+        reasoning: "off",
+        temperature: 0.7,
+        max_output_tokens: 4096
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`LM Studio returned ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`);
+    }
+
+    const payload = await response.json();
+    const messageText = getAiExploreMessageText(payload);
+    appState.aiExploreResponse = messageText || "LM Studio returned a response, but it did not include a message.";
+    setAiExploreStatus("success", "Prompt completed successfully.");
+  } catch (error) {
+    appState.aiExploreResponse = "No response yet.";
+    setAiExploreStatus(
+      "error",
+      error instanceof Error ? error.message : "Could not get a response from LM Studio."
+    );
+  } finally {
+    appState.aiExploreSubmitting = false;
+    renderAiExploreUI();
+  }
 }
 
 async function attemptAudioPriming() {
@@ -1010,6 +1329,9 @@ function setActiveToolPanel(panelId, options = {}) {
     if (panelId === "suggestionEnginePanel" && appData) {
       runSuggestions();
     }
+    if (panelId === "aiExplorePanel") {
+      void refreshAiExploreModelStatus();
+    }
     return;
   }
 
@@ -1030,6 +1352,9 @@ function setActiveToolPanel(panelId, options = {}) {
 
   if (panelId === "suggestionEnginePanel" && appData) {
     runSuggestions();
+  }
+  if (panelId === "aiExplorePanel") {
+    void refreshAiExploreModelStatus();
   }
 }
 
@@ -1085,6 +1410,8 @@ function getProgressionBlockAnchorRect(itemId, fallbackRect = null) {
 }
 
 function renderProgressionBuilderUI() {
+  renderAiExploreUI();
+
   if (sequenceTempoBpmInput) {
     sequenceTempoBpmInput.value = String(appState.sequenceTempoBpm);
   }
@@ -3311,10 +3638,22 @@ async function init() {
     if (aiBaseUrlSettingInput) aiBaseUrlSettingInput.dataset.tooltip = "LM Studio HTTP address for loading available models";
     if (loadAiModelsBtn) loadAiModelsBtn.dataset.tooltip = "Fetch models from LM Studio using the entered HTTP address";
     if (aiModelSelectSetting) aiModelSelectSetting.dataset.tooltip = "Choose the AI model to save in app settings";
+    if (aiExploreConnectBtn) aiExploreConnectBtn.dataset.tooltip = "Load the saved LM Studio model if it is not already loaded";
+    if (aiExplorePromptInput) aiExplorePromptInput.dataset.tooltip = "Type a prompt for the connected LM Studio model";
+    if (aiExploreSubmitBtn) aiExploreSubmitBtn.dataset.tooltip = "Send the current prompt to LM Studio";
+    if (aiExploreResponseOutput) aiExploreResponseOutput.dataset.tooltip = "Scrollable model response area";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
     if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
     if (toggleSuggestionDebugBtn) toggleSuggestionDebugBtn.dataset.tooltip = "Show the suggestion debug panel";
     if (copySuggestionDebugBtn) copySuggestionDebugBtn.dataset.tooltip = "Copy AI Brief";
+    if (suggestionEngineStatusIcon) {
+      suggestionEngineStatusIcon.textContent = "!";
+      suggestionEngineStatusIcon.dataset.tooltip = "ALPHA STAGE WIP";
+    }
+    if (aiExploreStatusIcon) {
+      aiExploreStatusIcon.textContent = "!";
+      aiExploreStatusIcon.dataset.tooltip = "ALPHA STAGE WIP";
+    }
     sectionHelpButtons.forEach(button => {
       button.dataset.tooltip = "How to use this section";
     });
@@ -3487,6 +3826,25 @@ async function init() {
     if (aiModelSelectSetting) {
       aiModelSelectSetting.addEventListener("change", () => {
         appState.appSettingsDraft.preferences.ai.selectedModel = String(aiModelSelectSetting.value || "").trim();
+      });
+    }
+
+    if (aiExplorePromptInput) {
+      aiExplorePromptInput.addEventListener("input", () => {
+        appState.aiExplorePrompt = aiExplorePromptInput.value;
+        renderAiExploreUI();
+      });
+    }
+
+    if (aiExploreConnectBtn) {
+      aiExploreConnectBtn.addEventListener("click", () => {
+        void handleAiExploreConnect();
+      });
+    }
+
+    if (aiExploreSubmitBtn) {
+      aiExploreSubmitBtn.addEventListener("click", () => {
+        void handleAiExploreSubmit();
       });
     }
 

@@ -209,6 +209,10 @@
       <div class="tool-nav" aria-label="Tool navigation">
         <button type="button" class="tool-nav-btn active" data-tool-panel="keyExplorerPanel" aria-pressed="true">Key Explorer</button>
         <button type="button" class="tool-nav-btn" data-tool-panel="chordExplorerPanel" aria-pressed="false">Chord Explorer</button>
+        <button type="button" class="tool-nav-btn tool-nav-btn-warning" data-tool-panel="aiExplorePanel" aria-pressed="false">
+          AI Explore
+          <span class="tool-nav-status-icon" aria-hidden="true">!</span>
+        </button>
         <button type="button" class="tool-nav-btn tool-nav-btn-warning" data-tool-panel="suggestionEnginePanel" aria-pressed="false">
           Suggestion Engine
           <span class="tool-nav-status-icon" aria-hidden="true">✕</span>
@@ -324,6 +328,77 @@
               <ul id="results">
                 <li>No suggestions yet.</li>
               </ul>
+            </div>
+          </div>
+        </div>
+
+        <div id="aiExplorePanel" class="panel tool-panel" hidden>
+          <div class="chord-loader ai-explore-module">
+            <div class="tool-header-bar">
+              <p class="chord-loader-title">AI Explore</p>
+            </div>
+            <div class="chord-loader-body ai-explore-body">
+              <div class="tool-status tool-status-warning" role="status" aria-live="polite">
+                <span class="tool-status-icon" aria-hidden="true">!</span>
+                <span>AI Explorer Engine is very MVP right now, and not fully working as wanted.</span>
+              </div>
+              <div id="aiExploreStatus" class="tool-status" role="status" aria-live="polite">
+                <span class="tool-status-icon" aria-hidden="true">i</span>
+                <span id="aiExploreStatusMessage">Choose an LM Studio model in Settings, then connect to start exploring prompts.</span>
+              </div>
+
+              <section class="ai-explore-card">
+                <div class="ai-explore-card-header">
+                  <div>
+                    <div class="ai-explore-card-title">Connection</div>
+                    <p class="ai-explore-card-copy">This uses the LM Studio HTTP address and saved model from Settings.</p>
+                  </div>
+                  <button id="aiExploreConnectBtn" class="app-settings-primary-btn ai-explore-connect-btn" type="button">Connect</button>
+                </div>
+                <div class="ai-explore-connection-grid">
+                  <div class="ai-explore-connection-item">
+                    <span class="ai-explore-connection-label">HTTP Address</span>
+                    <span id="aiExploreBaseUrl" class="ai-explore-connection-value">-</span>
+                  </div>
+                  <div class="ai-explore-connection-item">
+                    <span class="ai-explore-connection-label">Selected Model</span>
+                    <span id="aiExploreSelectedModel" class="ai-explore-connection-value">-</span>
+                  </div>
+                  <div class="ai-explore-connection-item">
+                    <span class="ai-explore-connection-label">Loaded Status</span>
+                    <span id="aiExploreLoadedState" class="ai-explore-connection-value">Not checked yet</span>
+                  </div>
+                </div>
+              </section>
+
+              <section class="ai-explore-card">
+                <div class="ai-explore-card-header">
+                  <div>
+                    <div class="ai-explore-card-title">Prompt</div>
+                    <p class="ai-explore-card-copy">Send one prompt to the currently loaded LM Studio model.</p>
+                  </div>
+                </div>
+                <div class="ai-explore-prompt-row">
+                  <textarea
+                    id="aiExplorePromptInput"
+                    class="ai-explore-prompt-input"
+                    rows="3"
+                    placeholder="Connect to the selected model first, then type a prompt here."
+                    disabled
+                  ></textarea>
+                  <button id="aiExploreSubmitBtn" class="app-settings-primary-btn ai-explore-submit-btn" type="button" disabled>Submit</button>
+                </div>
+              </section>
+
+              <section class="ai-explore-card">
+                <div class="ai-explore-card-header">
+                  <div>
+                    <div class="ai-explore-card-title">Response</div>
+                    <p class="ai-explore-card-copy">The model reply appears here. You can scroll and select the text.</p>
+                  </div>
+                </div>
+                <div id="aiExploreResponseOutput" class="ai-explore-response-output" tabindex="0">No response yet.</div>
+              </section>
             </div>
           </div>
         </div>
