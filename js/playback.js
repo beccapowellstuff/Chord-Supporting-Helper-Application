@@ -11,7 +11,7 @@
  * Exports: ensureAudioReady, playSoundChord, playChord, playProgression
  * Depends on: chordNotes, chordVoicing, synth
  */
-import { buildVoicings, distance, getAscendingRootVoicing } from "./chordVoicing.js";
+import { buildVoicings, chooseVoicing, getAscendingRootVoicing } from "./chordVoicing.js";
 import {
   ensureAudioContext,
   playMidiNoteSpecs,
@@ -30,21 +30,7 @@ function resolveChordVoicing(chordName, useSmoothing = false, previousVoicing = 
   if (!chordName) return [];
 
   if (useSmoothing && previousVoicing) {
-    const options = buildVoicings(chordName);
-    if (!options.length) return [];
-
-    let voicing = options[0];
-    let bestScore = distance(previousVoicing, options[0]);
-
-    for (const option of options.slice(1)) {
-      const optionScore = distance(previousVoicing, option);
-      if (optionScore < bestScore) {
-        voicing = option;
-        bestScore = optionScore;
-      }
-    }
-
-    return voicing;
+    return chooseVoicing(chordName, previousVoicing);
   }
 
   const options = buildVoicings(chordName);

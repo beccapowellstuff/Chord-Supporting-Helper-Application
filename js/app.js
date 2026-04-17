@@ -44,6 +44,7 @@ import {
   pitchClassToDisplayNote
 } from "./chordNotes.js";
 import { getAscendingRootVoicing, getInversionOptions, getVoicingOptions } from "./chordVoicing.js";
+import { buildMidiFileBytes } from "./midiExport.js";
 import { ensureAudioReady, playChord, playProgression } from "./playback.js";
 import {
   appendProgressionItem,
@@ -91,6 +92,7 @@ const loadDemoProgressionBtn = document.getElementById("loadDemoProgressionBtn")
 const demoMenuPopover = document.getElementById("demoMenuPopover");
 const demoMenuList = document.getElementById("demoMenuList");
 const saveProgressionBtn = document.getElementById("saveProgressionBtn");
+const exportMidiBtn = document.getElementById("exportMidiBtn");
 const loadProgressionBtn = document.getElementById("loadProgressionBtn");
 const loadProgressionInput = document.getElementById("loadProgressionInput");
 const progressionBlocks = document.getElementById("progressionBlocks");
@@ -983,6 +985,18 @@ function renderProgressionBuilderUI() {
       : "Add at least one chord before saving the progression";
   }
 
+  if (exportMidiBtn) {
+    const hasProgressionItems = appState.progressionItems.length > 0;
+    setIconButtonState(exportMidiBtn, {
+      label: "Export MIDI",
+      icon: "export-midi",
+      disabled: !hasProgressionItems
+    });
+    exportMidiBtn.dataset.tooltip = hasProgressionItems
+      ? "Export the progression as a MIDI file"
+      : "Add at least one chord before exporting MIDI";
+  }
+
   if (undoProgressionBtn) {
     const canUndoProgression = progressionUndoHistory.length > 0;
     setIconButtonState(undoProgressionBtn, {
@@ -1485,24 +1499,23 @@ function getProgressionChordList() {
   return progressionItemsToChords(appState.progressionItems);
 }
 
-function buildProgressionFilename() {
+function buildProgressionDownloadBasename() {
   const keySlug = String(appState.selectedKey || "progression")
     .trim()
     .replace(/\s+/g, "-")
     .replace(/[^A-Za-z0-9#-]/g, "")
     .toLowerCase();
 
-  return `${keySlug || "progression"}-progression.json`;
+  return `${keySlug || "progression"}-progression`;
 }
 
-function downloadProgressionFile(payload) {
-  const fileContents = JSON.stringify(payload, null, 2);
-  const blob = new Blob([fileContents], { type: "application/json" });
+function downloadFile(fileContents, contentType, filename) {
+  const blob = new Blob([fileContents], { type: contentType });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
 
   link.href = url;
-  link.download = buildProgressionFilename();
+  link.download = filename;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -1514,6 +1527,10 @@ function downloadProgressionFile(payload) {
 
 function notifyProgressionSaveNeedsChords() {
   window.alert("Add at least one chord before saving the progression.");
+}
+
+function notifyMidiExportNeedsChords() {
+  window.alert("Add at least one chord before exporting MIDI.");
 }
 
 function renderNewProgressionConfirm() {
@@ -1555,7 +1572,29 @@ function handleSaveProgression() {
     return;
   }
 
-  downloadProgressionFile(payload);
+  downloadFile(
+    JSON.stringify(payload, null, 2),
+    "application/json",
+    `${buildProgressionDownloadBasename()}.json`
+  );
+}
+
+function handleExportMidi() {
+  if (!appState.progressionItems.length) {
+    notifyMidiExportNeedsChords();
+    return;
+  }
+
+  const fileBytes = buildMidiFileBytes({
+    items: appState.progressionItems,
+    ...getCurrentSequenceSettings()
+  });
+
+  downloadFile(
+    fileBytes,
+    "audio/midi",
+    `${buildProgressionDownloadBasename()}.mid`
+  );
 }
 
 function handleNewProgression() {
@@ -3042,6 +3081,7 @@ async function init() {
     if (newProgressionBtn) newProgressionBtn.dataset.tooltip = "Add at least one chord before clearing the sequence";
     if (loadDemoProgressionBtn) loadDemoProgressionBtn.dataset.tooltip = "Open the Music Demos menu";
     if (saveProgressionBtn) saveProgressionBtn.dataset.tooltip = "Save the progression with tempo, time signature, and beat lengths";
+    if (exportMidiBtn) exportMidiBtn.dataset.tooltip = "Export the progression as a MIDI file";
     if (loadProgressionBtn) loadProgressionBtn.dataset.tooltip = "Load a saved progression file";
     if (metronomeToggleBtn) metronomeToggleBtn.dataset.tooltip = "Open metronome settings";
     if (metronomeStartStopBtn) metronomeStartStopBtn.dataset.tooltip = "Arm or stop the metronome for playback";
@@ -3202,6 +3242,10 @@ async function init() {
 
     if (saveProgressionBtn) {
       saveProgressionBtn.addEventListener("click", handleSaveProgression);
+    }
+
+    if (exportMidiBtn) {
+      exportMidiBtn.addEventListener("click", handleExportMidi);
     }
 
     if (loadProgressionBtn && loadProgressionInput) {

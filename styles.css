@@ -1373,6 +1373,7 @@ button:active {
 .app-icon-button[data-icon="undo"] { --icon-mask: url("./graphics/undo.svg"); }
 .app-icon-button[data-icon="redo"] { --icon-mask: url("./graphics/redo.svg"); }
 .app-icon-button[data-icon="save-progression"] { --icon-mask: url("./graphics/save-progression.svg"); }
+.app-icon-button[data-icon="export-midi"] { --icon-mask: url("./graphics/export-midi.svg"); }
 .app-icon-button[data-icon="load-progression"] { --icon-mask: url("./graphics/load-progression.svg"); }
 .app-icon-button[data-icon="metronome"] { --icon-mask: url("./graphics/metronome.svg"); }
 
