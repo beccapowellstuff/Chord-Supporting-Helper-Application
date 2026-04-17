@@ -1,5 +1,5 @@
 /**
- * engine.js — Chord suggestion and progression parsing engine
+ * theoryEngine.js — Chord suggestion and progression parsing engine
  *
  * Responsibilities:
  *   - parseProgression: tokenises a user-typed chord string, canonicalises

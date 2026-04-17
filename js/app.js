@@ -9,10 +9,10 @@
  *   - Delegates every concern to the appropriate module — no note math,
  *     no audio logic, and no DOM building lives here
  *
- * Depends on: dataLoader, engine, ui, rootSelector, synth, chordNotes, playback
+ * Depends on: dataLoader, theoryEngine, ui, rootSelector, synth, chordNotes, playback
  */
 import { loadAllData } from "./dataLoader.js";
-import { getSuggestions } from "./engine.js";
+import { getSuggestions } from "./theoryEngine.js";
 import {
   populateFeelings,
   populateModeSelect,
@@ -74,6 +74,14 @@ import {
   mergeWithDefaultSettings,
   saveAppSettings
 } from "./settings.js";
+import {
+  connectAiModel,
+  getActiveAiProviderConfig,
+  getAiModelStatus,
+  listAiModels,
+  listAvailableAiProviders,
+  sendAiPrompt
+} from "./aiService.js";
 
 // Verify Tone.js loaded
 console.log("🔍 Checking Tone.js...");
@@ -113,6 +121,8 @@ const openSettingsBtn = document.getElementById("openSettingsBtn");
 const appSettingsModal = document.getElementById("appSettingsModal");
 const appSettingsModalClose = document.getElementById("appSettingsModalClose");
 const defaultTempoBpmSettingInput = document.getElementById("defaultTempoBpmSetting");
+const aiProviderSettingSelect = document.getElementById("aiProviderSetting");
+const aiLmStudioSettingsPanel = document.getElementById("aiLmStudioSettingsPanel");
 const aiBaseUrlSettingInput = document.getElementById("aiBaseUrlSetting");
 const loadAiModelsBtn = document.getElementById("loadAiModelsBtn");
 const aiModelsStatus = document.getElementById("aiModelsStatus");
@@ -200,7 +210,7 @@ const appState = {
   },
   aiExploreStatus: {
     type: "idle",
-    message: "Choose an LM Studio model in Settings, then connect to start exploring prompts."
+    message: "Choose an AI model in Settings, then connect to start exploring prompts."
   },
   aiExploreAvailableModels: [],
   aiExploreLoadedInstanceId: "",
@@ -622,29 +632,59 @@ function syncAppSettingsDraftFromSavedState() {
 }
 
 function normalizeAiSettingsBaseUrl(value) {
-  return String(value || "").trim().replace(/\/+$/, "") || DEFAULT_APP_SETTINGS.preferences.ai.baseUrl;
+  return String(value || "").trim().replace(/\/+$/, "") || DEFAULT_APP_SETTINGS.preferences.ai.providers.lmStudio.baseUrl;
 }
 
-function getSavedAiSettings() {
-  return mergeWithDefaultSettings(appState.appSettings).preferences.ai;
+function getDraftAiProviderConfig() {
+  return getActiveAiProviderConfig(appState.appSettingsDraft);
 }
 
-function getAiExploreBaseUrl() {
-  return normalizeAiSettingsBaseUrl(getSavedAiSettings().baseUrl);
-}
-
-function getAiExploreSelectedModel() {
-  return String(getSavedAiSettings().selectedModel || "").trim();
+function getSavedAiProviderConfig() {
+  return getActiveAiProviderConfig(appState.appSettings);
 }
 
 function getAiSettingsModelLabel(model) {
-  const displayName = String(model?.display_name || "").trim();
-  const key = String(model?.key || "").trim();
-  if (displayName && key && displayName !== key) {
-    return `${displayName} (${key})`;
+  return String(model?.label || model?.displayName || model?.key || "Unnamed model");
+}
+
+function ensureDraftAiProviderSettings(providerId) {
+  if (!appState.appSettingsDraft.preferences.ai.providers[providerId]) {
+    appState.appSettingsDraft.preferences.ai.providers[providerId] = {};
   }
 
-  return displayName || key || "Unnamed model";
+  return appState.appSettingsDraft.preferences.ai.providers[providerId];
+}
+
+function setDraftAiProvider(providerId) {
+  appState.appSettingsDraft.preferences.ai.provider = providerId;
+}
+
+function setDraftLmStudioBaseUrl(value) {
+  const lmStudioSettings = ensureDraftAiProviderSettings("lmStudio");
+  lmStudioSettings.baseUrl = normalizeAiSettingsBaseUrl(value);
+}
+
+function setDraftActiveAiSelectedModel(value) {
+  const { providerId } = getDraftAiProviderConfig();
+  const providerSettings = ensureDraftAiProviderSettings(providerId);
+  providerSettings.selectedModel = String(value || "").trim();
+}
+
+function renderAiProviderOptions() {
+  if (!aiProviderSettingSelect) {
+    return;
+  }
+
+  aiProviderSettingSelect.replaceChildren();
+
+  listAvailableAiProviders().forEach(provider => {
+    const option = document.createElement("option");
+    option.value = provider.id;
+    option.textContent = provider.label;
+    aiProviderSettingSelect.appendChild(option);
+  });
+
+  aiProviderSettingSelect.value = getDraftAiProviderConfig().providerId;
 }
 
 function setAiSettingsStatus(type, message) {
@@ -661,36 +701,6 @@ function setAiExploreStatus(type, message) {
   };
 }
 
-function getAiExploreLoadedInstanceId(model) {
-  const loadedInstances = Array.isArray(model?.loaded_instances) ? model.loaded_instances : [];
-  const firstInstance = loadedInstances[0];
-  if (typeof firstInstance === "string") {
-    return firstInstance.trim();
-  }
-
-  return String(firstInstance?.instance_id || firstInstance?.id || "").trim();
-}
-
-async function fetchAiModels(baseUrl) {
-  const response = await fetch(`${baseUrl}/api/v1/models`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json"
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error(`LM Studio returned ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`);
-  }
-
-  const payload = await response.json();
-  if (!payload || !Array.isArray(payload.models)) {
-    throw new Error("LM Studio response did not include a models array.");
-  }
-
-  return payload.models.filter(model => String(model?.type || "llm") === "llm");
-}
-
 function renderAiSettingsModelOptions() {
   if (!aiModelSelectSetting) {
     return;
@@ -699,7 +709,7 @@ function renderAiSettingsModelOptions() {
   aiModelSelectSetting.replaceChildren();
 
   const models = Array.isArray(appState.aiSettingsModels) ? appState.aiSettingsModels : [];
-  const selectedModel = String(appState.appSettingsDraft?.preferences?.ai?.selectedModel || "").trim();
+  const { selectedModel } = getDraftAiProviderConfig();
 
   if (!models.length) {
     const option = document.createElement("option");
@@ -714,7 +724,7 @@ function renderAiSettingsModelOptions() {
   let nextSelectedModel = selectedModel;
   if (!models.some(model => String(model?.key || "").trim() === nextSelectedModel)) {
     nextSelectedModel = String(models[0]?.key || "").trim();
-    appState.appSettingsDraft.preferences.ai.selectedModel = nextSelectedModel;
+    setDraftActiveAiSelectedModel(nextSelectedModel);
   }
 
   models.forEach(model => {
@@ -738,10 +748,20 @@ function renderAppSettingsModal() {
     defaultTempoBpmSettingInput.value = String(draftTempo ?? DEFAULT_APP_SETTINGS.preferences.defaultTempoBpm);
   }
 
+  renderAiProviderOptions();
+
+  const draftAiProviderConfig = getDraftAiProviderConfig();
+
+  if (aiProviderSettingSelect) {
+    aiProviderSettingSelect.value = draftAiProviderConfig.providerId;
+  }
+
+  if (aiLmStudioSettingsPanel) {
+    aiLmStudioSettingsPanel.hidden = draftAiProviderConfig.providerId !== "lmStudio";
+  }
+
   if (aiBaseUrlSettingInput) {
-    aiBaseUrlSettingInput.value = String(
-      appState.appSettingsDraft?.preferences?.ai?.baseUrl || DEFAULT_APP_SETTINGS.preferences.ai.baseUrl
-    );
+    aiBaseUrlSettingInput.value = String(draftAiProviderConfig.baseUrl || DEFAULT_APP_SETTINGS.preferences.ai.providers.lmStudio.baseUrl);
   }
 
   renderAiSettingsModelOptions();
@@ -782,6 +802,7 @@ function shouldApplyDefaultTempoToCurrentSequence(previousDefaultTempoBpm) {
 function handleSaveAppSettings() {
   const previousDefaultTempoBpm = appState.appSettings?.preferences?.defaultTempoBpm
     ?? DEFAULT_APP_SETTINGS.preferences.defaultTempoBpm;
+  const lmStudioDraftSettings = ensureDraftAiProviderSettings("lmStudio");
   const nextSettings = mergeWithDefaultSettings({
     ...appState.appSettingsDraft,
     preferences: {
@@ -789,8 +810,15 @@ function handleSaveAppSettings() {
       defaultTempoBpm: defaultTempoBpmSettingInput?.value,
       ai: {
         ...appState.appSettingsDraft?.preferences?.ai,
-        baseUrl: normalizeAiSettingsBaseUrl(aiBaseUrlSettingInput?.value),
-        selectedModel: aiModelSelectSetting?.value
+        provider: aiProviderSettingSelect?.value || getDraftAiProviderConfig().providerId,
+        providers: {
+          ...appState.appSettingsDraft?.preferences?.ai?.providers,
+          lmStudio: {
+            ...lmStudioDraftSettings,
+            baseUrl: normalizeAiSettingsBaseUrl(aiBaseUrlSettingInput?.value),
+            selectedModel: aiModelSelectSetting?.value
+          }
+        }
       }
     }
   });
@@ -816,30 +844,31 @@ function handleSaveAppSettings() {
 }
 
 async function handleLoadAiModels() {
-  const aiBaseUrl = normalizeAiSettingsBaseUrl(aiBaseUrlSettingInput?.value);
-  appState.appSettingsDraft.preferences.ai.baseUrl = aiBaseUrl;
+  setDraftLmStudioBaseUrl(aiBaseUrlSettingInput?.value);
   appState.aiSettingsModels = [];
-  setAiSettingsStatus("loading", "Loading models from LM Studio...");
+  const { providerLabel } = getDraftAiProviderConfig();
+  setAiSettingsStatus("loading", `Loading models from ${providerLabel}...`);
   renderAppSettingsModal();
 
   try {
-    appState.aiSettingsModels = await fetchAiModels(aiBaseUrl);
+    appState.aiSettingsModels = await listAiModels(appState.appSettingsDraft);
     if (!appState.aiSettingsModels.length) {
-      setAiSettingsStatus("error", "LM Studio did not return any LLM models.");
+      setAiSettingsStatus("error", `${providerLabel} did not return any LLM models.`);
       renderAppSettingsModal();
       return;
     }
 
-    if (!appState.aiSettingsModels.some(model => String(model?.key || "").trim() === appState.appSettingsDraft.preferences.ai.selectedModel)) {
-      appState.appSettingsDraft.preferences.ai.selectedModel = String(appState.aiSettingsModels[0]?.key || "").trim();
+    const { selectedModel } = getDraftAiProviderConfig();
+    if (!appState.aiSettingsModels.some(model => String(model?.key || "").trim() === selectedModel)) {
+      setDraftActiveAiSelectedModel(String(appState.aiSettingsModels[0]?.key || "").trim());
     }
 
-    setAiSettingsStatus("success", `Loaded ${appState.aiSettingsModels.length} model${appState.aiSettingsModels.length === 1 ? "" : "s"} from LM Studio.`);
+    setAiSettingsStatus("success", `Loaded ${appState.aiSettingsModels.length} model${appState.aiSettingsModels.length === 1 ? "" : "s"} from ${providerLabel}.`);
   } catch (error) {
     appState.aiSettingsModels = [];
     setAiSettingsStatus(
       "error",
-      error instanceof Error ? error.message : "Could not load models from LM Studio."
+      error instanceof Error ? error.message : `Could not load models from ${providerLabel}.`
     );
   }
 
@@ -847,8 +876,7 @@ async function handleLoadAiModels() {
 }
 
 function renderAiExploreUI() {
-  const baseUrl = getAiExploreBaseUrl();
-  const selectedModel = getAiExploreSelectedModel();
+  const { baseUrl, selectedModel } = getSavedAiProviderConfig();
   const isModelConfigured = Boolean(selectedModel);
   const isLoaded = Boolean(appState.aiExploreSelectedModelLoaded && appState.aiExploreLoadedInstanceId);
   const isBusy = Boolean(appState.aiExploreCheckingConnection || appState.aiExploreConnecting || appState.aiExploreSubmitting);
@@ -900,7 +928,7 @@ function renderAiExploreUI() {
       aiExplorePromptInput.value = appState.aiExplorePrompt;
     }
     aiExplorePromptInput.placeholder = isLoaded
-      ? "Type a prompt to send to the connected LM Studio model."
+      ? "Type a prompt to send to the connected AI model."
       : "Connect to the selected model first, then type a prompt here.";
   }
 
@@ -919,8 +947,7 @@ function renderAiExploreUI() {
 
 async function refreshAiExploreModelStatus(options = {}) {
   const { silent = false } = options;
-  const baseUrl = getAiExploreBaseUrl();
-  const selectedModel = getAiExploreSelectedModel();
+  const { providerLabel, selectedModel } = getSavedAiProviderConfig();
 
   appState.aiExploreCheckingConnection = true;
   appState.aiExploreAvailableModels = [];
@@ -928,32 +955,30 @@ async function refreshAiExploreModelStatus(options = {}) {
   appState.aiExploreSelectedModelLoaded = false;
 
   if (!selectedModel) {
-    setAiExploreStatus("idle", "Pick an LM Studio model in Settings before trying to connect.");
+    setAiExploreStatus("idle", "Pick an AI model in Settings before trying to connect.");
     appState.aiExploreCheckingConnection = false;
     renderAiExploreUI();
     return;
   }
 
   if (!silent) {
-    setAiExploreStatus("loading", "Checking LM Studio for the selected model...");
+    setAiExploreStatus("loading", `Checking ${providerLabel} for the selected model...`);
   }
   renderAiExploreUI();
 
   try {
-    const models = await fetchAiModels(baseUrl);
-    appState.aiExploreAvailableModels = models;
-    const matchingModel = models.find(model => String(model?.key || "").trim() === selectedModel) || null;
+    const status = await getAiModelStatus(appState.appSettings);
+    appState.aiExploreAvailableModels = [];
 
-    if (!matchingModel) {
-      setAiExploreStatus("error", "The saved model was not returned by LM Studio. Reload models in Settings and choose a valid model.");
+    if (!status.available) {
+      setAiExploreStatus("error", `The saved model was not returned by ${providerLabel}. Reload models in Settings and choose a valid model.`);
       return;
     }
 
-    const loadedInstanceId = getAiExploreLoadedInstanceId(matchingModel);
-    appState.aiExploreLoadedInstanceId = loadedInstanceId;
-    appState.aiExploreSelectedModelLoaded = Boolean(loadedInstanceId);
+    appState.aiExploreLoadedInstanceId = status.loadedInstanceId;
+    appState.aiExploreSelectedModelLoaded = Boolean(status.loaded);
 
-    if (loadedInstanceId) {
+    if (status.loadedInstanceId) {
       setAiExploreStatus("success", "Selected model is already loaded and ready for prompts.");
     } else {
       setAiExploreStatus("idle", "Selected model is available but not loaded yet. Click Connect to load it.");
@@ -964,7 +989,7 @@ async function refreshAiExploreModelStatus(options = {}) {
     appState.aiExploreSelectedModelLoaded = false;
     setAiExploreStatus(
       "error",
-      error instanceof Error ? error.message : "Could not reach LM Studio to check model status."
+      error instanceof Error ? error.message : `Could not reach ${providerLabel} to check model status.`
     );
   } finally {
     appState.aiExploreCheckingConnection = false;
@@ -973,8 +998,7 @@ async function refreshAiExploreModelStatus(options = {}) {
 }
 
 async function handleAiExploreConnect() {
-  const baseUrl = getAiExploreBaseUrl();
-  const selectedModel = getAiExploreSelectedModel();
+  const { providerLabel, selectedModel } = getSavedAiProviderConfig();
   if (!selectedModel) {
     setAiExploreStatus("error", "No model is saved in Settings yet.");
     renderAiExploreUI();
@@ -982,32 +1006,17 @@ async function handleAiExploreConnect() {
   }
 
   appState.aiExploreConnecting = true;
-  setAiExploreStatus("loading", `Loading ${selectedModel} in LM Studio...`);
+  setAiExploreStatus("loading", `Loading ${selectedModel} in ${providerLabel}...`);
   renderAiExploreUI();
 
   try {
-    const response = await fetch(`${baseUrl}/api/v1/models/load`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: selectedModel
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`LM Studio returned ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`);
-    }
-
-    await response.json();
+    await connectAiModel(appState.appSettings);
     setAiExploreStatus("success", "Model loaded. Checking connection state...");
   } catch (error) {
     appState.aiExploreConnecting = false;
     setAiExploreStatus(
       "error",
-      error instanceof Error ? error.message : "Could not load the selected model in LM Studio."
+      error instanceof Error ? error.message : `Could not load the selected model in ${providerLabel}.`
     );
     renderAiExploreUI();
     return;
@@ -1017,28 +1026,8 @@ async function handleAiExploreConnect() {
   await refreshAiExploreModelStatus({ silent: true });
 }
 
-function getAiExploreMessageText(payload) {
-  const outputItems = Array.isArray(payload?.output) ? payload.output : [];
-  const messageParts = outputItems
-    .filter(item => item?.type === "message")
-    .map(item => String(item?.content || "").trim())
-    .filter(Boolean);
-
-  if (messageParts.length) {
-    return messageParts.join("\n\n");
-  }
-
-  const firstReason = outputItems.find(item => item?.type === "reasoning");
-  if (firstReason?.content) {
-    return String(firstReason.content).trim();
-  }
-
-  return "";
-}
-
 async function handleAiExploreSubmit() {
-  const baseUrl = getAiExploreBaseUrl();
-  const selectedModel = getAiExploreSelectedModel();
+  const { providerLabel, selectedModel } = getSavedAiProviderConfig();
   const prompt = String(appState.aiExplorePrompt || "").trim();
 
   if (!selectedModel) {
@@ -1060,40 +1049,19 @@ async function handleAiExploreSubmit() {
   }
 
   appState.aiExploreSubmitting = true;
-  appState.aiExploreResponse = "Waiting for LM Studio...";
-  setAiExploreStatus("loading", "Sending prompt to LM Studio...");
+  appState.aiExploreResponse = `Waiting for ${providerLabel}...`;
+  setAiExploreStatus("loading", `Sending prompt to ${providerLabel}...`);
   renderAiExploreUI();
 
   try {
-    const response = await fetch(`${baseUrl}/api/v1/chat`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: selectedModel,
-        input: prompt,
-        store: false,
-        reasoning: "off",
-        temperature: 0.7,
-        max_output_tokens: 4096
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`LM Studio returned ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`);
-    }
-
-    const payload = await response.json();
-    const messageText = getAiExploreMessageText(payload);
-    appState.aiExploreResponse = messageText || "LM Studio returned a response, but it did not include a message.";
+    const response = await sendAiPrompt(appState.appSettings, prompt);
+    appState.aiExploreResponse = response.text || `${providerLabel} returned a response, but it did not include a message.`;
     setAiExploreStatus("success", "Prompt completed successfully.");
   } catch (error) {
     appState.aiExploreResponse = "No response yet.";
     setAiExploreStatus(
       "error",
-      error instanceof Error ? error.message : "Could not get a response from LM Studio."
+      error instanceof Error ? error.message : `Could not get a response from ${providerLabel}.`
     );
   } finally {
     appState.aiExploreSubmitting = false;
@@ -3635,12 +3603,13 @@ async function init() {
     if (metronomeStartStopBtn) metronomeStartStopBtn.dataset.tooltip = "Arm or stop the metronome for playback";
     if (sequenceTempoBpmInput) sequenceTempoBpmInput.dataset.tooltip = "Set the playback tempo for the chord sequence";
     if (sequenceTimeSignatureSelect) sequenceTimeSignatureSelect.dataset.tooltip = "Set the default beats per bar for new chord blocks";
-    if (aiBaseUrlSettingInput) aiBaseUrlSettingInput.dataset.tooltip = "LM Studio HTTP address for loading available models";
-    if (loadAiModelsBtn) loadAiModelsBtn.dataset.tooltip = "Fetch models from LM Studio using the entered HTTP address";
+    if (aiProviderSettingSelect) aiProviderSettingSelect.dataset.tooltip = "Choose the active AI provider for this browser";
+    if (aiBaseUrlSettingInput) aiBaseUrlSettingInput.dataset.tooltip = "HTTP address for the active provider";
+    if (loadAiModelsBtn) loadAiModelsBtn.dataset.tooltip = "Fetch models from the active AI provider";
     if (aiModelSelectSetting) aiModelSelectSetting.dataset.tooltip = "Choose the AI model to save in app settings";
-    if (aiExploreConnectBtn) aiExploreConnectBtn.dataset.tooltip = "Load the saved LM Studio model if it is not already loaded";
-    if (aiExplorePromptInput) aiExplorePromptInput.dataset.tooltip = "Type a prompt for the connected LM Studio model";
-    if (aiExploreSubmitBtn) aiExploreSubmitBtn.dataset.tooltip = "Send the current prompt to LM Studio";
+    if (aiExploreConnectBtn) aiExploreConnectBtn.dataset.tooltip = "Load the saved AI model if it is not already loaded";
+    if (aiExplorePromptInput) aiExplorePromptInput.dataset.tooltip = "Type a prompt for the connected AI model";
+    if (aiExploreSubmitBtn) aiExploreSubmitBtn.dataset.tooltip = "Send the current prompt to the active AI provider";
     if (aiExploreResponseOutput) aiExploreResponseOutput.dataset.tooltip = "Scrollable model response area";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
     if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
@@ -3807,9 +3776,18 @@ async function init() {
       });
     }
 
+    if (aiProviderSettingSelect) {
+      aiProviderSettingSelect.addEventListener("change", () => {
+        setDraftAiProvider(aiProviderSettingSelect.value);
+        appState.aiSettingsModels = [];
+        setAiSettingsStatus("idle", "Load models to choose which AI model to save.");
+        renderAppSettingsModal();
+      });
+    }
+
     if (aiBaseUrlSettingInput) {
       aiBaseUrlSettingInput.addEventListener("change", () => {
-        appState.appSettingsDraft.preferences.ai.baseUrl = normalizeAiSettingsBaseUrl(aiBaseUrlSettingInput.value);
+        setDraftLmStudioBaseUrl(aiBaseUrlSettingInput.value);
         appState.aiSettingsModels = [];
         setAiSettingsStatus("idle", "Load models to choose which AI model to save.");
         renderAppSettingsModal();
@@ -3825,7 +3803,7 @@ async function init() {
 
     if (aiModelSelectSetting) {
       aiModelSelectSetting.addEventListener("change", () => {
-        appState.appSettingsDraft.preferences.ai.selectedModel = String(aiModelSelectSetting.value || "").trim();
+        setDraftActiveAiSelectedModel(aiModelSelectSetting.value);
       });
     }
 

@@ -46,8 +46,13 @@ test("saves settings to local storage and restores the default tempo on reload",
     preferences: {
       defaultTempoBpm: 132,
       ai: {
-        baseUrl: "http://127.0.0.1:1234",
-        selectedModel: ""
+        provider: "lmStudio",
+        providers: {
+          lmStudio: {
+            baseUrl: "http://127.0.0.1:1234",
+            selectedModel: ""
+          }
+        }
       }
     }
   });
@@ -70,6 +75,7 @@ test("falls back to defaults when stored settings are invalid", async ({ page })
 
   await page.locator("#openSettingsBtn").click();
   await expect(page.locator("#defaultTempoBpmSetting")).toHaveValue("120");
+  await expect(page.locator("#aiProviderSetting")).toHaveValue("lmStudio");
   await expect(page.locator("#aiBaseUrlSetting")).toHaveValue("http://127.0.0.1:1234");
   await expect(page.locator("#aiModelSelectSetting")).toHaveValue("");
 });
@@ -189,14 +195,64 @@ test("loads AI models from LM Studio and saves the selected AI settings", async 
     preferences: {
       defaultTempoBpm: 120,
       ai: {
-        baseUrl: "http://127.0.0.1:1234",
-        selectedModel: "qwen/qwen3-32b"
+        provider: "lmStudio",
+        providers: {
+          lmStudio: {
+            baseUrl: "http://127.0.0.1:1234",
+            selectedModel: "qwen/qwen3-32b"
+          }
+        }
       }
     }
   });
 
   await reloadApp(page);
   await page.locator("#openSettingsBtn").click();
+  await expect(page.locator("#aiProviderSetting")).toHaveValue("lmStudio");
   await expect(page.locator("#aiBaseUrlSetting")).toHaveValue("http://127.0.0.1:1234");
   await expect(page.locator("#aiModelSelectSetting")).toHaveValue("qwen/qwen3-32b");
+});
+
+test("migrates legacy AI settings into the provider-aware shape", async ({ page }) => {
+  await page.addInitScript(storageKey => {
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      version: 1,
+      preferences: {
+        defaultTempoBpm: 124,
+        ai: {
+          baseUrl: "http://192.168.2.100:1234",
+          selectedModel: "google/gemma-4-27b"
+        }
+      }
+    }));
+  }, SETTINGS_STORAGE_KEY);
+
+  await gotoApp(page);
+  await page.locator("#openSettingsBtn").click();
+
+  await expect(page.locator("#aiProviderSetting")).toHaveValue("lmStudio");
+  await expect(page.locator("#aiBaseUrlSetting")).toHaveValue("http://192.168.2.100:1234");
+  await expect(page.locator("#aiModelSelectSetting")).toHaveValue("google/gemma-4-27b");
+
+  await page.locator("#saveAppSettingsBtn").click();
+
+  const storedSettings = await page.evaluate(storageKey => {
+    return JSON.parse(window.localStorage.getItem(storageKey));
+  }, SETTINGS_STORAGE_KEY);
+
+  expect(storedSettings).toEqual({
+    version: 1,
+    preferences: {
+      defaultTempoBpm: 124,
+      ai: {
+        provider: "lmStudio",
+        providers: {
+          lmStudio: {
+            baseUrl: "http://192.168.2.100:1234",
+            selectedModel: "google/gemma-4-27b"
+          }
+        }
+      }
+    }
+  });
 });

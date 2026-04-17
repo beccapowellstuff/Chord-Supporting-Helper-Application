@@ -8,7 +8,7 @@ async function initChordTestApi(page) {
     }
 
     const chordNotes = await import("/js/chordNotes.js");
-    const engine = await import("/js/engine.js");
+    const engine = await import("/js/theoryEngine.js");
     const theory = await import("/js/theory.js");
     const modesConfig = await fetch("/data/modes.json").then(response => response.json());
     const musicData = theory.generateAllKeys(modesConfig);

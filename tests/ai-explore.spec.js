@@ -10,8 +10,13 @@ test("AI Explore connects the saved model and shows a prompt response", async ({
       preferences: {
         defaultTempoBpm: 120,
         ai: {
-          baseUrl: "http://127.0.0.1:1234",
-          selectedModel: "google/gemma-4-27b"
+          provider: "lmStudio",
+          providers: {
+            lmStudio: {
+              baseUrl: "http://127.0.0.1:1234",
+              selectedModel: "google/gemma-4-27b"
+            }
+          }
         }
       }
     }));
@@ -57,16 +62,20 @@ test("AI Explore connects the saved model and shows a prompt response", async ({
     })
   );
 
-  await page.route("http://127.0.0.1:1234/api/v1/chat", async route => {
+  await page.route("http://127.0.0.1:1234/v1/chat/completions", async route => {
     const request = route.request();
     const payload = request.postDataJSON();
 
     expect(payload).toMatchObject({
       model: "google/gemma-4-27b",
-      input: "Say hello from the AI Explore MVP test.",
-      store: false,
-      reasoning: "off",
-      max_output_tokens: 4096
+      messages: [
+        {
+          role: "user",
+          content: "Say hello from the AI Explore MVP test."
+        }
+      ],
+      max_tokens: 4096,
+      stream: false
     });
 
     await route.fulfill({
@@ -76,11 +85,18 @@ test("AI Explore connects the saved model and shows a prompt response", async ({
         "access-control-allow-origin": "*"
       },
       body: JSON.stringify({
-        model_instance_id: "google/gemma-4-27b",
-        output: [
+        id: "chatcmpl_test_123",
+        object: "chat.completion",
+        created: 1710000000,
+        model: "google/gemma-4-27b",
+        choices: [
           {
-            type: "message",
-            content: "Hello from LM Studio. The AI Explore MVP test worked."
+            index: 0,
+            message: {
+              role: "assistant",
+              content: "Hello from LM Studio. The AI Explore MVP test worked."
+            },
+            finish_reason: "stop"
           }
         ]
       })

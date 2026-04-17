@@ -1,4 +1,4 @@
-import { parseProgression } from "./engine.js";
+import { parseProgression } from "./theoryEngine.js";
 import { parseChordName, pitchClassToDisplayNote } from "./chordNotes.js";
 import { formatChordLabel } from "./ui.js";
 

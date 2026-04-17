@@ -1761,6 +1761,12 @@ h2 {
   text-transform: uppercase;
 }
 
+.app-settings-provider-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .app-settings-ai-row {
   display: flex;
   align-items: flex-start;

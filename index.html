@@ -179,20 +179,26 @@
                 </label>
                 <section class="app-settings-panel">
                   <div class="app-settings-panel-title">AI</div>
-                  <label class="app-settings-field" for="aiBaseUrlSetting">
-                    <span class="app-settings-field-label">HTTP Address</span>
-                    <input id="aiBaseUrlSetting" type="url" inputmode="url" spellcheck="false" aria-label="AI HTTP address">
+                  <label class="app-settings-field" for="aiProviderSetting">
+                    <span class="app-settings-field-label">Provider</span>
+                    <select id="aiProviderSetting" aria-label="AI provider selection"></select>
                   </label>
-                  <div class="app-settings-ai-row">
-                    <button id="loadAiModelsBtn" class="app-settings-secondary-btn" type="button">Load Models</button>
-                    <div id="aiModelsStatus" class="app-settings-ai-status" aria-live="polite">Load models to choose which AI model to save.</div>
+                  <div id="aiLmStudioSettingsPanel" class="app-settings-provider-panel">
+                    <label class="app-settings-field" for="aiBaseUrlSetting">
+                      <span class="app-settings-field-label">HTTP Address</span>
+                      <input id="aiBaseUrlSetting" type="url" inputmode="url" spellcheck="false" aria-label="AI HTTP address">
+                    </label>
+                    <div class="app-settings-ai-row">
+                      <button id="loadAiModelsBtn" class="app-settings-secondary-btn" type="button">Load Models</button>
+                      <div id="aiModelsStatus" class="app-settings-ai-status" aria-live="polite">Load models to choose which AI model to save.</div>
+                    </div>
+                    <label class="app-settings-field" for="aiModelSelectSetting">
+                      <span class="app-settings-field-label">Model</span>
+                      <select id="aiModelSelectSetting" aria-label="AI model selection" disabled>
+                        <option value="">Load models first</option>
+                      </select>
+                    </label>
                   </div>
-                  <label class="app-settings-field" for="aiModelSelectSetting">
-                    <span class="app-settings-field-label">Model</span>
-                    <select id="aiModelSelectSetting" aria-label="AI model selection" disabled>
-                      <option value="">Load models first</option>
-                    </select>
-                  </label>
                 </section>
                 <div class="app-settings-modal-actions">
                   <button id="saveAppSettingsBtn" class="app-settings-primary-btn" type="button">Save</button>
