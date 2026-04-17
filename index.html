@@ -16,9 +16,14 @@
       <div class="app-brand">
         <img class="app-brand-logo" src="./graphics/VibeChording.png" alt="Vibe Chording">
       </div>
-      <button id="openSettingsBtn" class="app-shell-settings-btn" type="button">Settings</button>
     </div>
-    <p class="app-intro">Build a progression, explore a key, try any chord, or get ideas for what comes next.</p>
+    <div class="app-intro-row">
+      <p class="app-intro">Build a progression, explore a key, try any chord, or get ideas for what comes next.</p>
+      <button id="openSettingsBtn" class="app-shell-settings-btn app-shell-settings-icon-btn" type="button" aria-label="Open settings" title="Settings">
+        <span class="app-shell-settings-glyph" aria-hidden="true">&#9881;</span>
+        <span class="visually-hidden">Settings</span>
+      </button>
+    </div>
 
     <div class="panel builder-panel">
       <div class="sequence-panel">
@@ -172,6 +177,23 @@
                   <span class="app-settings-field-label">Default Tempo BPM</span>
                   <input id="defaultTempoBpmSetting" type="number" min="40" max="240" step="1" aria-label="Default tempo in beats per minute">
                 </label>
+                <section class="app-settings-panel">
+                  <div class="app-settings-panel-title">AI</div>
+                  <label class="app-settings-field" for="aiBaseUrlSetting">
+                    <span class="app-settings-field-label">HTTP Address</span>
+                    <input id="aiBaseUrlSetting" type="url" inputmode="url" spellcheck="false" aria-label="AI HTTP address">
+                  </label>
+                  <div class="app-settings-ai-row">
+                    <button id="loadAiModelsBtn" class="app-settings-secondary-btn" type="button">Load Models</button>
+                    <div id="aiModelsStatus" class="app-settings-ai-status" aria-live="polite">Load models to choose which AI model to save.</div>
+                  </div>
+                  <label class="app-settings-field" for="aiModelSelectSetting">
+                    <span class="app-settings-field-label">Model</span>
+                    <select id="aiModelSelectSetting" aria-label="AI model selection" disabled>
+                      <option value="">Load models first</option>
+                    </select>
+                  </label>
+                </section>
                 <div class="app-settings-modal-actions">
                   <button id="saveAppSettingsBtn" class="app-settings-primary-btn" type="button">Save</button>
                   <button id="cancelAppSettingsBtn" class="app-settings-secondary-btn" type="button">Cancel</button>

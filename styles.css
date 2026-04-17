@@ -1432,7 +1432,7 @@ h2 {
 .app-brand-row {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
 }
 
@@ -1443,7 +1443,16 @@ h2 {
 }
 
 .app-intro {
+  margin: 0;
+}
+
+.app-intro-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 0;
+  margin-bottom: 16px;
 }
 
 .app-brand-subtitle {
@@ -1456,8 +1465,8 @@ h2 {
 .app-shell-settings-btn {
   width: auto;
   min-width: 0;
-  margin: 4px 0 0;
-  padding: 9px 14px;
+  margin: 0;
+  padding: 0;
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(255, 251, 253, 0.98), rgba(244, 230, 237, 0.98));
   color: var(--accent-dark);
@@ -1468,6 +1477,24 @@ h2 {
 .app-shell-settings-btn:hover {
   background: linear-gradient(180deg, rgba(248, 228, 238, 0.98), rgba(244, 214, 229, 0.98));
   color: var(--accent-dark);
+}
+
+.app-shell-settings-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  margin-top: -2px;
+  border-radius: 999px;
+}
+
+.app-shell-settings-glyph {
+  display: inline-block;
+  font-size: 17px;
+  line-height: 1;
 }
 
 .tool-panel-description {
@@ -1712,6 +1739,51 @@ h2 {
 
 .app-settings-field input {
   margin: 0;
+}
+
+.app-settings-field select {
+  margin: 0;
+}
+
+.app-settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 4px;
+  border-top: 1px solid rgba(230, 201, 214, 0.72);
+}
+
+.app-settings-panel-title {
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.app-settings-ai-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.app-settings-ai-status {
+  flex: 1 1 auto;
+  color: #6d5562;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.app-settings-ai-status-loading {
+  color: #7a5a24;
+}
+
+.app-settings-ai-status-success {
+  color: #2f6b3b;
+}
+
+.app-settings-ai-status-error {
+  color: #8d3d3d;
 }
 
 .app-settings-modal-actions {
@@ -3729,13 +3801,18 @@ textarea {
   }
 
   .app-brand-row {
-    flex-direction: column;
-    align-items: stretch;
     gap: 10px;
   }
 
+  .app-intro-row {
+    align-items: center;
+  }
+
   .app-shell-settings-btn {
-    width: 100%;
+    width: 32px;
+  }
+
+  .app-shell-settings-icon-btn {
     margin-top: 0;
   }
 
@@ -3757,6 +3834,10 @@ textarea {
   }
 
   .app-settings-modal-actions {
+    flex-direction: column;
+  }
+
+  .app-settings-ai-row {
     flex-direction: column;
   }
 

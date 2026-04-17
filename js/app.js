@@ -113,6 +113,10 @@ const openSettingsBtn = document.getElementById("openSettingsBtn");
 const appSettingsModal = document.getElementById("appSettingsModal");
 const appSettingsModalClose = document.getElementById("appSettingsModalClose");
 const defaultTempoBpmSettingInput = document.getElementById("defaultTempoBpmSetting");
+const aiBaseUrlSettingInput = document.getElementById("aiBaseUrlSetting");
+const loadAiModelsBtn = document.getElementById("loadAiModelsBtn");
+const aiModelsStatus = document.getElementById("aiModelsStatus");
+const aiModelSelectSetting = document.getElementById("aiModelSelectSetting");
 const saveAppSettingsBtn = document.getElementById("saveAppSettingsBtn");
 const cancelAppSettingsBtn = document.getElementById("cancelAppSettingsBtn");
 const sequenceTempoBpmInput = document.getElementById("sequenceTempoBpm");
@@ -177,7 +181,12 @@ const appState = {
   progressionInvalidTokens: [],
   suggestionDebugVisible: false,
   appSettings: mergeWithDefaultSettings(DEFAULT_APP_SETTINGS),
-  appSettingsDraft: mergeWithDefaultSettings(DEFAULT_APP_SETTINGS)
+  appSettingsDraft: mergeWithDefaultSettings(DEFAULT_APP_SETTINGS),
+  aiSettingsModels: [],
+  aiSettingsStatus: {
+    type: "idle",
+    message: "Load models to choose which AI model to save."
+  }
 };
 window.appState = appState;
 let sequenceKeyboardMidiNotes = [];
@@ -589,6 +598,64 @@ function syncAppSettingsDraftFromSavedState() {
   appState.appSettingsDraft = mergeWithDefaultSettings(appState.appSettings);
 }
 
+function normalizeAiSettingsBaseUrl(value) {
+  return String(value || "").trim().replace(/\/+$/, "") || DEFAULT_APP_SETTINGS.preferences.ai.baseUrl;
+}
+
+function getAiSettingsModelLabel(model) {
+  const displayName = String(model?.display_name || "").trim();
+  const key = String(model?.key || "").trim();
+  if (displayName && key && displayName !== key) {
+    return `${displayName} (${key})`;
+  }
+
+  return displayName || key || "Unnamed model";
+}
+
+function setAiSettingsStatus(type, message) {
+  appState.aiSettingsStatus = {
+    type,
+    message: String(message || "").trim()
+  };
+}
+
+function renderAiSettingsModelOptions() {
+  if (!aiModelSelectSetting) {
+    return;
+  }
+
+  aiModelSelectSetting.replaceChildren();
+
+  const models = Array.isArray(appState.aiSettingsModels) ? appState.aiSettingsModels : [];
+  const selectedModel = String(appState.appSettingsDraft?.preferences?.ai?.selectedModel || "").trim();
+
+  if (!models.length) {
+    const option = document.createElement("option");
+    option.value = selectedModel;
+    option.textContent = selectedModel || "Load models first";
+    aiModelSelectSetting.appendChild(option);
+    aiModelSelectSetting.disabled = true;
+    aiModelSelectSetting.value = selectedModel;
+    return;
+  }
+
+  let nextSelectedModel = selectedModel;
+  if (!models.some(model => String(model?.key || "").trim() === nextSelectedModel)) {
+    nextSelectedModel = String(models[0]?.key || "").trim();
+    appState.appSettingsDraft.preferences.ai.selectedModel = nextSelectedModel;
+  }
+
+  models.forEach(model => {
+    const option = document.createElement("option");
+    option.value = String(model?.key || "").trim();
+    option.textContent = getAiSettingsModelLabel(model);
+    aiModelSelectSetting.appendChild(option);
+  });
+
+  aiModelSelectSetting.disabled = false;
+  aiModelSelectSetting.value = nextSelectedModel;
+}
+
 function renderAppSettingsModal() {
   if (appSettingsModal) {
     appSettingsModal.hidden = !appState.appSettingsModalOpen;
@@ -597,6 +664,19 @@ function renderAppSettingsModal() {
   if (defaultTempoBpmSettingInput) {
     const draftTempo = appState.appSettingsDraft?.preferences?.defaultTempoBpm;
     defaultTempoBpmSettingInput.value = String(draftTempo ?? DEFAULT_APP_SETTINGS.preferences.defaultTempoBpm);
+  }
+
+  if (aiBaseUrlSettingInput) {
+    aiBaseUrlSettingInput.value = String(
+      appState.appSettingsDraft?.preferences?.ai?.baseUrl || DEFAULT_APP_SETTINGS.preferences.ai.baseUrl
+    );
+  }
+
+  renderAiSettingsModelOptions();
+
+  if (aiModelsStatus) {
+    aiModelsStatus.className = `app-settings-ai-status app-settings-ai-status-${appState.aiSettingsStatus?.type || "idle"}`;
+    aiModelsStatus.textContent = appState.aiSettingsStatus?.message || "Load models to choose which AI model to save.";
   }
 }
 
@@ -616,6 +696,8 @@ function openAppSettingsModal() {
   }
 
   syncAppSettingsDraftFromSavedState();
+  appState.aiSettingsModels = [];
+  setAiSettingsStatus("idle", "Load models to choose which AI model to save.");
   appState.appSettingsModalOpen = true;
   renderAppSettingsModal();
   appSettingsModalClose?.focus();
@@ -632,7 +714,12 @@ function handleSaveAppSettings() {
     ...appState.appSettingsDraft,
     preferences: {
       ...appState.appSettingsDraft?.preferences,
-      defaultTempoBpm: defaultTempoBpmSettingInput?.value
+      defaultTempoBpm: defaultTempoBpmSettingInput?.value,
+      ai: {
+        ...appState.appSettingsDraft?.preferences?.ai,
+        baseUrl: normalizeAiSettingsBaseUrl(aiBaseUrlSettingInput?.value),
+        selectedModel: aiModelSelectSetting?.value
+      }
     }
   });
 
@@ -646,6 +733,53 @@ function handleSaveAppSettings() {
 
   renderAppSettingsModal();
   renderProgressionBuilderUI();
+}
+
+async function handleLoadAiModels() {
+  const aiBaseUrl = normalizeAiSettingsBaseUrl(aiBaseUrlSettingInput?.value);
+  appState.appSettingsDraft.preferences.ai.baseUrl = aiBaseUrl;
+  appState.aiSettingsModels = [];
+  setAiSettingsStatus("loading", "Loading models from LM Studio...");
+  renderAppSettingsModal();
+
+  try {
+    const response = await fetch(`${aiBaseUrl}/api/v1/models`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`LM Studio returned ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`);
+    }
+
+    const payload = await response.json();
+    if (!payload || !Array.isArray(payload.models)) {
+      throw new Error("LM Studio response did not include a models array.");
+    }
+
+    appState.aiSettingsModels = payload.models.filter(model => String(model?.type || "llm") === "llm");
+    if (!appState.aiSettingsModels.length) {
+      setAiSettingsStatus("error", "LM Studio did not return any LLM models.");
+      renderAppSettingsModal();
+      return;
+    }
+
+    if (!appState.aiSettingsModels.some(model => String(model?.key || "").trim() === appState.appSettingsDraft.preferences.ai.selectedModel)) {
+      appState.appSettingsDraft.preferences.ai.selectedModel = String(appState.aiSettingsModels[0]?.key || "").trim();
+    }
+
+    setAiSettingsStatus("success", `Loaded ${appState.aiSettingsModels.length} model${appState.aiSettingsModels.length === 1 ? "" : "s"} from LM Studio.`);
+  } catch (error) {
+    appState.aiSettingsModels = [];
+    setAiSettingsStatus(
+      "error",
+      error instanceof Error ? error.message : "Could not load models from LM Studio."
+    );
+  }
+
+  renderAppSettingsModal();
 }
 
 async function attemptAudioPriming() {
@@ -3174,6 +3308,9 @@ async function init() {
     if (metronomeStartStopBtn) metronomeStartStopBtn.dataset.tooltip = "Arm or stop the metronome for playback";
     if (sequenceTempoBpmInput) sequenceTempoBpmInput.dataset.tooltip = "Set the playback tempo for the chord sequence";
     if (sequenceTimeSignatureSelect) sequenceTimeSignatureSelect.dataset.tooltip = "Set the default beats per bar for new chord blocks";
+    if (aiBaseUrlSettingInput) aiBaseUrlSettingInput.dataset.tooltip = "LM Studio HTTP address for loading available models";
+    if (loadAiModelsBtn) loadAiModelsBtn.dataset.tooltip = "Fetch models from LM Studio using the entered HTTP address";
+    if (aiModelSelectSetting) aiModelSelectSetting.dataset.tooltip = "Choose the AI model to save in app settings";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
     if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
     if (toggleSuggestionDebugBtn) toggleSuggestionDebugBtn.dataset.tooltip = "Show the suggestion debug panel";
@@ -3328,6 +3465,28 @@ async function init() {
       saveAppSettingsBtn.addEventListener("click", event => {
         event.stopPropagation();
         handleSaveAppSettings();
+      });
+    }
+
+    if (aiBaseUrlSettingInput) {
+      aiBaseUrlSettingInput.addEventListener("change", () => {
+        appState.appSettingsDraft.preferences.ai.baseUrl = normalizeAiSettingsBaseUrl(aiBaseUrlSettingInput.value);
+        appState.aiSettingsModels = [];
+        setAiSettingsStatus("idle", "Load models to choose which AI model to save.");
+        renderAppSettingsModal();
+      });
+    }
+
+    if (loadAiModelsBtn) {
+      loadAiModelsBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        void handleLoadAiModels();
+      });
+    }
+
+    if (aiModelSelectSetting) {
+      aiModelSelectSetting.addEventListener("change", () => {
+        appState.appSettingsDraft.preferences.ai.selectedModel = String(aiModelSelectSetting.value || "").trim();
       });
     }
 

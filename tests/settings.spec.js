@@ -44,7 +44,11 @@ test("saves settings to local storage and restores the default tempo on reload",
   expect(JSON.parse(storedSettings)).toEqual({
     version: 1,
     preferences: {
-      defaultTempoBpm: 132
+      defaultTempoBpm: 132,
+      ai: {
+        baseUrl: "http://127.0.0.1:1234",
+        selectedModel: ""
+      }
     }
   });
 
@@ -66,6 +70,8 @@ test("falls back to defaults when stored settings are invalid", async ({ page })
 
   await page.locator("#openSettingsBtn").click();
   await expect(page.locator("#defaultTempoBpmSetting")).toHaveValue("120");
+  await expect(page.locator("#aiBaseUrlSetting")).toHaveValue("http://127.0.0.1:1234");
+  await expect(page.locator("#aiModelSelectSetting")).toHaveValue("");
 });
 
 test("discards unsaved settings edits on cancel, overlay click, and Escape", async ({ page }) => {
@@ -104,7 +110,11 @@ test("keeps imported progression tempo instead of overwriting it with the saved 
     window.localStorage.setItem(storageKey, JSON.stringify({
       version: 1,
       preferences: {
-        defaultTempoBpm: 150
+        defaultTempoBpm: 150,
+        ai: {
+          baseUrl: "http://127.0.0.1:1234",
+          selectedModel: ""
+        }
       }
     }));
   }, SETTINGS_STORAGE_KEY);
@@ -128,4 +138,65 @@ test("keeps imported progression tempo instead of overwriting it with the saved 
   });
 
   await expect(sequenceTempoInput).toHaveValue("98");
+});
+
+test("loads AI models from LM Studio and saves the selected AI settings", async ({ page }) => {
+  await gotoApp(page);
+
+  await page.route("http://127.0.0.1:1234/api/v1/models", route =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        models: [
+          {
+            type: "llm",
+            key: "google/gemma-4-27b",
+            display_name: "Gemma 4 27B"
+          },
+          {
+            type: "llm",
+            key: "qwen/qwen3-32b",
+            display_name: "Qwen 3 32B"
+          }
+        ]
+      })
+    })
+  );
+
+  await page.locator("#openSettingsBtn").click();
+  await expect(page.locator("#aiModelSelectSetting")).toBeDisabled();
+
+  await page.locator("#loadAiModelsBtn").click();
+
+  await expect(page.locator("#aiModelsStatus")).toContainText("Loaded 2 models from LM Studio.");
+  await expect(page.locator("#aiModelSelectSetting")).toBeEnabled();
+  await expect(page.locator("#aiModelSelectSetting")).toContainText("Gemma 4 27B");
+  await expect(page.locator("#aiModelSelectSetting")).toContainText("Qwen 3 32B");
+
+  await page.locator("#aiModelSelectSetting").selectOption("qwen/qwen3-32b");
+  await page.locator("#saveAppSettingsBtn").click();
+
+  const storedSettings = await page.evaluate(storageKey => {
+    return JSON.parse(window.localStorage.getItem(storageKey));
+  }, SETTINGS_STORAGE_KEY);
+
+  expect(storedSettings).toEqual({
+    version: 1,
+    preferences: {
+      defaultTempoBpm: 120,
+      ai: {
+        baseUrl: "http://127.0.0.1:1234",
+        selectedModel: "qwen/qwen3-32b"
+      }
+    }
+  });
+
+  await reloadApp(page);
+  await page.locator("#openSettingsBtn").click();
+  await expect(page.locator("#aiBaseUrlSetting")).toHaveValue("http://127.0.0.1:1234");
+  await expect(page.locator("#aiModelSelectSetting")).toHaveValue("qwen/qwen3-32b");
 });
