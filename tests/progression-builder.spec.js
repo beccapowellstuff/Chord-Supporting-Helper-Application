@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 import { gotoApp, openTool, setProgressionText } from "./helpers/appTestUtils.js";
+import { parseMidiFile } from "./helpers/midiTestUtils.js";
 
 async function loadStructuredProgression(page, progression, filename = "structured-progression.json") {
   await page.locator("#loadProgressionInput").setInputFiles({
@@ -541,6 +542,22 @@ test("shows a popup when saving a progression without chords", async ({ page }) 
   await expect.poll(() => dialogMessage).toBe("Add at least one chord before saving the progression.");
 });
 
+test("shows a popup when exporting MIDI without chords", async ({ page }) => {
+  await gotoApp(page);
+
+  const exportMidiButton = page.getByRole("button", { name: "Export MIDI" });
+  await expect(exportMidiButton).toBeDisabled();
+
+  let dialogMessage = "";
+  page.once("dialog", async dialog => {
+    dialogMessage = dialog.message();
+    await dialog.accept();
+  });
+
+  await page.locator("#exportMidiBtn").dispatchEvent("click");
+  await expect.poll(() => dialogMessage).toBe("Add at least one chord before exporting MIDI.");
+});
+
 test("saves and loads a progression file with sequence timing and beat lengths", async ({ page }) => {
   await gotoApp(page);
 
@@ -584,6 +601,135 @@ test("saves and loads a progression file with sequence timing and beat lengths",
   await expect(page.locator("#progression")).toHaveValue("C | F | G");
   await expect(page.locator(".progression-block")).toHaveCount(3);
   await expect(page.locator(".progression-block").nth(2)).toHaveAttribute("data-progression-chord", "G");
+});
+
+test("exports a multi-track MIDI file with timing, sustain, voicing, and bass data", async ({ page }) => {
+  await gotoApp(page);
+
+  await loadStructuredProgression(page, {
+    type: "vibe-chording-progression",
+    version: 4,
+    sequence: {
+      tempoBpm: 90,
+      timeSignature: "3/4"
+    },
+    items: [
+      {
+        position: 1,
+        chord: "C/B",
+        durationBeats: 2,
+        sustain: true,
+        voicing: {
+          notes: [
+            { midi: 35, velocity: 72 },
+            { midi: 60, velocity: 84 },
+            { midi: 64, velocity: 96 },
+            { midi: 67, velocity: 108 }
+          ]
+        }
+      },
+      {
+        position: 2,
+        chord: "F",
+        durationBeats: 1,
+        sustain: false,
+        voicing: null
+      }
+    ]
+  }, "midi-export-source.json");
+
+  const exportMidiButton = page.getByRole("button", { name: "Export MIDI" });
+  await expect(exportMidiButton).toBeEnabled();
+
+  const downloadPromise = page.waitForEvent("download");
+  await exportMidiButton.click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toBe("c-ionian-progression.mid");
+
+  const downloadPath = await download.path();
+  const raw = await readFile(downloadPath);
+  const parsedMidi = parseMidiFile(raw);
+
+  expect(parsedMidi.formatType).toBe(1);
+  expect(parsedMidi.trackCount).toBe(3);
+  expect(parsedMidi.division).toBe(480);
+
+  const [metaTrack, chordTrack, bassTrack] = parsedMidi.tracks;
+  expect(metaTrack.name).toBe("Vibe Chording");
+  expect(chordTrack.name).toBe("Chords");
+  expect(bassTrack.name).toBe("Bass");
+
+  const tempoEvent = metaTrack.events.find(event => event.type === "meta" && event.metaType === 0x51);
+  expect(Array.from(tempoEvent?.data || [])).toEqual([0x0a, 0x2c, 0x2b]);
+
+  const timeSignatureEvent = metaTrack.events.find(event => event.type === "meta" && event.metaType === 0x58);
+  expect(Array.from(timeSignatureEvent?.data || [])).toEqual([3, 2, 24, 8]);
+
+  const chordProgramEvent = chordTrack.events.find(event => event.type === "programChange");
+  expect(chordProgramEvent).toMatchObject({ channel: 0, programNumber: 0 });
+
+  const bassProgramEvent = bassTrack.events.find(event => event.type === "programChange");
+  expect(bassProgramEvent).toMatchObject({ channel: 1, programNumber: 32 });
+
+  const firstChordNoteOns = chordTrack.events.filter(event => event.type === "noteOn" && event.tick === 0);
+  expect(firstChordNoteOns).toEqual([
+    expect.objectContaining({ channel: 0, noteNumber: 35, velocity: 72 }),
+    expect.objectContaining({ channel: 0, noteNumber: 60, velocity: 84 }),
+    expect.objectContaining({ channel: 0, noteNumber: 64, velocity: 96 }),
+    expect.objectContaining({ channel: 0, noteNumber: 67, velocity: 108 })
+  ]);
+
+  const sustainEvents = chordTrack.events.filter(
+    event => event.type === "controlChange" && event.controller === 64
+  );
+  expect(sustainEvents).toEqual([
+    expect.objectContaining({ channel: 0, tick: 0, value: 127 }),
+    expect.objectContaining({ channel: 0, tick: 972, value: 0 })
+  ]);
+
+  const bassNoteOns = bassTrack.events.filter(event => event.type === "noteOn");
+  expect(bassNoteOns).toEqual([
+    expect.objectContaining({ channel: 1, tick: 0, noteNumber: 35, velocity: 84 }),
+    expect.objectContaining({ channel: 1, tick: 960, noteNumber: 41, velocity: 84 })
+  ]);
+});
+
+test("repedals just after the chord boundary when two sustained chords are consecutive", async ({ page }) => {
+  await gotoApp(page);
+
+  await loadStructuredProgression(page, {
+    type: "vibe-chording-progression",
+    version: 4,
+    sequence: {
+      tempoBpm: 120,
+      timeSignature: "4/4"
+    },
+    items: [
+      { position: 1, chord: "C", durationBeats: 1, sustain: true, voicing: null },
+      { position: 2, chord: "F", durationBeats: 1, sustain: true, voicing: null },
+      { position: 3, chord: "G", durationBeats: 1, sustain: false, voicing: null }
+    ]
+  }, "midi-repedal-source.json");
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export MIDI" }).click();
+  const download = await downloadPromise;
+  const downloadPath = await download.path();
+  const raw = await readFile(downloadPath);
+  const parsedMidi = parseMidiFile(raw);
+  const chordTrack = parsedMidi.tracks[1];
+
+  const sustainEvents = chordTrack.events.filter(
+    event => event.type === "controlChange" && event.controller === 64
+  );
+
+  expect(sustainEvents).toEqual([
+    expect.objectContaining({ channel: 0, tick: 0, value: 127 }),
+    expect.objectContaining({ channel: 0, tick: 492, value: 0 }),
+    expect.objectContaining({ channel: 0, tick: 493, value: 127 }),
+    expect.objectContaining({ channel: 0, tick: 972, value: 0 })
+  ]);
 });
 
 test("saves and reloads octave-1 keyboard bass notes in progression voicings", async ({ page }) => {
