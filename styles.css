@@ -1429,6 +1429,13 @@ h2 {
   margin-bottom: 2px;
 }
 
+.app-brand-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
 .app-brand-logo {
   display: block;
   width: min(100%, 404px);
@@ -1444,6 +1451,23 @@ h2 {
   color: var(--muted);
   font-size: 15px;
   line-height: 1.35;
+}
+
+.app-shell-settings-btn {
+  width: auto;
+  min-width: 0;
+  margin: 4px 0 0;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 251, 253, 0.98), rgba(244, 230, 237, 0.98));
+  color: var(--accent-dark);
+  border-color: rgba(200, 95, 143, 0.28);
+  box-shadow: 0 8px 18px rgba(118, 50, 84, 0.08);
+}
+
+.app-shell-settings-btn:hover {
+  background: linear-gradient(180deg, rgba(248, 228, 238, 0.98), rgba(244, 214, 229, 0.98));
+  color: var(--accent-dark);
 }
 
 .tool-panel-description {
@@ -1660,6 +1684,59 @@ h2 {
 
 .section-help-modal-section li + li {
   margin-top: 6px;
+}
+
+.app-settings-modal {
+  width: min(420px, calc(100vw - 32px));
+}
+
+.app-settings-modal-intro {
+  margin: 0;
+  color: #6d5562;
+  line-height: 1.45;
+}
+
+.app-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.app-settings-field-label {
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.app-settings-field input {
+  margin: 0;
+}
+
+.app-settings-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.app-settings-primary-btn,
+.app-settings-secondary-btn {
+  width: auto;
+  min-width: 88px;
+  margin: 0;
+  padding-inline: 16px;
+}
+
+.app-settings-secondary-btn {
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--accent-dark);
+  border-color: rgba(200, 95, 143, 0.28);
+}
+
+.app-settings-secondary-btn:hover {
+  background: rgba(244, 216, 230, 0.92);
+  color: var(--accent-dark);
 }
 
 .tool-status {
@@ -3651,6 +3728,17 @@ textarea {
     padding: 12px;
   }
 
+  .app-brand-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .app-shell-settings-btn {
+    width: 100%;
+    margin-top: 0;
+  }
+
   .suggestion-engine-controls {
     align-items: stretch;
   }
@@ -3666,6 +3754,15 @@ textarea {
 
   .suggest-toggle {
     white-space: normal;
+  }
+
+  .app-settings-modal-actions {
+    flex-direction: column;
+  }
+
+  .app-settings-primary-btn,
+  .app-settings-secondary-btn {
+    width: 100%;
   }
 
   .panel {

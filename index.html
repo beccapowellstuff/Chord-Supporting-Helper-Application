@@ -12,8 +12,11 @@
 </head>
 <body>
     <div class="page">
-    <div class="app-brand">
-      <img class="app-brand-logo" src="./graphics/VibeChording.png" alt="Vibe Chording">
+    <div class="app-brand-row">
+      <div class="app-brand">
+        <img class="app-brand-logo" src="./graphics/VibeChording.png" alt="Vibe Chording">
+      </div>
+      <button id="openSettingsBtn" class="app-shell-settings-btn" type="button">Settings</button>
     </div>
     <p class="app-intro">Build a progression, explore a key, try any chord, or get ideas for what comes next.</p>
 
@@ -154,6 +157,26 @@
                 <button id="sectionHelpModalClose" class="section-help-modal-close" type="button" aria-label="Close help">×</button>
               </div>
               <div id="sectionHelpModalBody" class="section-help-modal-body"></div>
+            </div>
+          </div>
+          <div id="appSettingsModal" class="section-help-modal-root" hidden>
+            <div class="section-help-modal-overlay" aria-hidden="true"></div>
+            <div class="section-help-modal app-settings-modal" role="dialog" aria-modal="true" aria-labelledby="appSettingsModalTitle">
+              <div class="section-help-modal-header">
+                <div id="appSettingsModalTitle" class="section-help-modal-title">Settings</div>
+                <button id="appSettingsModalClose" class="section-help-modal-close" type="button" aria-label="Close settings">x</button>
+              </div>
+              <div class="section-help-modal-body">
+                <p class="app-settings-modal-intro">Your settings are saved in this browser and loaded automatically next time you open the app.</p>
+                <label class="app-settings-field" for="defaultTempoBpmSetting">
+                  <span class="app-settings-field-label">Default Tempo BPM</span>
+                  <input id="defaultTempoBpmSetting" type="number" min="40" max="240" step="1" aria-label="Default tempo in beats per minute">
+                </label>
+                <div class="app-settings-modal-actions">
+                  <button id="saveAppSettingsBtn" class="app-settings-primary-btn" type="button">Save</button>
+                  <button id="cancelAppSettingsBtn" class="app-settings-secondary-btn" type="button">Cancel</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

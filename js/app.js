@@ -67,6 +67,13 @@ import {
   renderProgressionEditor,
   velocityPresetToMidi
 } from "./progressionBuilder.js";
+import {
+  DEFAULT_APP_SETTINGS,
+  applySettingsToAppState,
+  loadAppSettings,
+  mergeWithDefaultSettings,
+  saveAppSettings
+} from "./settings.js";
 
 // Verify Tone.js loaded
 console.log("🔍 Checking Tone.js...");
@@ -102,6 +109,12 @@ const sectionHelpModal = document.getElementById("sectionHelpModal");
 const sectionHelpModalTitle = document.getElementById("sectionHelpModalTitle");
 const sectionHelpModalBody = document.getElementById("sectionHelpModalBody");
 const sectionHelpModalClose = document.getElementById("sectionHelpModalClose");
+const openSettingsBtn = document.getElementById("openSettingsBtn");
+const appSettingsModal = document.getElementById("appSettingsModal");
+const appSettingsModalClose = document.getElementById("appSettingsModalClose");
+const defaultTempoBpmSettingInput = document.getElementById("defaultTempoBpmSetting");
+const saveAppSettingsBtn = document.getElementById("saveAppSettingsBtn");
+const cancelAppSettingsBtn = document.getElementById("cancelAppSettingsBtn");
 const sequenceTempoBpmInput = document.getElementById("sequenceTempoBpm");
 const metronomeToggleBtn = document.getElementById("metronomeToggleBtn");
 const metronomePopover = document.getElementById("metronomePopover");
@@ -150,6 +163,7 @@ const appState = {
   metronomePopoverOpen: false,
   newProgressionConfirmOpen: false,
   sectionHelpTopic: "",
+  appSettingsModalOpen: false,
   demoMenuOpen: false,
   audioStatusMessage: "",
   sequenceTimeSignature: DEFAULT_TIME_SIGNATURE,
@@ -161,7 +175,9 @@ const appState = {
   playingProgressionItemId: null,
   isPlayingProgression: false,
   progressionInvalidTokens: [],
-  suggestionDebugVisible: false
+  suggestionDebugVisible: false,
+  appSettings: mergeWithDefaultSettings(DEFAULT_APP_SETTINGS),
+  appSettingsDraft: mergeWithDefaultSettings(DEFAULT_APP_SETTINGS)
 };
 window.appState = appState;
 let sequenceKeyboardMidiNotes = [];
@@ -560,9 +576,76 @@ function openSectionHelpModal(topic) {
     return;
   }
 
+  if (appState.appSettingsModalOpen) {
+    closeAppSettingsModal();
+  }
+
   appState.sectionHelpTopic = normalizedTopic;
   renderSectionHelpModal();
   sectionHelpModalClose?.focus();
+}
+
+function syncAppSettingsDraftFromSavedState() {
+  appState.appSettingsDraft = mergeWithDefaultSettings(appState.appSettings);
+}
+
+function renderAppSettingsModal() {
+  if (appSettingsModal) {
+    appSettingsModal.hidden = !appState.appSettingsModalOpen;
+  }
+
+  if (defaultTempoBpmSettingInput) {
+    const draftTempo = appState.appSettingsDraft?.preferences?.defaultTempoBpm;
+    defaultTempoBpmSettingInput.value = String(draftTempo ?? DEFAULT_APP_SETTINGS.preferences.defaultTempoBpm);
+  }
+}
+
+function closeAppSettingsModal() {
+  if (!appState.appSettingsModalOpen) {
+    return;
+  }
+
+  appState.appSettingsModalOpen = false;
+  syncAppSettingsDraftFromSavedState();
+  renderAppSettingsModal();
+}
+
+function openAppSettingsModal() {
+  if (appState.sectionHelpTopic) {
+    closeSectionHelpModal();
+  }
+
+  syncAppSettingsDraftFromSavedState();
+  appState.appSettingsModalOpen = true;
+  renderAppSettingsModal();
+  appSettingsModalClose?.focus();
+}
+
+function shouldApplyDefaultTempoToCurrentSequence(previousDefaultTempoBpm) {
+  return appState.sequenceTempoBpm === previousDefaultTempoBpm;
+}
+
+function handleSaveAppSettings() {
+  const previousDefaultTempoBpm = appState.appSettings?.preferences?.defaultTempoBpm
+    ?? DEFAULT_APP_SETTINGS.preferences.defaultTempoBpm;
+  const nextSettings = mergeWithDefaultSettings({
+    ...appState.appSettingsDraft,
+    preferences: {
+      ...appState.appSettingsDraft?.preferences,
+      defaultTempoBpm: defaultTempoBpmSettingInput?.value
+    }
+  });
+
+  appState.appSettings = saveAppSettings(nextSettings);
+  appState.appSettingsModalOpen = false;
+  syncAppSettingsDraftFromSavedState();
+
+  if (shouldApplyDefaultTempoToCurrentSequence(previousDefaultTempoBpm)) {
+    appState.sequenceTempoBpm = appState.appSettings.preferences.defaultTempoBpm;
+  }
+
+  renderAppSettingsModal();
+  renderProgressionBuilderUI();
 }
 
 async function attemptAudioPriming() {
@@ -611,6 +694,7 @@ window.addEventListener(AUDIO_STATUS_EVENT, event => {
 installAudioPrimingListeners();
 renderAudioStatus();
 renderSectionHelpModal();
+renderAppSettingsModal();
 
 function updateKeyChordSet() {
   if (!appData || !appState.selectedKey) {
@@ -3028,6 +3112,8 @@ async function init() {
     initToolNavigation();
     await loadVersionLabel();
     appData = await loadAllData();
+    applySettingsToAppState(appState, loadAppSettings());
+    syncAppSettingsDraftFromSavedState();
     console.log("✓ Data loaded");
 
     populateFeelings(feelingSelect, appData.moodBoosts);
@@ -3083,6 +3169,7 @@ async function init() {
     if (saveProgressionBtn) saveProgressionBtn.dataset.tooltip = "Save the progression with tempo, time signature, and beat lengths";
     if (exportMidiBtn) exportMidiBtn.dataset.tooltip = "Export the progression as a MIDI file";
     if (loadProgressionBtn) loadProgressionBtn.dataset.tooltip = "Load a saved progression file";
+    if (openSettingsBtn) openSettingsBtn.dataset.tooltip = "Open app settings saved in this browser";
     if (metronomeToggleBtn) metronomeToggleBtn.dataset.tooltip = "Open metronome settings";
     if (metronomeStartStopBtn) metronomeStartStopBtn.dataset.tooltip = "Arm or stop the metronome for playback";
     if (sequenceTempoBpmInput) sequenceTempoBpmInput.dataset.tooltip = "Set the playback tempo for the chord sequence";
@@ -3211,6 +3298,39 @@ async function init() {
       });
     }
 
+    if (openSettingsBtn) {
+      openSettingsBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        if (appState.appSettingsModalOpen) {
+          closeAppSettingsModal();
+          return;
+        }
+
+        openAppSettingsModal();
+      });
+    }
+
+    if (appSettingsModalClose) {
+      appSettingsModalClose.addEventListener("click", event => {
+        event.stopPropagation();
+        closeAppSettingsModal();
+      });
+    }
+
+    if (cancelAppSettingsBtn) {
+      cancelAppSettingsBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        closeAppSettingsModal();
+      });
+    }
+
+    if (saveAppSettingsBtn) {
+      saveAppSettingsBtn.addEventListener("click", event => {
+        event.stopPropagation();
+        handleSaveAppSettings();
+      });
+    }
+
     sectionHelpButtons.forEach(button => {
       button.addEventListener("click", event => {
         event.stopPropagation();
@@ -3298,6 +3418,13 @@ async function init() {
           closeSectionHelpModal();
         }
       }
+
+      if (appState.appSettingsModalOpen) {
+        const clickedInsideSettingsDialog = Boolean(target?.closest?.(".app-settings-modal"));
+        if (!clickedInsideSettingsDialog && !openSettingsBtn?.contains(target)) {
+          closeAppSettingsModal();
+        }
+      }
     });
 
     document.addEventListener("keydown", event => {
@@ -3313,6 +3440,9 @@ async function init() {
         }
         if (appState.sectionHelpTopic) {
           closeSectionHelpModal();
+        }
+        if (appState.appSettingsModalOpen) {
+          closeAppSettingsModal();
         }
       }
     });
