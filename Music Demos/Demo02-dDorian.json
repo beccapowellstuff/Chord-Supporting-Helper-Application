@@ -1,7 +1,7 @@
 {
   "type": "vibe-chording-progression",
   "version": 4,
-  "savedAt": "2026-04-07T07:05:44.920Z",
+  "savedAt": "2026-04-17T07:01:11.679Z",
   "key": {
     "name": "D Dorian",
     "root": "D",
@@ -302,6 +302,10 @@
           {
             "midi": 67,
             "velocity": 84
+          },
+          {
+            "midi": 79,
+            "velocity": 84
           }
         ]
       }
@@ -341,6 +345,10 @@
           },
           {
             "midi": 74,
+            "velocity": 84
+          },
+          {
+            "midi": 81,
             "velocity": 84
           }
         ]
@@ -913,7 +921,7 @@
     {
       "position": 25,
       "chord": "Asus4",
-      "durationBeats": 4,
+      "durationBeats": 2,
       "sustain": true,
       "voicing": {
         "source": "keyboard",
@@ -953,7 +961,7 @@
     {
       "position": 26,
       "chord": "Dadd9/A",
-      "durationBeats": 4,
+      "durationBeats": 2,
       "sustain": true,
       "voicing": {
         "source": "keyboard",
@@ -1395,6 +1403,626 @@
           },
           {
             "midi": 71,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 40,
+      "chord": "Am",
+      "durationBeats": 2,
+      "sustain": false,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 45,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 72,
+            "velocity": 84
+          },
+          {
+            "midi": 76,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 41,
+      "chord": "Am/E",
+      "durationBeats": 2,
+      "sustain": false,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 40,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 72,
+            "velocity": 84
+          },
+          {
+            "midi": 76,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 42,
+      "chord": "Am/C",
+      "durationBeats": 2,
+      "sustain": false,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 36,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 72,
+            "velocity": 84
+          },
+          {
+            "midi": 76,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 43,
+      "chord": "A7",
+      "durationBeats": 2,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 33,
+            "velocity": 84
+          },
+          {
+            "midi": 49,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 73,
+            "velocity": 84
+          },
+          {
+            "midi": 76,
+            "velocity": 84
+          },
+          {
+            "midi": 79,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 44,
+      "chord": "Dm",
+      "durationBeats": 2,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 26,
+            "velocity": 84
+          },
+          {
+            "midi": 38,
+            "velocity": 84
+          },
+          {
+            "midi": 50,
+            "velocity": 84
+          },
+          {
+            "midi": 62,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 74,
+            "velocity": 84
+          },
+          {
+            "midi": 77,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 45,
+      "chord": "Dm/F",
+      "durationBeats": 2,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 29,
+            "velocity": 84
+          },
+          {
+            "midi": 41,
+            "velocity": 84
+          },
+          {
+            "midi": 62,
+            "velocity": 84
+          },
+          {
+            "midi": 65,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 74,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 46,
+      "chord": "Dm/A",
+      "durationBeats": 2,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 33,
+            "velocity": 84
+          },
+          {
+            "midi": 45,
+            "velocity": 84
+          },
+          {
+            "midi": 62,
+            "velocity": 84
+          },
+          {
+            "midi": 65,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 74,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 47,
+      "chord": "Dm",
+      "durationBeats": 2,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 38,
+            "velocity": 84
+          },
+          {
+            "midi": 45,
+            "velocity": 84
+          },
+          {
+            "midi": 50,
+            "velocity": 84
+          },
+          {
+            "midi": 62,
+            "velocity": 84
+          },
+          {
+            "midi": 65,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 74,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 48,
+      "chord": "Gm/Bb",
+      "durationBeats": 1,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 34,
+            "velocity": 84
+          },
+          {
+            "midi": 46,
+            "velocity": 84
+          },
+          {
+            "midi": 58,
+            "velocity": 84
+          },
+          {
+            "midi": 62,
+            "velocity": 84
+          },
+          {
+            "midi": 67,
+            "velocity": 84
+          },
+          {
+            "midi": 70,
+            "velocity": 84
+          },
+          {
+            "midi": 74,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 49,
+      "chord": "Am/E",
+      "durationBeats": 3,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 28,
+            "velocity": 84
+          },
+          {
+            "midi": 40,
+            "velocity": 84
+          },
+          {
+            "midi": 57,
+            "velocity": 84
+          },
+          {
+            "midi": 60,
+            "velocity": 84
+          },
+          {
+            "midi": 64,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 72,
+            "velocity": 84
+          },
+          {
+            "midi": 76,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 50,
+      "chord": "Asus2/E",
+      "durationBeats": 2,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 28,
+            "velocity": 84
+          },
+          {
+            "midi": 40,
+            "velocity": 84
+          },
+          {
+            "midi": 57,
+            "velocity": 84
+          },
+          {
+            "midi": 59,
+            "velocity": 84
+          },
+          {
+            "midi": 64,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 71,
+            "velocity": 84
+          },
+          {
+            "midi": 76,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 51,
+      "chord": "E",
+      "durationBeats": 2,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 28,
+            "velocity": 84
+          },
+          {
+            "midi": 40,
+            "velocity": 84
+          },
+          {
+            "midi": 56,
+            "velocity": 84
+          },
+          {
+            "midi": 59,
+            "velocity": 84
+          },
+          {
+            "midi": 68,
+            "velocity": 84
+          },
+          {
+            "midi": 71,
+            "velocity": 84
+          },
+          {
+            "midi": 76,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 52,
+      "chord": "Dadd9/A",
+      "durationBeats": 3,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 33,
+            "velocity": 84
+          },
+          {
+            "midi": 45,
+            "velocity": 84
+          },
+          {
+            "midi": 57,
+            "velocity": 84
+          },
+          {
+            "midi": 62,
+            "velocity": 84
+          },
+          {
+            "midi": 66,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 76,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 53,
+      "chord": "Dadd9/A",
+      "durationBeats": 1,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 33,
+            "velocity": 84
+          },
+          {
+            "midi": 45,
+            "velocity": 84
+          },
+          {
+            "midi": 57,
+            "velocity": 84
+          },
+          {
+            "midi": 62,
+            "velocity": 84
+          },
+          {
+            "midi": 66,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 76,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 54,
+      "chord": "A",
+      "durationBeats": 4,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 33,
+            "velocity": 84
+          },
+          {
+            "midi": 45,
+            "velocity": 84
+          },
+          {
+            "midi": 57,
+            "velocity": 84
+          },
+          {
+            "midi": 64,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 73,
+            "velocity": 84
+          },
+          {
+            "midi": 76,
             "velocity": 84
           }
         ]
