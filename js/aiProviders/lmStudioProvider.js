@@ -1,5 +1,5 @@
 import { DEFAULT_LM_STUDIO_BASE_URL } from "../settings.js";
-import { sendOpenAiCompatibleChatCompletion } from "../aiChatClients/openAiCompatibleChatClient.js";
+import { sendOpenAiCompatibleResponse } from "../aiChatClients/openAiCompatibleResponsesClient.js";
 
 function normalizeBaseUrl(value) {
   return String(value || "").trim().replace(/\/+$/, "") || DEFAULT_LM_STUDIO_BASE_URL;
@@ -21,12 +21,40 @@ function getLoadedInstanceId(model) {
 
 async function fetchJson(url, options = {}) {
   const response = await fetch(url, options);
+  const payload = await response.json();
 
-  if (!response.ok) {
-    throw new Error(`LM Studio returned ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`);
+  let requestBody = null;
+  if (typeof options.body === "string") {
+    try {
+      requestBody = JSON.parse(options.body);
+    } catch {
+      requestBody = options.body;
+    }
   }
 
-  return response.json();
+  const debug = {
+    method: options.method || "GET",
+    url,
+    status: response.status,
+    statusText: response.statusText || "",
+    requestBody,
+    responseBody: payload,
+    error: ""
+  };
+
+  if (!response.ok) {
+    const error = new Error(`LM Studio returned ${response.status}${response.statusText ? ` ${response.statusText}` : ""}.`);
+    error.debug = {
+      ...debug,
+      error: error.message
+    };
+    throw error;
+  }
+
+  return {
+    payload,
+    debug
+  };
 }
 
 function normalizeModel(model) {
@@ -44,6 +72,28 @@ function normalizeModel(model) {
   };
 }
 
+async function loadModels(config) {
+  const normalizedConfig = lmStudioProvider.getConfig(config);
+  const { payload, debug } = await fetchJson(`${normalizedConfig.baseUrl}/api/v1/models`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json"
+    }
+  });
+
+  if (!payload || !Array.isArray(payload.models)) {
+    throw new Error("LM Studio response did not include a models array.");
+  }
+
+  return {
+    models: payload.models
+      .filter(model => String(model?.type || "llm") === "llm")
+      .map(normalizeModel)
+      .filter(model => Boolean(model.key)),
+    debug
+  };
+}
+
 const lmStudioProvider = {
   id: "lmStudio",
   label: "LM Studio",
@@ -56,22 +106,8 @@ const lmStudioProvider = {
   },
 
   async listModels(config) {
-    const normalizedConfig = this.getConfig(config);
-    const payload = await fetchJson(`${normalizedConfig.baseUrl}/api/v1/models`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json"
-      }
-    });
-
-    if (!payload || !Array.isArray(payload.models)) {
-      throw new Error("LM Studio response did not include a models array.");
-    }
-
-    return payload.models
-      .filter(model => String(model?.type || "llm") === "llm")
-      .map(normalizeModel)
-      .filter(model => Boolean(model.key));
+    const { models } = await loadModels(config);
+    return models;
   },
 
   async getModelStatus(config) {
@@ -87,14 +123,15 @@ const lmStudioProvider = {
       };
     }
 
-    const models = await this.listModels(normalizedConfig);
+    const { models, debug } = await loadModels(normalizedConfig);
     const matchingModel = models.find(model => model.key === selectedModel) || null;
 
     return {
       available: Boolean(matchingModel),
       loaded: Boolean(matchingModel?.loadedInstanceId),
       loadedInstanceId: matchingModel?.loadedInstanceId || "",
-      selectedModel
+      selectedModel,
+      debug
     };
   },
 
@@ -104,7 +141,7 @@ const lmStudioProvider = {
       throw new Error("No model is selected.");
     }
 
-    await fetchJson(`${normalizedConfig.baseUrl}/api/v1/models/load`, {
+    const { debug } = await fetchJson(`${normalizedConfig.baseUrl}/api/v1/models/load`, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -114,14 +151,19 @@ const lmStudioProvider = {
         model: normalizedConfig.selectedModel
       })
     });
+
+    return {
+      debug
+    };
   },
 
-  async sendPrompt(config, prompt) {
+  async sendPrompt(config, prompt, options = {}) {
     const normalizedConfig = this.getConfig(config);
-    return sendOpenAiCompatibleChatCompletion({
+    return sendOpenAiCompatibleResponse({
       baseUrl: normalizedConfig.baseUrl,
       model: normalizedConfig.selectedModel,
       prompt,
+      reasoningEffort: options?.reasoningEffort || "medium",
       errorLabel: "LM Studio"
     });
   }

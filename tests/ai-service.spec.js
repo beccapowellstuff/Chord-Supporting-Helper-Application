@@ -42,18 +42,11 @@ test("AI service lazy-loads the selected provider and falls back to LM Studio fo
         });
       }
 
-      if (url.endsWith("/v1/chat/completions")) {
+      if (url.endsWith("/v1/responses")) {
         return new Response(JSON.stringify({
-          choices: [
-            {
-              index: 0,
-              message: {
-                role: "assistant",
-                content: "Hello from the lazy-loaded provider."
-              },
-              finish_reason: "stop"
-            }
-          ]
+          id: "resp_test_123",
+          object: "response",
+          output_text: "Hello from the lazy-loaded provider."
         }), {
           status: 200,
           headers: {
@@ -89,6 +82,12 @@ test("AI service lazy-loads the selected provider and falls back to LM Studio fo
       const status = await service.getAiModelStatus(settings);
       await service.connectAiModel(settings);
       const promptResponse = await service.sendAiPrompt(settings, "Say hello.");
+      const promptResponseNoReasoning = await service.sendAiPrompt(settings, "Say hello with no reasoning.", {
+        reasoningEffort: "none"
+      });
+      const promptResponseHighReasoning = await service.sendAiPrompt(settings, "Say hello with high reasoning.", {
+        reasoningEffort: "high"
+      });
       const repeatedStatus = await service.getAiModelStatus(settings);
 
       return {
@@ -97,6 +96,8 @@ test("AI service lazy-loads the selected provider and falls back to LM Studio fo
         models,
         status,
         promptResponse,
+        promptResponseNoReasoning,
+        promptResponseHighReasoning,
         repeatedStatus,
         fetchCalls
       };
@@ -125,15 +126,63 @@ test("AI service lazy-loads the selected provider and falls back to LM Studio fo
     loadedInstanceId: "google/gemma-4-27b"
   });
 
-  expect(serviceResult.status).toEqual({
+  expect(serviceResult.status).toMatchObject({
     available: true,
     loaded: true,
     loadedInstanceId: "google/gemma-4-27b",
     selectedModel: "google/gemma-4-27b"
   });
+  expect(serviceResult.status.debug).toMatchObject({
+    method: "GET",
+    url: "http://127.0.0.1:1234/api/v1/models"
+  });
 
-  expect(serviceResult.promptResponse).toEqual({
-    text: "Hello from the lazy-loaded provider."
+  expect(serviceResult.promptResponse.text).toBe("Hello from the lazy-loaded provider.");
+  expect(serviceResult.promptResponse.debug).toMatchObject({
+    method: "POST",
+    url: "http://127.0.0.1:1234/v1/responses",
+    requestBody: {
+      model: "google/gemma-4-27b",
+      input: "Say hello.",
+      reasoning: {
+        effort: "medium"
+      },
+      temperature: 0.7,
+      max_output_tokens: 4096,
+      store: false
+    }
+  });
+
+  expect(serviceResult.promptResponseNoReasoning.text).toBe("Hello from the lazy-loaded provider.");
+  expect(serviceResult.promptResponseNoReasoning.debug).toMatchObject({
+    method: "POST",
+    url: "http://127.0.0.1:1234/v1/responses",
+    requestBody: {
+      model: "google/gemma-4-27b",
+      input: "Say hello with no reasoning.",
+      reasoning: {
+        effort: "none"
+      },
+      temperature: 0.7,
+      max_output_tokens: 4096,
+      store: false
+    }
+  });
+
+  expect(serviceResult.promptResponseHighReasoning.text).toBe("Hello from the lazy-loaded provider.");
+  expect(serviceResult.promptResponseHighReasoning.debug).toMatchObject({
+    method: "POST",
+    url: "http://127.0.0.1:1234/v1/responses",
+    requestBody: {
+      model: "google/gemma-4-27b",
+      input: "Say hello with high reasoning.",
+      reasoning: {
+        effort: "high"
+      },
+      temperature: 0.7,
+      max_output_tokens: 4096,
+      store: false
+    }
   });
 
   expect(serviceResult.repeatedStatus).toEqual(serviceResult.status);
@@ -141,7 +190,9 @@ test("AI service lazy-loads the selected provider and falls back to LM Studio fo
     "GET http://127.0.0.1:1234/api/v1/models",
     "GET http://127.0.0.1:1234/api/v1/models",
     "POST http://127.0.0.1:1234/api/v1/models/load",
-    "POST http://127.0.0.1:1234/v1/chat/completions",
+    "POST http://127.0.0.1:1234/v1/responses",
+    "POST http://127.0.0.1:1234/v1/responses",
+    "POST http://127.0.0.1:1234/v1/responses",
     "GET http://127.0.0.1:1234/api/v1/models"
   ]);
 });

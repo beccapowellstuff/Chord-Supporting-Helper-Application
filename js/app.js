@@ -158,9 +158,13 @@ const aiExploreConnectBtn = document.getElementById("aiExploreConnectBtn");
 const aiExploreBaseUrl = document.getElementById("aiExploreBaseUrl");
 const aiExploreSelectedModel = document.getElementById("aiExploreSelectedModel");
 const aiExploreLoadedState = document.getElementById("aiExploreLoadedState");
+const aiExploreReasoningEffortSelect = document.getElementById("aiExploreReasoningEffort");
 const aiExplorePromptInput = document.getElementById("aiExplorePromptInput");
 const aiExploreSubmitBtn = document.getElementById("aiExploreSubmitBtn");
 const aiExploreResponseOutput = document.getElementById("aiExploreResponseOutput");
+const aiExploreDebugPanel = document.getElementById("aiExploreDebugPanel");
+const aiExploreDebugOutput = document.getElementById("aiExploreDebugOutput");
+const toggleAiExploreDebugBtn = document.getElementById("toggleAiExploreDebugBtn");
 const appVersion = document.getElementById("appVersion");
 const toolNavButtons = document.querySelectorAll(".tool-nav-btn");
 const toolPanels = document.querySelectorAll(".tool-panel");
@@ -218,8 +222,11 @@ const appState = {
   aiExploreCheckingConnection: false,
   aiExploreConnecting: false,
   aiExploreSubmitting: false,
+  aiExploreReasoningEffort: "medium",
   aiExplorePrompt: "",
-  aiExploreResponse: "No response yet."
+  aiExploreResponse: "No response yet.",
+  aiExploreDebugVisible: false,
+  aiExploreDebugText: "No AI Explore debug yet."
 };
 window.appState = appState;
 let sequenceKeyboardMidiNotes = [];
@@ -701,6 +708,58 @@ function setAiExploreStatus(type, message) {
   };
 }
 
+function stringifyDebugValue(value) {
+  if (value == null || value === "") {
+    return "(none)";
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function setAiExploreDebug(action, debug = {}, extra = {}) {
+  const lines = [
+    `Action: ${String(action || "").trim() || "(unknown)"}`,
+    `When: ${new Date().toISOString()}`,
+    `Method: ${String(debug?.method || extra.method || "(unknown)")}`,
+    `URL: ${String(debug?.url || extra.url || "(unknown)")}`,
+    `Status: ${debug?.status != null ? `${debug.status}${debug.statusText ? ` ${debug.statusText}` : ""}` : (extra.status || "(pending)")}`,
+    "",
+    "Payload:",
+    stringifyDebugValue(debug?.requestBody ?? extra.requestBody),
+    "",
+    "Response:",
+    stringifyDebugValue(debug?.responseBody ?? extra.responseBody),
+    "",
+    `Error: ${String(debug?.error || extra.error || "(none)")}`,
+    `Hint: ${String(extra.hint || "(none)")}`
+  ];
+
+  appState.aiExploreDebugText = lines.join("\n");
+}
+
+function renderAiExploreDebugVisibility() {
+  if (aiExploreDebugPanel) {
+    aiExploreDebugPanel.hidden = !appState.aiExploreDebugVisible;
+  }
+
+  if (toggleAiExploreDebugBtn) {
+    const label = appState.aiExploreDebugVisible ? "Hide AI Explore Debug" : "Show AI Explore Debug";
+    toggleAiExploreDebugBtn.setAttribute("aria-pressed", String(appState.aiExploreDebugVisible));
+    toggleAiExploreDebugBtn.setAttribute("aria-label", label);
+    toggleAiExploreDebugBtn.dataset.tooltip = appState.aiExploreDebugVisible
+      ? "Hide the AI Explore debug panel"
+      : "Show the AI Explore debug panel";
+  }
+}
+
 function renderAiSettingsModelOptions() {
   if (!aiModelSelectSetting) {
     return;
@@ -932,6 +991,11 @@ function renderAiExploreUI() {
       : "Connect to the selected model first, then type a prompt here.";
   }
 
+  if (aiExploreReasoningEffortSelect) {
+    aiExploreReasoningEffortSelect.value = appState.aiExploreReasoningEffort || "medium";
+    aiExploreReasoningEffortSelect.disabled = Boolean(appState.aiExploreSubmitting);
+  }
+
   if (aiExploreSubmitBtn) {
     aiExploreSubmitBtn.disabled = !isLoaded || isBusy || !hasPrompt;
     aiExploreSubmitBtn.textContent = appState.aiExploreSubmitting ? "Submitting..." : "Submit";
@@ -943,6 +1007,15 @@ function renderAiExploreUI() {
       aiExploreResponseOutput.textContent = nextResponseText;
     }
   }
+
+  if (aiExploreDebugOutput) {
+    const nextDebugText = appState.aiExploreDebugText || "No AI Explore debug yet.";
+    if (aiExploreDebugOutput.textContent !== nextDebugText) {
+      aiExploreDebugOutput.textContent = nextDebugText;
+    }
+  }
+
+  renderAiExploreDebugVisibility();
 }
 
 async function refreshAiExploreModelStatus(options = {}) {
@@ -969,6 +1042,9 @@ async function refreshAiExploreModelStatus(options = {}) {
   try {
     const status = await getAiModelStatus(appState.appSettings);
     appState.aiExploreAvailableModels = [];
+    setAiExploreDebug("check-model-status", status?.debug, {
+      hint: "This checks whether the selected AI model is available and already loaded."
+    });
 
     if (!status.available) {
       setAiExploreStatus("error", `The saved model was not returned by ${providerLabel}. Reload models in Settings and choose a valid model.`);
@@ -987,6 +1063,10 @@ async function refreshAiExploreModelStatus(options = {}) {
     appState.aiExploreAvailableModels = [];
     appState.aiExploreLoadedInstanceId = "";
     appState.aiExploreSelectedModelLoaded = false;
+    setAiExploreDebug("check-model-status", error?.debug, {
+      error: error instanceof Error ? error.message : `Could not reach ${providerLabel} to check model status.`,
+      hint: "Check the provider address and make sure the local AI server is running."
+    });
     setAiExploreStatus(
       "error",
       error instanceof Error ? error.message : `Could not reach ${providerLabel} to check model status.`
@@ -1010,10 +1090,17 @@ async function handleAiExploreConnect() {
   renderAiExploreUI();
 
   try {
-    await connectAiModel(appState.appSettings);
+    const result = await connectAiModel(appState.appSettings);
+    setAiExploreDebug("connect-model", result?.debug, {
+      hint: "This asks the active AI backend to load the selected model."
+    });
     setAiExploreStatus("success", "Model loaded. Checking connection state...");
   } catch (error) {
     appState.aiExploreConnecting = false;
+    setAiExploreDebug("connect-model", error?.debug, {
+      error: error instanceof Error ? error.message : `Could not load the selected model in ${providerLabel}.`,
+      hint: "If loading fails, verify that the model exists and the backend is ready."
+    });
     setAiExploreStatus(
       "error",
       error instanceof Error ? error.message : `Could not load the selected model in ${providerLabel}.`
@@ -1029,6 +1116,7 @@ async function handleAiExploreConnect() {
 async function handleAiExploreSubmit() {
   const { providerLabel, selectedModel } = getSavedAiProviderConfig();
   const prompt = String(appState.aiExplorePrompt || "").trim();
+  const reasoningEffort = String(appState.aiExploreReasoningEffort || "medium").trim().toLowerCase() || "medium";
 
   if (!selectedModel) {
     setAiExploreStatus("error", "No model is saved in Settings yet.");
@@ -1050,15 +1138,24 @@ async function handleAiExploreSubmit() {
 
   appState.aiExploreSubmitting = true;
   appState.aiExploreResponse = `Waiting for ${providerLabel}...`;
-  setAiExploreStatus("loading", `Sending prompt to ${providerLabel}...`);
+  setAiExploreStatus("loading", `Sending prompt to ${providerLabel} with ${reasoningEffort} reasoning effort...`);
   renderAiExploreUI();
 
   try {
-    const response = await sendAiPrompt(appState.appSettings, prompt);
+    const response = await sendAiPrompt(appState.appSettings, prompt, {
+      reasoningEffort
+    });
     appState.aiExploreResponse = response.text || `${providerLabel} returned a response, but it did not include a message.`;
+    setAiExploreDebug("send-prompt", response?.debug, {
+      hint: `This is the OpenAI-compatible Responses API request used for AI Explore with reasoning effort set to ${reasoningEffort}.`
+    });
     setAiExploreStatus("success", "Prompt completed successfully.");
   } catch (error) {
     appState.aiExploreResponse = "No response yet.";
+    setAiExploreDebug("send-prompt", error?.debug, {
+      error: error instanceof Error ? error.message : `Could not get a response from ${providerLabel}.`,
+      hint: "If the request fails, check the backend logs and confirm the model is loaded."
+    });
     setAiExploreStatus(
       "error",
       error instanceof Error ? error.message : `Could not get a response from ${providerLabel}.`
@@ -3608,9 +3705,11 @@ async function init() {
     if (loadAiModelsBtn) loadAiModelsBtn.dataset.tooltip = "Fetch models from the active AI provider";
     if (aiModelSelectSetting) aiModelSelectSetting.dataset.tooltip = "Choose the AI model to save in app settings";
     if (aiExploreConnectBtn) aiExploreConnectBtn.dataset.tooltip = "Load the saved AI model if it is not already loaded";
+    if (aiExploreReasoningEffortSelect) aiExploreReasoningEffortSelect.dataset.tooltip = "Choose the OpenAI-compatible reasoning effort for AI Explore prompts";
     if (aiExplorePromptInput) aiExplorePromptInput.dataset.tooltip = "Type a prompt for the connected AI model";
     if (aiExploreSubmitBtn) aiExploreSubmitBtn.dataset.tooltip = "Send the current prompt to the active AI provider";
     if (aiExploreResponseOutput) aiExploreResponseOutput.dataset.tooltip = "Scrollable model response area";
+    if (toggleAiExploreDebugBtn) toggleAiExploreDebugBtn.dataset.tooltip = "Show the AI Explore debug panel";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
     if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
     if (toggleSuggestionDebugBtn) toggleSuggestionDebugBtn.dataset.tooltip = "Show the suggestion debug panel";
@@ -3814,6 +3913,13 @@ async function init() {
       });
     }
 
+    if (aiExploreReasoningEffortSelect) {
+      aiExploreReasoningEffortSelect.addEventListener("change", () => {
+        appState.aiExploreReasoningEffort = String(aiExploreReasoningEffortSelect.value || "medium").trim().toLowerCase() || "medium";
+        renderAiExploreUI();
+      });
+    }
+
     if (aiExploreConnectBtn) {
       aiExploreConnectBtn.addEventListener("click", () => {
         void handleAiExploreConnect();
@@ -3823,6 +3929,13 @@ async function init() {
     if (aiExploreSubmitBtn) {
       aiExploreSubmitBtn.addEventListener("click", () => {
         void handleAiExploreSubmit();
+      });
+    }
+
+    if (toggleAiExploreDebugBtn) {
+      toggleAiExploreDebugBtn.addEventListener("click", () => {
+        appState.aiExploreDebugVisible = !appState.aiExploreDebugVisible;
+        renderAiExploreDebugVisibility();
       });
     }
 

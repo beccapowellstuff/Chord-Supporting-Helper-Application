@@ -381,8 +381,20 @@
                 <div class="ai-explore-card-header">
                   <div>
                     <div class="ai-explore-card-title">Prompt</div>
-                    <p class="ai-explore-card-copy">Send one prompt to the currently loaded LM Studio model.</p>
+                    <p class="ai-explore-card-copy">Send one prompt through the OpenAI-compatible Responses API to the currently loaded LM Studio model.</p>
                   </div>
+                </div>
+                <div class="ai-explore-prompt-toolbar">
+                  <label class="ai-explore-reasoning-control" for="aiExploreReasoningEffort">
+                    <span class="ai-explore-reasoning-label">Reasoning</span>
+                    <select id="aiExploreReasoningEffort" class="ai-explore-reasoning-select" aria-label="AI Explore reasoning effort">
+                      <option value="none">None</option>
+                      <option value="minimal">Minimal</option>
+                      <option value="low">Low</option>
+                      <option value="medium" selected>Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </label>
                 </div>
                 <div class="ai-explore-prompt-row">
                   <textarea
@@ -402,8 +414,18 @@
                     <div class="ai-explore-card-title">Response</div>
                     <p class="ai-explore-card-copy">The model reply appears here. You can scroll and select the text.</p>
                   </div>
+                  <button id="toggleAiExploreDebugBtn" class="suggest-debug-toggle-btn" type="button" aria-label="Show AI Explore Debug" aria-pressed="false">
+                    <span class="visually-hidden">Show AI Explore Debug</span>
+                  </button>
                 </div>
                 <div id="aiExploreResponseOutput" class="ai-explore-response-output" tabindex="0">No response yet.</div>
+              </section>
+
+              <section id="aiExploreDebugPanel" class="suggestion-debug-panel" aria-live="polite" hidden>
+                <div class="suggestion-debug-header">
+                  <div class="suggestion-debug-title">AI Explore Debug</div>
+                </div>
+                <pre id="aiExploreDebugOutput" class="suggestion-debug-output">No AI Explore debug yet.</pre>
               </section>
             </div>
           </div>

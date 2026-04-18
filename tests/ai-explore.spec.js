@@ -62,20 +62,18 @@ test("AI Explore connects the saved model and shows a prompt response", async ({
     })
   );
 
-  await page.route("http://127.0.0.1:1234/v1/chat/completions", async route => {
+  await page.route("http://127.0.0.1:1234/v1/responses", async route => {
     const request = route.request();
     const payload = request.postDataJSON();
 
     expect(payload).toMatchObject({
       model: "google/gemma-4-27b",
-      messages: [
-        {
-          role: "user",
-          content: "Say hello from the AI Explore MVP test."
-        }
-      ],
-      max_tokens: 4096,
-      stream: false
+      input: "Say hello from the AI Explore MVP test.",
+      reasoning: {
+        effort: "high"
+      },
+      max_output_tokens: 4096,
+      store: false
     });
 
     await route.fulfill({
@@ -85,20 +83,11 @@ test("AI Explore connects the saved model and shows a prompt response", async ({
         "access-control-allow-origin": "*"
       },
       body: JSON.stringify({
-        id: "chatcmpl_test_123",
-        object: "chat.completion",
-        created: 1710000000,
+        id: "resp_test_123",
+        object: "response",
+        created_at: 1710000000,
         model: "google/gemma-4-27b",
-        choices: [
-          {
-            index: 0,
-            message: {
-              role: "assistant",
-              content: "Hello from LM Studio. The AI Explore MVP test worked."
-            },
-            finish_reason: "stop"
-          }
-        ]
+        output_text: "Hello from LM Studio. The AI Explore MVP test worked."
       })
     });
   });
@@ -112,12 +101,16 @@ test("AI Explore connects the saved model and shows a prompt response", async ({
   await expect(page.locator("#aiExplorePromptInput")).toBeDisabled();
   await expect(page.locator("#aiExploreSubmitBtn")).toBeDisabled();
   await expect(page.locator("#aiExploreConnectBtn")).toBeEnabled();
+  await expect(page.locator("#aiExploreDebugPanel")).toBeHidden();
 
   await page.locator("#aiExploreConnectBtn").click();
 
   await expect(page.locator("#aiExploreLoadedState")).toContainText("Loaded");
   await expect(page.locator("#aiExploreStatusMessage")).toContainText("ready for prompts");
   await expect(page.locator("#aiExplorePromptInput")).toBeEnabled();
+  await expect(page.locator("#aiExploreReasoningEffort")).toHaveValue("medium");
+  await page.locator("#aiExploreReasoningEffort").selectOption("high");
+  await expect(page.locator("#aiExploreReasoningEffort")).toHaveValue("high");
 
   await page.locator("#aiExplorePromptInput").fill("Say hello from the AI Explore MVP test.");
   await expect(page.locator("#aiExploreSubmitBtn")).toBeEnabled();
@@ -125,4 +118,13 @@ test("AI Explore connects the saved model and shows a prompt response", async ({
 
   await expect(page.locator("#aiExploreResponseOutput")).toContainText("Hello from LM Studio. The AI Explore MVP test worked.");
   await expect(page.locator("#aiExploreStatusMessage")).toContainText("Prompt completed successfully.");
+
+  await page.locator("#toggleAiExploreDebugBtn").click();
+
+  await expect(page.locator("#aiExploreDebugPanel")).toBeVisible();
+  await expect(page.locator("#aiExploreDebugOutput")).toContainText("Action: send-prompt");
+  await expect(page.locator("#aiExploreDebugOutput")).toContainText("URL: http://127.0.0.1:1234/v1/responses");
+  await expect(page.locator("#aiExploreDebugOutput")).toContainText("\"model\": \"google/gemma-4-27b\"");
+  await expect(page.locator("#aiExploreDebugOutput")).toContainText("\"effort\": \"high\"");
+  await expect(page.locator("#aiExploreDebugOutput")).toContainText("Hello from LM Studio. The AI Explore MVP test worked.");
 });
