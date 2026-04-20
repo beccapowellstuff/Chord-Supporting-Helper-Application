@@ -7,7 +7,35 @@ function getResponseOutputText(payload) {
 
   return outputItems
     .flatMap(item => {
-      if (item?.type !== "message") {
+      const contentItems = Array.isArray(item?.content) ? item.content : [];
+
+      if (item?.type === "message") {
+        return contentItems
+          .map(contentItem => {
+            if (typeof contentItem?.text === "string") {
+              return contentItem.text.trim();
+            }
+
+            if (typeof contentItem?.content === "string") {
+              return contentItem.content.trim();
+            }
+
+            return "";
+          })
+          .filter(Boolean);
+      }
+
+      return [];
+    })
+    .join("\n\n");
+}
+
+function getReasoningOutputText(payload) {
+  const outputItems = Array.isArray(payload?.output) ? payload.output : [];
+
+  return outputItems
+    .flatMap(item => {
+      if (item?.type !== "reasoning") {
         return [];
       }
 
@@ -27,6 +55,17 @@ function getResponseOutputText(payload) {
         .filter(Boolean);
     })
     .join("\n\n");
+}
+
+function hasReasoningOnlyOutput(payload) {
+  const outputItems = Array.isArray(payload?.output) ? payload.output : [];
+  if (!outputItems.length) {
+    return false;
+  }
+
+  const hasMessageOutput = outputItems.some(item => item?.type === "message");
+  const hasReasoningOutput = outputItems.some(item => item?.type === "reasoning");
+  return hasReasoningOutput && !hasMessageOutput;
 }
 
 function buildDebugSnapshot(url, options = {}, response = null, payload = null, error = null) {
@@ -70,21 +109,17 @@ async function fetchJson(url, options = {}, errorLabel = "AI server") {
   };
 }
 
-export async function sendOpenAiCompatibleResponse({
-  baseUrl,
-  model,
-  prompt,
-  systemPrompt = "",
-  reasoningEffort = "medium",
-  temperature = 0.7,
-  maxOutputTokens = 4096,
-  errorLabel = "AI server"
-}) {
-  const normalizedBaseUrl = String(baseUrl || "").trim().replace(/\/+$/, "");
+function buildRequestBody({ model, request, reasoningEffort }) {
   const normalizedModel = String(model || "").trim();
-  const normalizedPrompt = String(prompt || "").trim();
-  const normalizedSystemPrompt = String(systemPrompt || "").trim();
-  const normalizedReasoningEffort = String(reasoningEffort || "").trim().toLowerCase() || "medium";
+  const normalizedPrompt = String(request?.input || "").trim();
+  const normalizedSystemPrompt = String(request?.instructions || "").trim();
+  const normalizedReasoningEffort = String(reasoningEffort || request?.reasoningEffort || "medium").trim().toLowerCase() || "medium";
+  const normalizedTemperature = Number.isFinite(Number(request?.temperature))
+    ? Number(request.temperature)
+    : 0.7;
+  const normalizedMaxOutputTokens = Number.isFinite(Number(request?.maxOutputTokens))
+    ? Number(request.maxOutputTokens)
+    : 4096;
 
   if (!normalizedModel) {
     throw new Error("No model is selected.");
@@ -100,8 +135,8 @@ export async function sendOpenAiCompatibleResponse({
     reasoning: {
       effort: normalizedReasoningEffort
     },
-    temperature,
-    max_output_tokens: maxOutputTokens,
+    temperature: normalizedTemperature,
+    max_output_tokens: normalizedMaxOutputTokens,
     store: false
   };
 
@@ -109,17 +144,76 @@ export async function sendOpenAiCompatibleResponse({
     requestBody.instructions = normalizedSystemPrompt;
   }
 
-  const { payload, debug } = await fetchJson(`${normalizedBaseUrl}/v1/responses`, {
+  return requestBody;
+}
+
+export async function sendOpenAiCompatibleResponse({
+  baseUrl,
+  model,
+  request,
+  errorLabel = "AI server"
+}) {
+  const normalizedBaseUrl = String(baseUrl || "").trim().replace(/\/+$/, "");
+  const initialReasoningEffort = String(request?.reasoningEffort || "medium").trim().toLowerCase() || "medium";
+  const requestUrl = `${normalizedBaseUrl}/v1/responses`;
+
+  const initialRequestBody = buildRequestBody({
+    model,
+    request,
+    reasoningEffort: initialReasoningEffort
+  });
+
+  const { payload, debug } = await fetchJson(requestUrl, {
     method: "POST",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json"
     },
-    body: JSON.stringify(requestBody)
+    body: JSON.stringify(initialRequestBody)
   }, errorLabel);
 
+  const initialText = getResponseOutputText(payload);
+
+  if (initialText) {
+    return {
+      text: initialText,
+      debug
+    };
+  }
+
+  if (initialReasoningEffort !== "none" && hasReasoningOnlyOutput(payload)) {
+    const fallbackRequestBody = buildRequestBody({
+      model,
+      request,
+      reasoningEffort: "none"
+    });
+
+    const { payload: fallbackPayload, debug: fallbackDebug } = await fetchJson(requestUrl, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(fallbackRequestBody)
+    }, errorLabel);
+
+    return {
+      text: getResponseOutputText(fallbackPayload),
+      debug: {
+        ...fallbackDebug,
+        retry: {
+          reason: "initial-response-contained-reasoning-only",
+          initialReasoningEffort,
+          fallbackReasoningEffort: "none",
+          initialResponseBody: payload,
+          initialReasoningText: getReasoningOutputText(payload)
+        }
+      }
+    };
+  }
+
   return {
-    text: getResponseOutputText(payload),
+    text: initialText,
     debug
   };
 }

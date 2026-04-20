@@ -312,6 +312,7 @@
                 </div>
                 <select id="feeling" aria-label="Feeling"></select>
                 <button id="suggestBtn" class="suggest-refresh-btn" type="button">Refresh</button>
+                <button id="suggestAiBtn" class="suggest-ai-btn" type="button">AI</button>
                 <label class="suggest-toggle" for="autoSuggestToggle">
                   <input id="autoSuggestToggle" type="checkbox">
                   <span>Auto-refresh suggestions when adding chords</span>
@@ -320,16 +321,28 @@
                   <span class="visually-hidden">Show Suggestion Debug</span>
                 </button>
               </div>
+              <div id="suggestionAiStatus" class="suggestion-ai-status" aria-live="polite" hidden></div>
 
-              <section id="suggestionDebugPanel" class="suggestion-debug-panel" aria-live="polite" hidden>
-                <div class="suggestion-debug-header">
-                  <div class="suggestion-debug-title">Suggestion Debug</div>
-                  <button id="copySuggestionDebugBtn" class="suggestion-debug-copy-btn" type="button" aria-label="Copy AI Brief" disabled>
-                    <span class="visually-hidden">Copy AI Brief</span>
-                  </button>
-                </div>
-                <pre id="suggestionDebugOutput" class="suggestion-debug-output">No suggestion debug yet.</pre>
-              </section>
+              <div id="suggestionDebugPanel" class="suggestion-debug-stack" aria-live="polite" hidden>
+                <section id="suggestionTheoryDebugPanel" class="suggestion-debug-panel">
+                  <div class="suggestion-debug-header">
+                    <div class="suggestion-debug-title">Suggestion Debug</div>
+                    <button id="copySuggestionTheoryDebugBtn" class="suggestion-debug-copy-btn" type="button" aria-label="Copy Suggestion Debug" disabled>
+                      <span class="visually-hidden">Copy Suggestion Debug</span>
+                    </button>
+                  </div>
+                  <pre id="suggestionDebugOutput" class="suggestion-debug-output">No suggestion debug yet.</pre>
+                </section>
+                <section id="suggestionAiDebugPanel" class="suggestion-debug-panel">
+                  <div class="suggestion-debug-header">
+                    <div class="suggestion-debug-title">AI Suggestion Debug</div>
+                    <button id="copySuggestionAiDebugBtn" class="suggestion-debug-copy-btn" type="button" aria-label="Copy AI Suggestion Debug" disabled>
+                      <span class="visually-hidden">Copy AI Suggestion Debug</span>
+                    </button>
+                  </div>
+                  <pre id="suggestionAiDebugOutput" class="suggestion-debug-output">No AI suggestion debug yet.</pre>
+                </section>
+              </div>
 
               <ul id="results">
                 <li>No suggestions yet.</li>

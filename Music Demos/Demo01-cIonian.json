@@ -1,7 +1,7 @@
 {
   "type": "vibe-chording-progression",
   "version": 4,
-  "savedAt": "2026-04-05T12:50:21.393Z",
+  "savedAt": "2026-04-18T03:42:05.597Z",
   "key": {
     "name": "C Ionian",
     "root": "C",
@@ -982,10 +982,6 @@
           },
           {
             "midi": 74,
-            "velocity": 84
-          },
-          {
-            "midi": 78,
             "velocity": 84
           }
         ]

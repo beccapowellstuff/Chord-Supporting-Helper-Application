@@ -157,13 +157,12 @@ const lmStudioProvider = {
     };
   },
 
-  async sendPrompt(config, prompt, options = {}) {
+  async sendPrompt(config, request) {
     const normalizedConfig = this.getConfig(config);
     return sendOpenAiCompatibleResponse({
       baseUrl: normalizedConfig.baseUrl,
       model: normalizedConfig.selectedModel,
-      prompt,
-      reasoningEffort: options?.reasoningEffort || "medium",
+      request,
       errorLabel: "LM Studio"
     });
   }

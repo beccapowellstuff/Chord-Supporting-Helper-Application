@@ -608,6 +608,25 @@ function createSuggestionDetail(item, onChordClick, onChordAdd) {
   fn.textContent = `${item.presentation?.summaryLabel || "Suggested move"} · ${formatRomanNumeralLabel(item.fn)}`;
   meta.appendChild(fn);
 
+  if (item.presentation?.isAi) {
+    const reasonLabel = document.createElement("div");
+    reasonLabel.className = "suggestion-detail-reason-label";
+    reasonLabel.textContent = "Why AI suggested this";
+    meta.appendChild(reasonLabel);
+
+    const aiMeta = document.createElement("div");
+    aiMeta.className = "suggestion-detail-ai-meta";
+    const bits = [];
+    if (item.bass) bits.push(`Bass: ${formatChordLabel(item.bass)}`);
+    if (item.topNote) bits.push(`Top note: ${item.topNote}`);
+    if (item.role) bits.push(`Role: ${item.role}`);
+    if (typeof item.strength === "number" && Number.isFinite(item.strength)) {
+      bits.push(`Strength: ${(item.strength * 100).toFixed(0)}%`);
+    }
+    aiMeta.textContent = bits.join(" | ") || "AI details unavailable.";
+    meta.appendChild(aiMeta);
+  }
+
   const reason = document.createElement("div");
   reason.className = "suggestion-detail-reason";
   reason.textContent = item.reason;
@@ -621,6 +640,14 @@ function createSuggestionDetail(item, onChordClick, onChordAdd) {
   playBtn.textContent = "Play chord";
   playBtn.dataset.tooltip = "Play this chord";
   playBtn.addEventListener("click", () => {
+    if (typeof onChordClick?.playItemSelection === "function") {
+      if (typeof onChordClick.selectChord === "function") {
+        onChordClick.selectChord(item.chord);
+      }
+      onChordClick.playItemSelection(item, "0", "close");
+      return;
+    }
+
     if (typeof onChordClick?.playSelection === "function") {
       if (typeof onChordClick.selectChord === "function") {
         onChordClick.selectChord(item.chord);
@@ -638,7 +665,7 @@ function createSuggestionDetail(item, onChordClick, onChordAdd) {
   addBtn.textContent = "Add to progression";
   addBtn.dataset.tooltip = "Add this chord to your progression";
   addBtn.addEventListener("click", () => {
-    if (onChordAdd) onChordAdd(item.chord);
+    if (onChordAdd) onChordAdd(item);
   });
 
   actions.appendChild(playBtn);
@@ -662,6 +689,12 @@ const SECONDARY_SUGGESTION_SECTION = {
   id: "more",
   title: "Other Good Paths",
   description: "Alternative ways to continue, each labelled by the job it does."
+};
+
+const AI_SUGGESTION_SECTION = {
+  id: "ai",
+  title: "AI Suggestions",
+  description: "AI-generated next-chord ideas based on the current progression context."
 };
 
 function chordsMatchEntryFamily(chord, entry) {
@@ -803,6 +836,27 @@ function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setAct
     chordBtn.appendChild(detailLabel);
   }
 
+  if (item.presentation?.isAi && item.reason) {
+    const reasonLine = document.createElement("span");
+    reasonLine.className = "suggestion-card-reason";
+    reasonLine.textContent = item.reason;
+    chordBtn.appendChild(reasonLine);
+  }
+
+  if (item.presentation?.isAi) {
+    const detailLine = document.createElement("span");
+    detailLine.className = "suggestion-card-ai-details";
+    const bits = [];
+    if (item.bass) bits.push(`Bass ${formatChordLabel(item.bass)}`);
+    if (item.topNote) bits.push(`Top ${item.topNote}`);
+    if (item.role) bits.push(item.role);
+    if (typeof item.strength === "number" && Number.isFinite(item.strength)) {
+      bits.push(`Strength ${(item.strength * 100).toFixed(0)}%`);
+    }
+    detailLine.textContent = bits.join(" | ") || "AI details unavailable";
+    chordBtn.appendChild(detailLine);
+  }
+
   const showDetail = () => {
     const activeButton = getActiveCard();
     if (activeButton) {
@@ -818,6 +872,14 @@ function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setAct
   chordBtn.addEventListener("click", event => {
     event.stopPropagation();
     showDetail();
+    if (typeof onChordClick?.playItemSelection === "function") {
+      if (typeof onChordClick.selectChord === "function") {
+        onChordClick.selectChord(item.chord);
+      }
+      onChordClick.playItemSelection(item, "0", "close");
+      return;
+    }
+
     if (typeof onChordClick?.playSelection === "function") {
       if (typeof onChordClick.selectChord === "function") {
         onChordClick.selectChord(item.chord);
@@ -837,7 +899,7 @@ function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setAct
   addBtn.addEventListener("click", event => {
     event.stopPropagation();
     showDetail();
-    if (onChordAdd) onChordAdd(item.chord);
+    if (onChordAdd) onChordAdd(item);
   });
 
   card.addEventListener("click", showDetail);
@@ -878,8 +940,9 @@ export function populateModeSelect(styleSelect, modeGroups) {
   });
 }
 
-export function renderSuggestions(resultsElement, payload, musicData, selectedKey, onChordClick, onChordAdd) {
+export function renderSuggestions(resultsElement, payload, musicData, selectedKey, onChordClick, onChordAdd, options = {}) {
   const { suggestions, parsedProgression = [], invalidChords = [], progressionState = null } = payload;
+  const aiSuggestions = options.aiSuggestions || null;
 
   resultsElement.innerHTML = "";
 
@@ -904,11 +967,26 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     feedbackContainer.appendChild(invalidDiv);
   }
 
+  if (aiSuggestions?.warning) {
+    const aiWarningDiv = document.createElement("div");
+    aiWarningDiv.className = "suggestion-feedback-item";
+
+    const label = document.createElement("strong");
+    label.textContent = "AI note";
+    aiWarningDiv.appendChild(label);
+
+    const text = document.createElement("div");
+    text.className = "suggestion-feedback-text";
+    text.textContent = aiSuggestions.warning;
+    aiWarningDiv.appendChild(text);
+    feedbackContainer.appendChild(aiWarningDiv);
+  }
+
   if (feedbackContainer.children.length > 0) {
     wrapper.appendChild(feedbackContainer);
   }
 
-  if (!suggestions.length) {
+  if (!suggestions.length && !aiSuggestions?.attempted) {
     const empty = document.createElement("div");
     empty.className = "suggestions-empty";
     empty.textContent = parsedProgression.length
@@ -943,7 +1021,7 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     }
 
     const section = document.createElement("section");
-    section.className = `suggestion-group chord-group ${options.best ? "chord-group-strong" : "chord-group-soft"}`;
+    section.className = `suggestion-group chord-group ${options.best ? "chord-group-strong" : "chord-group-soft"} ${options.className || ""}`.trim();
     section.dataset.suggestionSection = sectionMeta.id;
 
     const header = document.createElement("div");
@@ -987,16 +1065,64 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     wrapper.appendChild(section);
   };
 
-  appendSuggestionSection(PRIMARY_SUGGESTION_SECTION, bestSuggestions, { best: true });
+  if (bestSuggestions.length) {
+    appendSuggestionSection(PRIMARY_SUGGESTION_SECTION, bestSuggestions, { best: true });
+  }
 
   const secondarySuggestions = decoratedSuggestions
     .filter(item => !bestChordSet.has(item.chord))
     .sort((a, b) => (b?.score || 0) - (a?.score || 0));
 
-  appendSuggestionSection(SECONDARY_SUGGESTION_SECTION, secondarySuggestions, {
-    secondary: true,
-    compact: true
-  });
+  if (secondarySuggestions.length) {
+    appendSuggestionSection(SECONDARY_SUGGESTION_SECTION, secondarySuggestions, {
+      secondary: true,
+      compact: true
+    });
+  } else if (!bestSuggestions.length) {
+    const empty = document.createElement("div");
+    empty.className = "suggestions-empty";
+    empty.textContent = parsedProgression.length
+      ? "No theory suggestions found."
+      : "Add a chord to the sequence to get next-step suggestions.";
+    wrapper.appendChild(empty);
+  }
+
+  if (aiSuggestions?.attempted) {
+    const aiItems = Array.isArray(aiSuggestions.items) ? aiSuggestions.items : [];
+
+    if (aiItems.length) {
+      appendSuggestionSection(AI_SUGGESTION_SECTION, aiItems, {
+        secondary: true,
+        className: "suggestion-group-ai"
+      });
+    } else if (aiSuggestions.message) {
+      const aiSection = document.createElement("section");
+      aiSection.className = "suggestion-group suggestion-group-ai chord-group chord-group-soft";
+      aiSection.dataset.suggestionSection = AI_SUGGESTION_SECTION.id;
+
+      const header = document.createElement("div");
+      header.className = "suggestion-group-header";
+
+      const title = document.createElement("div");
+      title.className = "suggestion-group-title";
+      title.textContent = AI_SUGGESTION_SECTION.title;
+
+      const description = document.createElement("div");
+      description.className = "suggestion-group-description";
+      description.textContent = AI_SUGGESTION_SECTION.description;
+
+      header.appendChild(title);
+      header.appendChild(description);
+      aiSection.appendChild(header);
+
+      const empty = document.createElement("div");
+      empty.className = "suggestions-empty";
+      empty.textContent = aiSuggestions.message;
+      aiSection.appendChild(empty);
+
+      wrapper.appendChild(aiSection);
+    }
+  }
 
   wrapper.appendChild(detailHost);
   appendSelectionBar(wrapper, onChordClick, "Play a chord to choose inversion and voicing");

@@ -81,12 +81,26 @@ test("AI service lazy-loads the selected provider and falls back to LM Studio fo
       const models = await service.listAiModels(settings);
       const status = await service.getAiModelStatus(settings);
       await service.connectAiModel(settings);
-      const promptResponse = await service.sendAiPrompt(settings, "Say hello.");
-      const promptResponseNoReasoning = await service.sendAiPrompt(settings, "Say hello with no reasoning.", {
-        reasoningEffort: "none"
+      const promptResponse = await service.sendAiPrompt(settings, {
+        instructions: "",
+        input: "Say hello.",
+        reasoningEffort: "medium",
+        temperature: 0.7,
+        maxOutputTokens: 4096
       });
-      const promptResponseHighReasoning = await service.sendAiPrompt(settings, "Say hello with high reasoning.", {
-        reasoningEffort: "high"
+      const promptResponseNoReasoning = await service.sendAiPrompt(settings, {
+        instructions: "",
+        input: "Say hello with no reasoning.",
+        reasoningEffort: "none",
+        temperature: 0.7,
+        maxOutputTokens: 4096
+      });
+      const promptResponseHighReasoning = await service.sendAiPrompt(settings, {
+        instructions: "",
+        input: "Say hello with high reasoning.",
+        reasoningEffort: "high",
+        temperature: 0.7,
+        maxOutputTokens: 4096
       });
       const repeatedStatus = await service.getAiModelStatus(settings);
 

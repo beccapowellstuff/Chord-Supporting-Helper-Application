@@ -100,7 +100,7 @@ export async function connectAiModel(settings) {
   return provider.connectModel(getProviderConfig(settings, provider));
 }
 
-export async function sendAiPrompt(settings, prompt, options = {}) {
+export async function sendAiPrompt(settings, request) {
   const provider = await loadProvider(settings);
-  return provider.sendPrompt(getProviderConfig(settings, provider), prompt, options);
+  return provider.sendPrompt(getProviderConfig(settings, provider), request);
 }

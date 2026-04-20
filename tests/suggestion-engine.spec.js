@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 import { gotoApp, selectMode, selectRoot, setProgressionText } from "./helpers/appTestUtils.js";
 
+const SETTINGS_STORAGE_KEY = "vibe-chording-settings";
+
 function normalizeSuggestionLabel(value) {
   return String(value || "")
     .replace(/\s+/g, " ")
@@ -351,4 +353,192 @@ test("tracks a recent local-centre arrival and softens old key-memory resets", a
 
   expect(bestChords.some(label => ["Aadd9", "A", "D", "E", "F#m"].includes(label))).toBe(true);
   expect(bestChords[0]).not.toBe("Dm");
+});
+
+test("AI button auto-connects and renders a separate AI suggestion set below theory suggestions", async ({ page }) => {
+  await page.addInitScript(storageKey => {
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      version: 1,
+      preferences: {
+        defaultTempoBpm: 120,
+        ai: {
+          provider: "lmStudio",
+          providers: {
+            lmStudio: {
+              baseUrl: "http://127.0.0.1:1234",
+              selectedModel: "google/gemma-4-27b"
+            }
+          }
+        }
+      }
+    }));
+  }, SETTINGS_STORAGE_KEY);
+
+  let modelsRequestCount = 0;
+  await page.route("http://127.0.0.1:1234/api/v1/models", route => {
+    modelsRequestCount += 1;
+    const isLoaded = modelsRequestCount >= 2;
+
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        models: [
+          {
+            type: "llm",
+            key: "google/gemma-4-27b",
+            display_name: "Gemma 4 27B",
+            loaded_instances: isLoaded ? ["google/gemma-4-27b"] : []
+          }
+        ]
+      })
+    });
+  });
+
+  await page.route("http://127.0.0.1:1234/api/v1/models/load", route =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        status: "loaded",
+        instance_id: "google/gemma-4-27b"
+      })
+    })
+  );
+
+  await page.route("http://127.0.0.1:1234/v1/responses", async route => {
+    const payload = route.request().postDataJSON();
+
+    expect(payload.reasoning).toMatchObject({
+      effort: "none"
+    });
+    expect(payload.input).toContain("Progression: C | F | G");
+    expect(payload.input).toContain("Key and mode: C Ionian");
+    expect(payload.input).toContain("Current theory candidates:");
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        id: "resp_ai_suggestions_1",
+        object: "response",
+        output_text: JSON.stringify({
+          suggestions: [
+            { chord: "Am", reason: "Soft continuation from V back toward vi." },
+            { chord: "C", reason: "Strong tonic return after dominant motion." },
+            { chord: "BadChord", reason: "This should be dropped." },
+            { chord: "Am", reason: "Duplicate should also be dropped." }
+          ]
+        })
+      })
+    });
+  });
+
+  await gotoApp(page);
+  await page.evaluate(() => {
+    window.appState.aiExploreReasoningEffort = "none";
+  });
+
+  await setProgressionText(page, "C, F, G");
+  await page.getByRole("button", { name: /Suggestion Engine/ }).click();
+
+  await page.locator("#suggestAiBtn").click();
+
+  await expect(page.locator("#suggestionAiStatus")).toContainText("Loaded 2 AI suggestions.");
+  await expect(page.locator('[data-suggestion-section="ai"] .suggestion-group-title')).toHaveText("AI Suggestions");
+  await expect(page.locator("#results .suggestion-feedback-text")).toContainText("Some AI suggestions were skipped");
+
+  const aiChords = (await page.locator('[data-suggestion-section="ai"] .suggestion-card-chord .chord-btn-main').allTextContents())
+    .map(normalizeSuggestionLabel);
+  expect(aiChords).toEqual(expect.arrayContaining(["Am", "C"]));
+
+  await page.locator('[data-suggestion-section="ai"] .suggestion-card-chord').first().click();
+  await expect(page.locator("#results .suggestion-detail-reason")).toContainText("Soft continuation");
+  await page.locator("#results .suggestion-detail-add-btn").click();
+
+  await expect.poll(() => page.evaluate(() => window.appState.progressionItems.map(item => item.chord).join(" | ")))
+    .toContain("Am");
+
+  await page.getByRole("button", { name: "Show Suggestion Debug" }).click();
+  await expect(page.locator("#suggestionAiDebugOutput")).toContainText("Action: request-ai-suggestions");
+  await expect(page.locator("#suggestionAiDebugOutput")).toContainText("\"effort\": \"none\"");
+  await expect(page.locator("#suggestionAiDebugOutput")).toContainText("Current theory candidates:");
+});
+
+test("AI suggestion section shows a friendly empty state when no valid AI chord labels are returned", async ({ page }) => {
+  await page.addInitScript(storageKey => {
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      version: 1,
+      preferences: {
+        defaultTempoBpm: 120,
+        ai: {
+          provider: "lmStudio",
+          providers: {
+            lmStudio: {
+              baseUrl: "http://127.0.0.1:1234",
+              selectedModel: "google/gemma-4-27b"
+            }
+          }
+        }
+      }
+    }));
+  }, SETTINGS_STORAGE_KEY);
+
+  await page.route("http://127.0.0.1:1234/api/v1/models", route =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        models: [
+          {
+            type: "llm",
+            key: "google/gemma-4-27b",
+            display_name: "Gemma 4 27B",
+            loaded_instances: ["google/gemma-4-27b"]
+          }
+        ]
+      })
+    })
+  );
+
+  await page.route("http://127.0.0.1:1234/v1/responses", route =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        id: "resp_ai_suggestions_2",
+        object: "response",
+        output_text: JSON.stringify({
+          suggestions: [
+            { chord: "NopeChord", reason: "Invalid" },
+            { chord: "AnotherBadOne", reason: "Still invalid" }
+          ]
+        })
+      })
+    })
+  );
+
+  await gotoApp(page);
+  await setProgressionText(page, "C, F, G");
+  await page.getByRole("button", { name: /Suggestion Engine/ }).click();
+
+  await page.locator("#suggestAiBtn").click();
+
+  await expect(page.locator('[data-suggestion-section="ai"] .suggestions-empty'))
+    .toHaveText("AI did not return any valid chord suggestions this time.");
 });

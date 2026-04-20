@@ -2043,6 +2043,12 @@ h2 {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84);
 }
 
+.suggestion-debug-stack {
+  margin-top: 14px;
+  display: grid;
+  gap: 14px;
+}
+
 .suggestion-debug-panel[hidden] {
   display: none;
 }
@@ -2129,6 +2135,15 @@ h2 {
   color: var(--text);
 }
 
+.suggestion-debug-subtitle {
+  margin: 12px 0 6px;
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
 .suggestion-engine-controls {
   display: flex;
   align-items: end;
@@ -2171,6 +2186,44 @@ h2 {
   margin-bottom: 0;
   padding: 10px 14px;
   flex: 0 0 auto;
+}
+
+.suggest-ai-btn {
+  width: auto;
+  min-width: 64px;
+  margin-bottom: 0;
+  padding: 10px 14px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--accent-dark);
+  border: 1px solid rgba(200, 95, 143, 0.28);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.suggest-ai-btn:hover {
+  background: rgba(244, 216, 230, 0.92);
+  color: var(--accent-dark);
+}
+
+.suggestion-ai-status {
+  margin-top: -4px;
+  color: #6d5562;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.suggestion-ai-status-loading {
+  color: #7a5a24;
+}
+
+.suggestion-ai-status-success {
+  color: #2f6b3b;
+}
+
+.suggestion-ai-status-error {
+  color: #8b3d3d;
 }
 
 .suggest-debug-toggle-btn {
@@ -3826,6 +3879,10 @@ textarea {
   line-height: 1.2;
 }
 
+.suggestion-group-ai {
+  background: linear-gradient(to bottom, rgba(253, 244, 248, 0.96), rgba(255, 250, 252, 0.92));
+}
+
 .suggestions-wrapper > .theory-legend {
   margin-bottom: 10px;
 }
@@ -3869,6 +3926,27 @@ textarea {
 .suggestion-card-add-btn {
   top: 6px;
   left: 6px;
+}
+
+.suggestion-card-reason {
+  display: block;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(192, 142, 167, 0.22);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.suggestion-card-ai-details {
+  display: block;
+  margin-top: 4px;
+  color: var(--accent-dark);
+  font-size: 10px;
+  line-height: 1.3;
+  text-align: left;
+  opacity: 0.9;
 }
 
 .suggestions-empty {
@@ -3926,6 +4004,23 @@ textarea {
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
+}
+
+.suggestion-detail-reason-label {
+  width: 100%;
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.suggestion-detail-ai-meta {
+  width: 100%;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: 2px;
 }
 
 .suggestion-detail-reason {
