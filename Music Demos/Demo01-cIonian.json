@@ -1,7 +1,7 @@
 {
   "type": "vibe-chording-progression",
   "version": 4,
-  "savedAt": "2026-04-18T03:42:05.597Z",
+  "savedAt": "2026-04-22T05:35:07.086Z",
   "key": {
     "name": "C Ionian",
     "root": "C",
@@ -982,6 +982,90 @@
           },
           {
             "midi": 74,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 32,
+      "chord": "Am/C",
+      "durationBeats": 4,
+      "sustain": false,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 36,
+            "velocity": 84
+          },
+          {
+            "midi": 48,
+            "velocity": 84
+          },
+          {
+            "midi": 60,
+            "velocity": 84
+          },
+          {
+            "midi": 64,
+            "velocity": 84
+          },
+          {
+            "midi": 69,
+            "velocity": 84
+          },
+          {
+            "midi": 72,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 33,
+      "chord": "Em",
+      "durationBeats": 8,
+      "sustain": false,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 28,
+            "velocity": 84
+          },
+          {
+            "midi": 40,
+            "velocity": 84
+          },
+          {
+            "midi": 52,
+            "velocity": 84
+          },
+          {
+            "midi": 59,
+            "velocity": 84
+          },
+          {
+            "midi": 64,
+            "velocity": 84
+          },
+          {
+            "midi": 67,
+            "velocity": 84
+          },
+          {
+            "midi": 71,
             "velocity": 84
           }
         ]

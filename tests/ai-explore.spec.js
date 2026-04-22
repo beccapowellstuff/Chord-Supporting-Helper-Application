@@ -95,19 +95,11 @@ test("AI Explore connects the saved model and shows a prompt response", async ({
   await gotoApp(page);
   await openTool(page, "AI Explore");
 
-  await expect(page.locator("#aiExploreBaseUrl")).toHaveText("http://127.0.0.1:1234");
-  await expect(page.locator("#aiExploreSelectedModel")).toHaveText("google/gemma-4-27b");
-  await expect(page.locator("#aiExploreLoadedState")).toHaveText("Not loaded");
-  await expect(page.locator("#aiExplorePromptInput")).toBeDisabled();
-  await expect(page.locator("#aiExploreSubmitBtn")).toBeDisabled();
-  await expect(page.locator("#aiExploreConnectBtn")).toBeEnabled();
-  await expect(page.locator("#aiExploreDebugPanel")).toBeHidden();
-
-  await page.locator("#aiExploreConnectBtn").click();
-
-  await expect(page.locator("#aiExploreLoadedState")).toContainText("Loaded");
-  await expect(page.locator("#aiExploreStatusMessage")).toContainText("ready for prompts");
+  // Wait for the prompt input to be enabled (model auto-connected)
   await expect(page.locator("#aiExplorePromptInput")).toBeEnabled();
+  await expect(page.locator("#aiExploreSubmitBtn")).toBeDisabled();
+
+  // Verify reasoning effort default
   await expect(page.locator("#aiExploreReasoningEffort")).toHaveValue("medium");
   await page.locator("#aiExploreReasoningEffort").selectOption("high");
   await expect(page.locator("#aiExploreReasoningEffort")).toHaveValue("high");
@@ -116,9 +108,13 @@ test("AI Explore connects the saved model and shows a prompt response", async ({
   await expect(page.locator("#aiExploreSubmitBtn")).toBeEnabled();
   await page.locator("#aiExploreSubmitBtn").click();
 
-  await expect(page.locator("#aiExploreResponseOutput")).toContainText("Hello from LM Studio. The AI Explore MVP test worked.");
-  await expect(page.locator("#aiExploreStatusMessage")).toContainText("Prompt completed successfully.");
+  // Wait for response to appear in conversation list
+  await expect(page.locator(".ai-explore-conversation-list")).toContainText("Hello from LM Studio. The AI Explore MVP test worked.");
 
+  // Verify prompt was cleared after submission
+  await expect(page.locator("#aiExplorePromptInput")).toHaveValue("");
+
+  // Toggle debug panel
   await page.locator("#toggleAiExploreDebugBtn").click();
 
   await expect(page.locator("#aiExploreDebugPanel")).toBeVisible();

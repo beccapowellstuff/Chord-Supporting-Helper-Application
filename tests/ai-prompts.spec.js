@@ -14,8 +14,8 @@ test("AI prompt builders return structured request objects", async ({ page }) =>
 
     const aiSuggestionRequest = prompts.buildAiSuggestionPromptRequest({
       context: {
-        progressionText: "C | F | G",
-        progressionWithTopNotes: "C[E4] | F[A4] | G[B4]",
+        recentProgressionWindow: "C | F | G",
+        recentProgressionWindowWithNotes: "C[E4] | F[A4] | G[B4]",
         selectedKey: "C Ionian",
         feeling: "Happy",
         lastChord: "G [V]",
@@ -61,8 +61,8 @@ test("AI prompt builders return structured request objects", async ({ page }) =>
     maxOutputTokens: 1200
   });
   expect(result.aiSuggestionRequest.instructions).toContain("Return JSON only");
-  expect(result.aiSuggestionRequest.input).toContain("Progression: C | F | G");
-  expect(result.aiSuggestionRequest.input).toContain("Progression + top notes: C[E4] | F[A4] | G[B4]");
+  expect(result.aiSuggestionRequest.input).toContain("Recent progression window: C | F | G");
+  expect(result.aiSuggestionRequest.input).toContain("Recent progression window with bass/top notes: C[E4] | F[A4] | G[B4]");
   expect(result.aiSuggestionRequest.input).toContain("Key and mode: C Ionian");
   expect(result.aiSuggestionRequest.input).toContain("Preferred targets: C, Am, F");
   expect(result.aiSuggestionRequest.input).toContain("Current theory candidates: Am [vi], C [I], F [IV]");
@@ -70,10 +70,18 @@ test("AI prompt builders return structured request objects", async ({ page }) =>
   expect(result.parsedSuggestions).toEqual([
     {
       chord: "Am",
+      bass: "",
+      topNote: "",
+      strength: null,
+      role: "",
       reason: "Keeps the phrase moving softly."
     },
     {
       chord: "C",
+      bass: "",
+      topNote: "",
+      strength: null,
+      role: "",
       reason: "Resolves back to the tonic."
     }
   ]);

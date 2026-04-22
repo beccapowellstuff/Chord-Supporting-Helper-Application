@@ -85,7 +85,9 @@ import {
 import {
   buildAiExplorePromptRequest,
   buildAiSuggestionPromptRequest,
-  parseAiSuggestionResponse
+  parseAiSuggestionResponse,
+  buildAiExploreProgressionInstructions,
+  parseAiExploreSuggestions
 } from "./aiPrompts/index.js";
 
 // Verify Tone.js loaded
@@ -173,6 +175,7 @@ const aiExploreReasoningEffortSelect = document.getElementById("aiExploreReasoni
 const aiExplorePromptInput = document.getElementById("aiExplorePromptInput");
 const aiExploreSubmitBtn = document.getElementById("aiExploreSubmitBtn");
 const aiExploreResponseOutput = document.getElementById("aiExploreResponseOutput");
+const aiExploreConversationList = document.getElementById("aiExploreConversationList");
 const aiExploreDebugPanel = document.getElementById("aiExploreDebugPanel");
 const aiExploreDebugOutput = document.getElementById("aiExploreDebugOutput");
 const toggleAiExploreDebugBtn = document.getElementById("toggleAiExploreDebugBtn");
@@ -247,7 +250,8 @@ const appState = {
   aiExplorePrompt: "",
   aiExploreResponse: "No response yet.",
   aiExploreDebugVisible: false,
-  aiExploreDebugText: "No AI Explore debug yet."
+  aiExploreDebugText: "No AI Explore debug yet.",
+  aiExploreConversation: []
 };
 window.appState = appState;
 let sequenceKeyboardMidiNotes = [];
@@ -271,6 +275,7 @@ let activeToolPanelId = "keyExplorerPanel";
 let toolPanelTransitionTimeout = null;
 let progressionPreviewToken = 0;
 let activeProgressionPlaybackSession = null;
+const MAX_CONVERSATION_TURNS = 20;
 let activeProgressionPlaybackMode = null;
 let removeAudioPrimingListeners = null;
 let isPrimingAudio = false;
@@ -1372,13 +1377,6 @@ function renderAiExploreUI() {
     aiExploreSubmitBtn.textContent = appState.aiExploreSubmitting ? "Submitting..." : "Submit";
   }
 
-  if (aiExploreResponseOutput) {
-    const nextResponseText = appState.aiExploreResponse || "No response yet.";
-    if (aiExploreResponseOutput.textContent !== nextResponseText) {
-      aiExploreResponseOutput.textContent = nextResponseText;
-    }
-  }
-
   if (aiExploreDebugOutput) {
     const nextDebugText = appState.aiExploreDebugText || "No AI Explore debug yet.";
     if (aiExploreDebugOutput.textContent !== nextDebugText) {
@@ -1386,7 +1384,286 @@ function renderAiExploreUI() {
     }
   }
 
+  renderAiExploreConversationList();
   renderAiExploreDebugVisibility();
+}
+
+/**
+ * Render the AI Explore conversation message list.
+ */
+function renderAiExploreConversationList() {
+  if (!aiExploreConversationList) {
+    return;
+  }
+
+  const conversation = Array.isArray(appState.aiExploreConversation) ? appState.aiExploreConversation : [];
+
+  if (!conversation.length) {
+    aiExploreConversationList.innerHTML = '<div class="ai-explore-conversation-empty">No messages yet. Type a prompt below to start the conversation.</div>';
+    return;
+  }
+
+  aiExploreConversationList.innerHTML = "";
+
+  conversation.forEach((message, index) => {
+    const messageEl = document.createElement("div");
+    messageEl.className = `ai-explore-message ai-explore-message-${message.role || "assistant"}`;
+
+    const roleEl = document.createElement("div");
+    roleEl.className = "ai-explore-message-role";
+    roleEl.textContent = message.role === "user" ? "You" : "AI";
+    messageEl.appendChild(roleEl);
+
+    const bubbleEl = document.createElement("div");
+    bubbleEl.className = "ai-explore-message-bubble";
+    bubbleEl.textContent = message.content || "";
+    messageEl.appendChild(bubbleEl);
+
+    // Render suggestion cards if present
+    if (message.suggestions?.length) {
+      const suggestionCardsEl = document.createElement("div");
+      suggestionCardsEl.className = "ai-explore-suggestion-cards";
+
+      message.suggestions.forEach((suggestion, sIndex) => {
+        const cardEl = document.createElement("div");
+        cardEl.className = "ai-explore-suggestion-card";
+        cardEl.dataset.suggestionIndex = sIndex;
+
+        // Left column: chord name + role + play
+        const leftCol = document.createElement("div");
+        leftCol.className = "ai-explore-suggestion-left";
+
+        // Chord row with play button
+        const chordRow = document.createElement("div");
+        chordRow.className = "ai-explore-suggestion-chord-row";
+
+        const chordEl = document.createElement("div");
+        chordEl.className = "ai-explore-suggestion-chord";
+        chordEl.textContent = suggestion.chord || "?";
+        chordEl.style.cursor = "pointer";
+        chordEl.title = `Play ${suggestion.chord}`;
+        chordEl.addEventListener("click", () => {
+          void handleAiExplorePlaySuggestion(suggestion);
+        });
+        chordRow.appendChild(chordEl);
+
+        // Play button
+        const playBtn = document.createElement("button");
+        playBtn.className = "ai-explore-suggestion-play-btn";
+        playBtn.innerHTML = "&#9654;"; // play triangle
+        playBtn.title = `Play ${suggestion.chord}`;
+        playBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void handleAiExplorePlaySuggestion(suggestion);
+        });
+        chordRow.appendChild(playBtn);
+
+        leftCol.appendChild(chordRow);
+
+        // Role label
+        const roleEl2 = document.createElement("div");
+        roleEl2.className = "ai-explore-suggestion-role";
+        roleEl2.textContent = suggestion.role || "suggestion";
+        leftCol.appendChild(roleEl2);
+
+        cardEl.appendChild(leftCol);
+
+        // Middle: reason
+        const reasonEl = document.createElement("div");
+        reasonEl.className = "ai-explore-suggestion-reason";
+        reasonEl.textContent = suggestion.reason || "";
+        cardEl.appendChild(reasonEl);
+
+        // Bottom row: bass info + Add button
+        const bottomRow = document.createElement("div");
+        bottomRow.className = "ai-explore-suggestion-bottom";
+
+        if (suggestion.bass) {
+          const bassEl = document.createElement("div");
+          bassEl.className = "ai-explore-suggestion-bass";
+          bassEl.textContent = `Bass: ${suggestion.bass}`;
+          bottomRow.appendChild(bassEl);
+        }
+
+        const addBtn = document.createElement("button");
+        addBtn.className = "ai-explore-suggestion-add-btn";
+        addBtn.textContent = "Add";
+        addBtn.dataset.suggestionIndex = sIndex;
+        addBtn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          void handleAiExploreAddSuggestion(message, sIndex, addBtn);
+        });
+        bottomRow.appendChild(addBtn);
+
+        cardEl.appendChild(bottomRow);
+
+        suggestionCardsEl.appendChild(cardEl);
+      });
+
+      messageEl.appendChild(suggestionCardsEl);
+    }
+
+    aiExploreConversationList.appendChild(messageEl);
+  });
+
+  // Scroll to bottom
+  requestAnimationFrame(() => {
+    aiExploreConversationList.scrollTop = aiExploreConversationList.scrollHeight;
+  });
+}
+
+/**
+ * Build a custom voicing for an AI-suggested chord using the suggested bass and top note.
+ * Returns an array of MIDI notes, or null if building fails.
+ */
+function buildAiSuggestedVoicingNotes(chordName, suggestedBass, suggestedTopNote) {
+  const bassMatch = String(suggestedBass || "").match(/^([A-G]#?b?)(\d+)$/);
+  if (!bassMatch) return null;
+
+  const bassRoot = bassMatch[1];
+  const bassOctave = parseInt(bassMatch[2], 10);
+  const bassMidi = noteToMidi(bassRoot, bassOctave);
+
+  if (bassMidi == null || !Number.isFinite(bassMidi)) return null;
+
+  const parsedChord = parseChordName(chordName);
+  const chordRoot = parsedChord?.root || chordName.replace(/\/.*$/, "");
+  const closeVoicing = getAscendingRootVoicing(chordRoot);
+
+  if (!closeVoicing?.notes?.length) return null;
+
+  const originalNotes = closeVoicing.notes
+    .map(n => Number(n?.midi))
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+
+  const originalRootMidi = originalNotes[0];
+  const midiDelta = bassMidi - originalRootMidi;
+  const bodyNotes = originalNotes
+    .slice(1)
+    .map(n => n + midiDelta)
+    .filter(n => n > bassMidi);
+
+  // Replace highest note with suggested top note if provided
+  if (suggestedTopNote) {
+    const topMatch = String(suggestedTopNote).match(/^([A-G]#?b?)(\d+)$/);
+    if (topMatch) {
+      const topRoot = topMatch[1];
+      const topOctave = parseInt(topMatch[2], 10);
+      const topMidi = noteToMidi(topRoot, topOctave);
+      if (topMidi != null && Number.isFinite(topMidi) && topMidi > bassMidi) {
+        if (bodyNotes.length > 0) {
+          bodyNotes[bodyNotes.length - 1] = topMidi;
+        } else {
+          bodyNotes.push(topMidi);
+        }
+      }
+    }
+  }
+
+  return [bassMidi, ...bodyNotes].sort((a, b) => a - b);
+}
+
+/**
+ * Play a chord suggestion from the AI Explore conversation.
+ * Uses the suggestion's bass and top note to build the correct voicing.
+ */
+async function handleAiExplorePlaySuggestion(suggestion) {
+  if (!suggestion?.chord) return;
+
+  try {
+    await ensureAudioReady();
+
+    const finalNotes = buildAiSuggestedVoicingNotes(
+      suggestion.chord,
+      suggestion.bass,
+      suggestion.topNote
+    );
+
+    if (finalNotes?.length) {
+      await playVoicingWithSequenceKeyboard(
+        finalNotes.map(midi => ({ midi, velocity: DEFAULT_NOTE_VELOCITY })),
+        suggestion.chord,
+        1.2,
+        {
+          inversionLabel: "AI shape",
+          inversionShortLabel: "ai",
+          voicingLabel: "Suggested bass/top note",
+          voicingShortLabel: "ai"
+        }
+      );
+      return;
+    }
+
+    // Fallback: play with default voicing from chord name
+    await playChordWithSequenceKeyboard(suggestion.chord, 1.2);
+  } catch (error) {
+    console.error("Could not play AI suggestion chord:", error);
+  }
+}
+
+/**
+ * Handle adding a chord suggestion from the AI Explore conversation.
+ */
+async function handleAiExploreAddSuggestion(message, suggestionIndex, buttonEl) {
+  const suggestion = message?.suggestions?.[suggestionIndex];
+  if (!suggestion?.chord) {
+    return;
+  }
+
+  const chordName = suggestion.chord;
+  const finalNotes = buildAiSuggestedVoicingNotes(
+    chordName,
+    suggestion.bass,
+    suggestion.topNote
+  );
+
+  let voicingOverride = null;
+  if (finalNotes?.length) {
+    voicingOverride = {
+      source: "ai-explore",
+      inversionLabel: "AI shape",
+      inversionShortLabel: "ai",
+      voicingLabel: "Suggested bass/top note",
+      voicingShortLabel: "ai",
+      notes: finalNotes.map(midi => ({
+        midi,
+        velocity: DEFAULT_NOTE_VELOCITY
+      }))
+    };
+  }
+
+  appendChordToProgression(chordName, voicingOverride ? { voicing: voicingOverride } : {});
+
+  // Update button to show "Added"
+  buttonEl.textContent = "✓";
+  buttonEl.classList.add("added");
+  buttonEl.disabled = true;
+}
+
+/**
+ * Build the conversation history array (last N turns) for inclusion in system instructions.
+ */
+function buildAiExploreConversationHistory() {
+  const conversation = Array.isArray(appState.aiExploreConversation) ? appState.aiExploreConversation : [];
+  return conversation.slice(-MAX_CONVERSATION_TURNS);
+}
+
+/**
+ * Build the instructions string for the AI Explore prompt with progression context.
+ */
+function buildAiExplorePromptInstructions() {
+  const progressionChords = progressionItemsToChords(appState.progressionItems);
+  const recentWindow = progressionChords.slice(-8);
+  const lastChord = progressionChords.length ? progressionChords.at(-1) : "";
+
+  return buildAiExploreProgressionInstructions({
+    selectedKey: appState.selectedKey || "",
+    progressionChords,
+    recentWindow,
+    lastChord,
+    currentFeeling: feelingSelect?.value || ""
+  });
 }
 
 async function refreshAiExploreModelStatus(options = {}) {
@@ -1428,7 +1705,21 @@ async function refreshAiExploreModelStatus(options = {}) {
     if (status.loadedInstanceId) {
       setAiExploreStatus("success", "Selected model is already loaded and ready for prompts.");
     } else {
-      setAiExploreStatus("idle", "Selected model is available but not loaded yet. Click Connect to load it.");
+      appState.aiExploreConnecting = true;
+      setAiExploreStatus("loading", `Loading ${selectedModel} in ${providerLabel}...`);
+      renderAiExploreUI();
+
+      await connectAiModel(appState.appSettings);
+
+      const refreshedStatus = await getAiModelStatus(appState.appSettings);
+      appState.aiExploreLoadedInstanceId = refreshedStatus.loadedInstanceId;
+      appState.aiExploreSelectedModelLoaded = Boolean(refreshedStatus.loaded);
+
+      if (refreshedStatus.loaded) {
+        setAiExploreStatus("success", "Selected model is loaded and ready for prompts.");
+      } else {
+        setAiExploreStatus("error", `${providerLabel} did not report the selected model as loaded after connecting.`);
+      }
     }
   } catch (error) {
     appState.aiExploreAvailableModels = [];
@@ -1443,6 +1734,7 @@ async function refreshAiExploreModelStatus(options = {}) {
       error instanceof Error ? error.message : `Could not reach ${providerLabel} to check model status.`
     );
   } finally {
+    appState.aiExploreConnecting = false;
     appState.aiExploreCheckingConnection = false;
     renderAiExploreUI();
   }
@@ -1669,16 +1961,25 @@ async function handleAiExploreSubmit() {
     return;
   }
 
-  if (!appState.aiExploreSelectedModelLoaded) {
-    setAiExploreStatus("error", "Connect to the selected model before sending a prompt.");
-    renderAiExploreUI();
-    return;
-  }
-
   if (!prompt) {
     setAiExploreStatus("error", "Type a prompt before you submit.");
     renderAiExploreUI();
     return;
+  }
+
+  const conversationHistory = buildAiExploreConversationHistory();
+
+  // Push user message to conversation
+  appState.aiExploreConversation.push({
+    role: "user",
+    content: prompt,
+    timestamp: new Date().toISOString()
+  });
+
+  // Clear the prompt input after saving the user message
+  appState.aiExplorePrompt = "";
+  if (aiExplorePromptInput) {
+    aiExplorePromptInput.value = "";
   }
 
   appState.aiExploreSubmitting = true;
@@ -1687,12 +1988,33 @@ async function handleAiExploreSubmit() {
   renderAiExploreUI();
 
   try {
+    await ensureActiveAiModelLoaded((type, message) => {
+      setAiExploreStatus(type, message);
+      renderAiExploreUI();
+    });
+
+    const instructions = buildAiExplorePromptInstructions();
     const promptRequest = buildAiExplorePromptRequest({
       userPrompt: prompt,
-      reasoningEffort
+      reasoningEffort,
+      instructions,
+      conversationHistory
     });
     const response = await sendAiPrompt(appState.appSettings, promptRequest);
-    appState.aiExploreResponse = response.text || `${providerLabel} returned a response, but it did not include a message.`;
+    const responseText = response.text || `${providerLabel} returned a response, but it did not include a message.`;
+
+    // Parse suggestions from response
+    const parsedSuggestions = parseAiExploreSuggestions(responseText);
+
+    // Push assistant message to conversation
+    appState.aiExploreConversation.push({
+      role: "assistant",
+      content: responseText,
+      suggestions: parsedSuggestions || null,
+      timestamp: new Date().toISOString()
+    });
+
+    appState.aiExploreResponse = responseText;
     setAiExploreDebug("send-prompt", response?.debug, {
       hint: `This is the OpenAI-compatible Responses API request used for AI Explore with reasoning effort set to ${reasoningEffort}.`
     });

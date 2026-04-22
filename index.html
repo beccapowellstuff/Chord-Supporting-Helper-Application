@@ -369,32 +369,8 @@
               <section class="ai-explore-card">
                 <div class="ai-explore-card-header">
                   <div>
-                    <div class="ai-explore-card-title">Connection</div>
-                    <p class="ai-explore-card-copy">This uses the LM Studio HTTP address and saved model from Settings.</p>
-                  </div>
-                  <button id="aiExploreConnectBtn" class="app-settings-primary-btn ai-explore-connect-btn" type="button">Connect</button>
-                </div>
-                <div class="ai-explore-connection-grid">
-                  <div class="ai-explore-connection-item">
-                    <span class="ai-explore-connection-label">HTTP Address</span>
-                    <span id="aiExploreBaseUrl" class="ai-explore-connection-value">-</span>
-                  </div>
-                  <div class="ai-explore-connection-item">
-                    <span class="ai-explore-connection-label">Selected Model</span>
-                    <span id="aiExploreSelectedModel" class="ai-explore-connection-value">-</span>
-                  </div>
-                  <div class="ai-explore-connection-item">
-                    <span class="ai-explore-connection-label">Loaded Status</span>
-                    <span id="aiExploreLoadedState" class="ai-explore-connection-value">Not checked yet</span>
-                  </div>
-                </div>
-              </section>
-
-              <section class="ai-explore-card">
-                <div class="ai-explore-card-header">
-                  <div>
                     <div class="ai-explore-card-title">Prompt</div>
-                    <p class="ai-explore-card-copy">Send one prompt through the OpenAI-compatible Responses API to the currently loaded LM Studio model.</p>
+                    <p class="ai-explore-card-copy">Send a prompt through the OpenAI-compatible Responses API to the currently loaded LM Studio model.</p>
                   </div>
                 </div>
                 <div class="ai-explore-prompt-toolbar">
@@ -421,24 +397,25 @@
                 </div>
               </section>
 
-              <section class="ai-explore-card">
+              <section class="ai-explore-card ai-explore-conversation-card">
                 <div class="ai-explore-card-header">
                   <div>
-                    <div class="ai-explore-card-title">Response</div>
-                    <p class="ai-explore-card-copy">The model reply appears here. You can scroll and select the text.</p>
+                    <div class="ai-explore-card-title">Conversation</div>
+                    <p class="ai-explore-card-copy">Chat with the AI about your progression. The AI sees your current key, chords, and recent context.</p>
                   </div>
                   <button id="toggleAiExploreDebugBtn" class="suggest-debug-toggle-btn" type="button" aria-label="Show AI Explore Debug" aria-pressed="false">
                     <span class="visually-hidden">Show AI Explore Debug</span>
                   </button>
                 </div>
-                <div id="aiExploreResponseOutput" class="ai-explore-response-output" tabindex="0">No response yet.</div>
-              </section>
-
-              <section id="aiExploreDebugPanel" class="suggestion-debug-panel" aria-live="polite" hidden>
-                <div class="suggestion-debug-header">
-                  <div class="suggestion-debug-title">AI Explore Debug</div>
+                <div id="aiExploreConversationList" class="ai-explore-conversation-list" tabindex="0" aria-label="AI conversation history">
+                  <div class="ai-explore-conversation-empty">No messages yet. Type a prompt above to start the conversation.</div>
                 </div>
-                <pre id="aiExploreDebugOutput" class="suggestion-debug-output">No AI Explore debug yet.</pre>
+                <section id="aiExploreDebugPanel" class="ai-explore-debug-panel" aria-live="polite" hidden>
+                  <div class="suggestion-debug-header">
+                    <div class="suggestion-debug-title">AI Explore Debug</div>
+                  </div>
+                  <pre id="aiExploreDebugOutput" class="suggestion-debug-output">No AI Explore debug yet.</pre>
+                </section>
               </section>
             </div>
           </div>

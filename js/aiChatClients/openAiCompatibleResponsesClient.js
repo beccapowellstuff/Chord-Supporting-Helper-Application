@@ -109,6 +109,39 @@ async function fetchJson(url, options = {}, errorLabel = "AI server") {
   };
 }
 
+function buildMessagesFromRequest(request) {
+  const messages = [];
+  const systemPrompt = String(request?.instructions || "").trim();
+  const userInput = String(request?.input || "").trim();
+
+  if (systemPrompt) {
+    messages.push({
+      role: "system",
+      content: systemPrompt
+    });
+  }
+
+  const conversationHistory = Array.isArray(request?.conversationHistory) ? request.conversationHistory : [];
+  if (conversationHistory.length > 0) {
+    conversationHistory.forEach(msg => {
+      const role = msg.role === "user" ? "user" : "assistant";
+      const content = String(msg.content || "").trim();
+      if (content) {
+        messages.push({ role, content });
+      }
+    });
+  }
+
+  if (userInput) {
+    messages.push({
+      role: "user",
+      content: userInput
+    });
+  }
+
+  return messages;
+}
+
 function buildRequestBody({ model, request, reasoningEffort }) {
   const normalizedModel = String(model || "").trim();
   const normalizedPrompt = String(request?.input || "").trim();
@@ -129,9 +162,13 @@ function buildRequestBody({ model, request, reasoningEffort }) {
     throw new Error("No prompt was provided.");
   }
 
+  const messages = buildMessagesFromRequest(request);
+  const hasConversationHistory = Array.isArray(request?.conversationHistory) && request.conversationHistory.length > 0;
+  const requestInput = hasConversationHistory ? messages : normalizedPrompt;
+
   const requestBody = {
     model: normalizedModel,
-    input: normalizedPrompt,
+    input: requestInput,
     reasoning: {
       effort: normalizedReasoningEffort
     },

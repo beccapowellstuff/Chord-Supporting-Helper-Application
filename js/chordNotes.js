@@ -117,6 +117,7 @@ const CHORD_DEFINITIONS = [
   { suffix: "7", aliases: ["7"], intervals: [0, 4, 7, 10] },
   { suffix: "sus4", aliases: ["sus4", "sus"], intervals: [0, 5, 7] },
   { suffix: "sus2", aliases: ["sus2"], intervals: [0, 2, 7] },
+  { suffix: "dim7", aliases: ["dim7", "o", "ø7"], intervals: [0, 3, 6, 9] },
   { suffix: "dim", aliases: ["dim"], intervals: [0, 3, 6] },
   { suffix: "aug", aliases: ["aug"], intervals: [0, 4, 8] },
   { suffix: "m", aliases: ["m"], intervals: [0, 3, 7] },
