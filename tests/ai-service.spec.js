@@ -43,6 +43,41 @@ test("AI service lazy-loads the selected provider and falls back to LM Studio fo
       }
 
       if (url.endsWith("/v1/responses")) {
+        const requestBody = typeof init?.body === "string"
+          ? JSON.parse(init.body)
+          : {};
+
+        if (requestBody?.input === "Say hello with toggle reasoning.") {
+          if (requestBody?.reasoning?.effort === "on") {
+            return new Response(JSON.stringify({
+              error: {
+                message: "Invalid enum value. Expected 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh', received 'on'",
+                type: "invalid_request_error",
+                param: "reasoning.effort",
+                code: "invalid_enum_value"
+              }
+            }), {
+              status: 400,
+              headers: {
+                "Content-Type": "application/json"
+              }
+            });
+          }
+
+          if (requestBody?.reasoning?.effort === "medium") {
+            return new Response(JSON.stringify({
+              id: "resp_test_toggle_reasoning",
+              object: "response",
+              output_text: "Hello from the compatibility retry."
+            }), {
+              status: 200,
+              headers: {
+                "Content-Type": "application/json"
+              }
+            });
+          }
+        }
+
         return new Response(JSON.stringify({
           id: "resp_test_123",
           object: "response",
@@ -102,6 +137,13 @@ test("AI service lazy-loads the selected provider and falls back to LM Studio fo
         temperature: 0.7,
         maxOutputTokens: 4096
       });
+      const promptResponseToggleReasoning = await service.sendAiPrompt(settings, {
+        instructions: "",
+        input: "Say hello with toggle reasoning.",
+        reasoningEffort: "on",
+        temperature: 0.7,
+        maxOutputTokens: 4096
+      });
       const repeatedStatus = await service.getAiModelStatus(settings);
 
       return {
@@ -112,6 +154,7 @@ test("AI service lazy-loads the selected provider and falls back to LM Studio fo
         promptResponse,
         promptResponseNoReasoning,
         promptResponseHighReasoning,
+        promptResponseToggleReasoning,
         repeatedStatus,
         fetchCalls
       };
@@ -199,11 +242,35 @@ test("AI service lazy-loads the selected provider and falls back to LM Studio fo
     }
   });
 
+  expect(serviceResult.promptResponseToggleReasoning.text).toBe("Hello from the compatibility retry.");
+  expect(serviceResult.promptResponseToggleReasoning.debug).toMatchObject({
+    method: "POST",
+    url: "http://127.0.0.1:1234/v1/responses",
+    requestBody: {
+      model: "google/gemma-4-27b",
+      input: "Say hello with toggle reasoning.",
+      reasoning: {
+        effort: "medium"
+      },
+      temperature: 0.7,
+      max_output_tokens: 4096,
+      store: false
+    },
+    retry: {
+      reason: "invalid-reasoning-enum",
+      initialReasoningEffort: "on",
+      fallbackReasoningEffort: "medium",
+      supportedSettings: ["none", "minimal", "low", "medium", "high", "xhigh"]
+    }
+  });
+
   expect(serviceResult.repeatedStatus).toEqual(serviceResult.status);
   expect(serviceResult.fetchCalls.map(call => `${call.method} ${call.url}`)).toEqual([
     "GET http://127.0.0.1:1234/api/v1/models",
     "GET http://127.0.0.1:1234/api/v1/models",
     "POST http://127.0.0.1:1234/api/v1/models/load",
+    "POST http://127.0.0.1:1234/v1/responses",
+    "POST http://127.0.0.1:1234/v1/responses",
     "POST http://127.0.0.1:1234/v1/responses",
     "POST http://127.0.0.1:1234/v1/responses",
     "POST http://127.0.0.1:1234/v1/responses",

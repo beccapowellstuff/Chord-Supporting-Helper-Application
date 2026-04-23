@@ -85,6 +85,9 @@ import {
 import {
   buildAiExplorePromptRequest,
   buildAiSuggestionPromptRequest,
+  buildAiSuggestionRenderItems,
+  DEFAULT_AI_SUGGESTION_BEHAVIOR,
+  normalizeAiSuggestionBehavior,
   parseAiSuggestionResponse,
   buildAiExploreProgressionInstructions,
   parseAiExploreSuggestions
@@ -102,6 +105,13 @@ const progressionInput = document.getElementById("progression");
 const feelingSelect = document.getElementById("feeling");
 const suggestBtn = document.getElementById("suggestBtn");
 const suggestAiBtn = document.getElementById("suggestAiBtn");
+const toggleAiSuggestionBehaviorBtn = document.getElementById("toggleAiSuggestionBehaviorBtn");
+const aiSuggestionBehaviorPanel = document.getElementById("aiSuggestionBehaviorPanel");
+const aiSuggestionProfileSelect = document.getElementById("aiSuggestionProfile");
+const aiSuggestionPhraseRoleSelect = document.getElementById("aiSuggestionPhraseRole");
+const aiSuggestionBassBehaviourSelect = document.getElementById("aiSuggestionBassBehaviour");
+const aiSuggestionTopNoteBehaviourSelect = document.getElementById("aiSuggestionTopNoteBehaviour");
+const aiSuggestionColourSelect = document.getElementById("aiSuggestionColour");
 const autoSuggestToggle = document.getElementById("autoSuggestToggle");
 const playProgressionBtn = document.getElementById("playProgressionBtn");
 const playFromSelectedBtn = document.getElementById("playFromSelectedBtn");
@@ -229,6 +239,9 @@ const appState = {
   suggestionAiMessage: "",
   suggestionAiWarning: "",
   suggestionAiDebugText: "No AI suggestion debug yet.",
+  aiSuggestionBehavior: {
+    ...DEFAULT_AI_SUGGESTION_BEHAVIOR
+  },
   appSettings: mergeWithDefaultSettings(DEFAULT_APP_SETTINGS),
   appSettingsDraft: mergeWithDefaultSettings(DEFAULT_APP_SETTINGS),
   aiSettingsModels: [],
@@ -918,6 +931,9 @@ function setSuggestionAiDebug(action, debug = {}, extra = {}) {
     "Prompt Summary:",
     stringifyDebugValue(extra.promptSummary || "(none)"),
     "",
+    "Normalized Parameters:",
+    stringifyDebugValue(extra.normalizedParameters || "(none)"),
+    "",
     "Payload:",
     stringifyDebugValue(debug?.requestBody ?? extra.requestBody),
     "",
@@ -927,6 +943,9 @@ function setSuggestionAiDebug(action, debug = {}, extra = {}) {
     "Parsed Suggestions:",
     stringifyDebugValue(extra.parsedSuggestions || "(none)"),
     "",
+    "Dropped Suggestions:",
+    stringifyDebugValue(extra.droppedSuggestions || "(none)"),
+    "",
     `Error: ${String(debug?.error || extra.error || "(none)")}`,
     `Hint: ${String(extra.hint || "(none)")}`
   ];
@@ -934,205 +953,13 @@ function setSuggestionAiDebug(action, debug = {}, extra = {}) {
   appState.suggestionAiDebugText = lines.join("\n");
 }
 
-function getNormalizedChordIdentity(chord) {
-  const parsed = parseChordName(chord);
-  if (!parsed) {
-    return String(chord || "").trim();
-  }
-
-  return `${parsed.root}|${parsed.suffix}|${parsed.bass || ""}`;
-}
-
-function getNormalizedSuggestedBassNote(bass) {
-  const rawBass = String(bass || "").trim();
-  if (!rawBass) {
-    return "";
-  }
-
-  const pitchOnly = rawBass.replace(/\d+$/, "").trim();
-  return normaliseRoot(pitchOnly);
-}
-
-function buildChordWithSuggestedBass(chord, bass) {
-  const normalizedChord = String(chord || "").trim();
-  const normalizedBass = getNormalizedSuggestedBassNote(bass);
-  if (!normalizedChord) {
-    return "";
-  }
-
-  const parsed = parseChordName(normalizedChord);
-  if (!parsed || !normalizedBass) {
-    return normalizedChord;
-  }
-
-  const root = normaliseRoot(parsed.root);
-  const existingBass = normaliseRoot(parsed.bass || parsed.root);
-  if (!normalizedBass || normalizedBass === existingBass || normalizedBass === root) {
-    return normalizedChord;
-  }
-
-  return `${parsed.root}${parsed.suffix}/${normalizedBass}`;
-}
-
-function getParsedChordRoot(chord) {
-  const normalizedChord = String(chord || "")
-    .replace(/\s*\[[^\]]*\]\s*$/, "")
-    .trim();
-  const parsed = parseChordName(normalizedChord);
-  return parsed ? {
-    root: String(parsed.root || "").trim(),
-    bass: String(parsed.bass || parsed.root || "").trim(),
-    suffix: String(parsed.suffix || "").trim()
-  } : null;
-}
-
-function scoreAiSuggestionItem(chord, analysis = {}, theoryCandidates = [], preferredTargets = []) {
-  const parsed = getParsedChordRoot(chord);
-  if (!parsed?.root) {
-    return -Infinity;
-  }
-
-  const lastChord = getParsedChordRoot(analysis.lastChord || "");
-  const candidateRoot = parsed.root;
-  const candidateBass = parsed.bass || parsed.root;
-  const normalizedTheoryCandidates = Array.isArray(theoryCandidates)
-    ? theoryCandidates
-        .map(candidate => getParsedChordRoot(candidate))
-        .filter(Boolean)
-    : [];
-  const preferred = new Set((Array.isArray(preferredTargets) ? preferredTargets : []).map(value => String(value || "").trim()).filter(Boolean));
-  const establishedPaletteText = String(analysis.establishedPalette || "").toLowerCase();
-  const chordLabel = String(chord || "").toLowerCase();
-  const suffix = String(parsed.suffix || "").toLowerCase();
-
-  let score = 0;
-
-  if (preferred.has(candidateRoot)) {
-    score += 45;
-  }
-
-  if (preferred.has(candidateBass)) {
-    score += 18;
-  }
-
-  if (lastChord?.bass && candidateRoot === lastChord.bass) {
-    score += 50;
-  }
-
-  if (lastChord?.bass && candidateBass === lastChord.bass) {
-    score += 26;
-  }
-
-  if (lastChord?.root && candidateRoot === lastChord.root) {
-    score += 14;
-  }
-
-  if (candidateRoot === String(analysis.globalCenter || "").trim()) {
-    score += 24;
-  }
-
-  if (candidateRoot === String(analysis.localCenterChord || "").trim() || candidateRoot === String(analysis.localCenterExactChord || "").trim()) {
-    score += 16;
-  }
-
-  if (normalizedTheoryCandidates.some(candidate => candidate.root === candidateRoot)) {
-    score += 30;
-  }
-
-  if (normalizedTheoryCandidates.some(candidate => candidate.bass && candidate.bass === candidateBass)) {
-    score += 10;
-  }
-
-  if (establishedPaletteText.includes(candidateRoot.toLowerCase()) || establishedPaletteText.includes(chordLabel)) {
-    score += 12;
-  }
-
-  if (lastChord?.bass && candidateRoot === lastChord.bass && /m(?:aj7|7|9|11|13)?|maj7|6|add9|add11|add13/i.test(suffix)) {
-    score += 18;
-  }
-
-  if (lastChord?.bass && candidateRoot === lastChord.bass && /7|9|11|13/i.test(suffix)) {
-    score += 8;
-  }
-
-  if (lastChord?.root && candidateBass === lastChord.root) {
-    score += 6;
-  }
-
-  if (lastChord?.bass && candidateBass === lastChord.bass && /m7|m9|m11|m13/i.test(suffix)) {
-    score += 14;
-  }
-
-  if (candidateRoot === lastChord?.bass && candidateBass === lastChord?.bass && /m7|m9|m11|m13/i.test(suffix)) {
-    score += 14;
-  }
-
-  if (candidateRoot === lastChord?.bass && /^m(?:7|9|11|13)?$/i.test(suffix)) {
-    score += 22;
-  }
-
-  if (candidateRoot === lastChord?.bass && /^[A-G]/.test(candidateBass) && candidateBass !== candidateRoot) {
-    score += 5;
-  }
-
-  return score;
-}
-
-function buildAiSuggestionRenderItems(items = [], analysis = {}, theoryCandidates = [], preferredTargets = []) {
-  const seen = new Set();
-  const validItems = [];
-  let droppedCount = 0;
-
-  (Array.isArray(items) ? items : []).forEach(item => {
-    const rawChord = String(item?.chord || "").trim();
-    const bass = String(item?.bass || "").trim();
-    const topNote = String(item?.topNote || "").trim();
-    const normalizedChord = buildChordWithSuggestedBass(rawChord, bass);
-    const reason = String(item?.reason || "").trim();
-    if (!normalizedChord || !parseChordName(normalizedChord)) {
-      droppedCount += 1;
-      return;
-    }
-
-    const identity = `${getNormalizedChordIdentity(normalizedChord)}|${topNote}`;
-    if (!identity || seen.has(identity)) {
-      droppedCount += 1;
-      return;
-    }
-
-    seen.add(identity);
-    validItems.push({
-      chord: normalizedChord,
-      rawChord,
-      bass,
-      topNote,
-      strength: Number.isFinite(Number(item?.strength)) ? Number(item.strength) : null,
-      role: String(item?.role || "").trim(),
-      reason: reason || "AI suggested this as a useful continuation.",
-      aiScore: scoreAiSuggestionItem(normalizedChord, analysis, theoryCandidates, preferredTargets),
-      aiSourceIndex: validItems.length,
-      fn: "AI",
-      presentation: {
-        isAi: true,
-        intentLabel: "AI idea",
-        summaryLabel: "AI-generated continuation",
-        tone: "colour"
-      }
-    });
-  });
-
-  return {
-    items: validItems,
-    droppedCount
-  };
-}
-
 function getSuggestionAiContextToken() {
   return JSON.stringify({
     key: appState.selectedKey,
     feeling: feelingSelect?.value || "",
     progression: progressionItemsToText(appState.progressionItems),
-    topNotes: formatProgressionWithTopNotes(appState.progressionItems)
+    topNotes: formatProgressionWithTopNotes(appState.progressionItems),
+    aiSuggestionBehavior: appState.aiSuggestionBehavior
   });
 }
 
@@ -1790,12 +1617,54 @@ function renderSuggestionEngineControls() {
     suggestAiBtn.disabled = !hasProgression || appState.suggestionAiRequesting;
     suggestAiBtn.textContent = appState.suggestionAiRequesting ? "AI..." : "AI";
   }
+
+  if (toggleAiSuggestionBehaviorBtn) {
+    const isOpen = Boolean(appState.aiSuggestionBehavior?.drawerOpen);
+    toggleAiSuggestionBehaviorBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+    toggleAiSuggestionBehaviorBtn.textContent = isOpen ? "Hide AI Behaviour" : "AI Behaviour";
+  }
+
+  if (aiSuggestionBehaviorPanel) {
+    aiSuggestionBehaviorPanel.hidden = !appState.aiSuggestionBehavior?.drawerOpen;
+  }
+
+  if (aiSuggestionProfileSelect) {
+    aiSuggestionProfileSelect.value = appState.aiSuggestionBehavior?.profile || DEFAULT_AI_SUGGESTION_BEHAVIOR.profile;
+    aiSuggestionProfileSelect.disabled = Boolean(appState.suggestionAiRequesting);
+  }
+
+  if (aiSuggestionPhraseRoleSelect) {
+    aiSuggestionPhraseRoleSelect.value = appState.aiSuggestionBehavior?.phraseRole || DEFAULT_AI_SUGGESTION_BEHAVIOR.phraseRole;
+    aiSuggestionPhraseRoleSelect.disabled = Boolean(appState.suggestionAiRequesting);
+  }
+
+  if (aiSuggestionBassBehaviourSelect) {
+    aiSuggestionBassBehaviourSelect.value = appState.aiSuggestionBehavior?.bassBehaviour || DEFAULT_AI_SUGGESTION_BEHAVIOR.bassBehaviour;
+    aiSuggestionBassBehaviourSelect.disabled = Boolean(appState.suggestionAiRequesting);
+  }
+
+  if (aiSuggestionTopNoteBehaviourSelect) {
+    aiSuggestionTopNoteBehaviourSelect.value = appState.aiSuggestionBehavior?.topNoteBehaviour || DEFAULT_AI_SUGGESTION_BEHAVIOR.topNoteBehaviour;
+    aiSuggestionTopNoteBehaviourSelect.disabled = Boolean(appState.suggestionAiRequesting);
+  }
+
+  if (aiSuggestionColourSelect) {
+    aiSuggestionColourSelect.value = appState.aiSuggestionBehavior?.colour || DEFAULT_AI_SUGGESTION_BEHAVIOR.colour;
+    aiSuggestionColourSelect.disabled = Boolean(appState.suggestionAiRequesting);
+  }
+}
+
+function updateAiSuggestionBehavior(patch = {}) {
+  appState.aiSuggestionBehavior = {
+    ...DEFAULT_AI_SUGGESTION_BEHAVIOR,
+    ...(appState.aiSuggestionBehavior || {}),
+    ...patch
+  };
 }
 
 async function handleSuggestionAiRequest() {
   const suggestionPayload = buildCurrentSuggestionPayload();
   const parsedProgression = Array.isArray(suggestionPayload?.parsedProgression) ? suggestionPayload.parsedProgression : [];
-  const reasoningEffort = String(appState.aiExploreReasoningEffort || "medium").trim().toLowerCase() || "medium";
   const contextToken = getSuggestionAiContextToken();
 
   if (!parsedProgression.length) {
@@ -1821,10 +1690,18 @@ async function handleSuggestionAiRequest() {
   renderSuggestionEngineControls();
   renderSuggestionResults(suggestionPayload);
 
-  const promptContext = buildSuggestionAiPromptContext(suggestionPayload);
+  const baseAnalysis = suggestionPayload?.progressionState || {};
+  const flexibleContext = {
+    analysis: baseAnalysis,
+    pedalBassCue: detectPedalBass(getRecentVoicingLabels(appState.progressionItems, 8)),
+    recentVoicingLabels: getRecentVoicingLabels(appState.progressionItems, 8)
+  };
+  const normalizedBehavior = normalizeAiSuggestionBehavior(appState.aiSuggestionBehavior, flexibleContext);
+  const promptContext = buildSuggestionAiPromptContext(suggestionPayload, normalizedBehavior.normalized);
   const promptRequest = buildAiSuggestionPromptRequest({
     context: promptContext,
-    reasoningEffort
+    behavior: normalizedBehavior.normalized,
+    profileConfig: normalizedBehavior.profileConfig
   });
 
   try {
@@ -1852,9 +1729,14 @@ async function handleSuggestionAiRequest() {
     const parsedItems = parseAiSuggestionResponse(response.text);
     const filtered = buildAiSuggestionRenderItems(
       parsedItems,
-      suggestionPayload?.progressionState || {},
-      promptContext?.theoryCandidates || [],
-      promptContext?.preferredTargets || []
+      {
+        analysis: suggestionPayload?.progressionState || {},
+        theoryCandidates: promptContext?.theoryCandidates || [],
+        preferredTargets: promptContext?.preferredTargets || [],
+        behaviorParams: normalizedBehavior.normalized,
+        currentBassNote: promptContext?.currentBassNote || "",
+        currentTopNote: promptContext?.currentTopNote || ""
+      }
     );
 
     appState.suggestionAiAttempted = true;
@@ -1869,17 +1751,21 @@ async function handleSuggestionAiRequest() {
     setSuggestionAiDebug("request-ai-suggestions", response?.debug, {
       promptRequest,
       promptSummary: promptRequest.debugMeta?.summaryLines || [],
+      normalizedParameters: normalizedBehavior,
       rawResponse: response.text || null,
       parsedSuggestions: filtered.items.map(item => ({
         chord: item.chord,
         bass: item.bass,
         topNote: item.topNote,
-        strength: item.strength,
+        resolutionType: item.resolutionType,
+        confidence: item.confidence,
         role: item.role,
         reason: item.reason,
-        aiScore: item.aiScore
+        aiScore: item.aiScore,
+        aiMetrics: item.aiMetrics
       })),
-      hint: `This AI suggestion request used the OpenAI-compatible Responses API with ${reasoningEffort} reasoning effort.`
+      droppedSuggestions: filtered.dropped,
+      hint: `This AI suggestion request used the OpenAI-compatible Responses API with the ${normalizedBehavior.resolved.profile} profile.`
     });
 
     setSuggestionAiStatus(
@@ -1900,6 +1786,7 @@ async function handleSuggestionAiRequest() {
     setSuggestionAiDebug("request-ai-suggestions", error?.debug, {
       promptRequest,
       promptSummary: promptRequest.debugMeta?.summaryLines || [],
+      normalizedParameters: normalizedBehavior,
       error: error instanceof Error ? error.message : "AI suggestions could not be loaded.",
       hint: "Check the provider address, selected model, and AI response format."
     });
@@ -4569,14 +4456,16 @@ function buildCurrentSuggestionPayload() {
   });
 }
 
-function buildSuggestionAiPromptContext(suggestionPayload) {
+function buildSuggestionAiPromptContext(suggestionPayload, behaviorParams = {}) {
   const analysis = suggestionPayload?.progressionState || {};
   const suggestions = Array.isArray(suggestionPayload?.suggestions) ? suggestionPayload.suggestions : [];
-  const recentProgressionWindow = formatRecentProgressionWindow(appState.progressionItems, 8);
-  const recentVoicingLabels = getRecentVoicingLabels(appState.progressionItems, 8);
+  const recentWindowSize = Number(behaviorParams?.recentWindowSize) || 8;
+  const recentProgressionWindow = formatRecentProgressionWindow(appState.progressionItems, recentWindowSize);
+  const recentVoicingLabels = getRecentVoicingLabels(appState.progressionItems, recentWindowSize);
   const recentBassMotion = formatVoiceMotion(recentVoicingLabels, "bassNote");
   const recentTopLineMotion = formatVoiceMotion(recentVoicingLabels, "topNote");
   const pedalBassCue = detectPedalBass(recentVoicingLabels);
+  const currentChord = String(appState.progressionItems.at(-1)?.chord || analysis.lastChord || "").trim();
   const currentBassNote = String(recentVoicingLabels.at(-1)?.bassNote || "").trim();
   const currentTopNote = String(recentVoicingLabels.at(-1)?.topNote || "").trim();
   const topLinePreference = buildTopLinePreference(recentVoicingLabels);
@@ -4611,6 +4500,7 @@ function buildSuggestionAiPromptContext(suggestionPayload) {
     recentProgressionWindowWithNotes: recentVoicingLabels.length
       ? recentVoicingLabels.map(entry => `${entry.chord}[${entry.bassNote || "?"} -> ${entry.topNote || "?"}]`).join(" | ")
       : recentProgressionWindow || "(empty)",
+    currentChord: currentChord || "(none)",
     recentBassMotion: recentBassMotion || "(none)",
     recentTopLineMotion: recentTopLineMotion || "(none)",
     pedalBassCue: pedalBassCue || "",
@@ -4630,6 +4520,7 @@ function buildSuggestionAiPromptContext(suggestionPayload) {
     tensionCandidates: Array.isArray(analysis.tensionCandidates) ? analysis.tensionCandidates.map(entry => entry.chord) : [],
     topLineSummary,
     summaryNotes: Array.isArray(analysis.summaryNotes) ? analysis.summaryNotes : [],
+    recentVoicingLabels,
     theoryCandidates: [...suggestions]
       .sort((a, b) => (b?.score || 0) - (a?.score || 0))
       .slice(0, 6)
@@ -4985,6 +4876,50 @@ async function init() {
     if (suggestAiBtn) {
       suggestAiBtn.addEventListener("click", () => {
         void handleSuggestionAiRequest();
+      });
+    }
+
+    if (toggleAiSuggestionBehaviorBtn) {
+      toggleAiSuggestionBehaviorBtn.addEventListener("click", () => {
+        updateAiSuggestionBehavior({
+          drawerOpen: !appState.aiSuggestionBehavior?.drawerOpen
+        });
+        renderSuggestionEngineControls();
+      });
+    }
+
+    if (aiSuggestionProfileSelect) {
+      aiSuggestionProfileSelect.addEventListener("change", () => {
+        updateAiSuggestionBehavior({ profile: String(aiSuggestionProfileSelect.value || "precise").trim().toLowerCase() || "precise" });
+        runSuggestions();
+      });
+    }
+
+    if (aiSuggestionPhraseRoleSelect) {
+      aiSuggestionPhraseRoleSelect.addEventListener("change", () => {
+        updateAiSuggestionBehavior({ phraseRole: String(aiSuggestionPhraseRoleSelect.value || "flexible").trim().toLowerCase() || "flexible" });
+        runSuggestions();
+      });
+    }
+
+    if (aiSuggestionBassBehaviourSelect) {
+      aiSuggestionBassBehaviourSelect.addEventListener("change", () => {
+        updateAiSuggestionBehavior({ bassBehaviour: String(aiSuggestionBassBehaviourSelect.value || "flexible").trim().toLowerCase() || "flexible" });
+        runSuggestions();
+      });
+    }
+
+    if (aiSuggestionTopNoteBehaviourSelect) {
+      aiSuggestionTopNoteBehaviourSelect.addEventListener("change", () => {
+        updateAiSuggestionBehavior({ topNoteBehaviour: String(aiSuggestionTopNoteBehaviourSelect.value || "flexible").trim().toLowerCase() || "flexible" });
+        runSuggestions();
+      });
+    }
+
+    if (aiSuggestionColourSelect) {
+      aiSuggestionColourSelect.addEventListener("change", () => {
+        updateAiSuggestionBehavior({ colour: String(aiSuggestionColourSelect.value || "flexible").trim().toLowerCase() || "flexible" });
+        runSuggestions();
       });
     }
 

@@ -187,6 +187,122 @@ test("copies the current suggestion debug as an AI brief", async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.__copiedSuggestionDebug)).toContain("Overall ranking:");
 });
 
+test("AI behaviour controls drive the request profile and behaviour contract", async ({ page }) => {
+  await page.addInitScript(storageKey => {
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      version: 1,
+      preferences: {
+        defaultTempoBpm: 120,
+        ai: {
+          provider: "lmStudio",
+          providers: {
+            lmStudio: {
+              baseUrl: "http://127.0.0.1:1234",
+              selectedModel: "google/gemma-4-27b"
+            }
+          }
+        }
+      }
+    }));
+  }, SETTINGS_STORAGE_KEY);
+
+  let modelsRequestCount = 0;
+  await page.route("http://127.0.0.1:1234/api/v1/models", route => {
+    modelsRequestCount += 1;
+    const isLoaded = modelsRequestCount >= 2;
+
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        models: [
+          {
+            type: "llm",
+            key: "google/gemma-4-27b",
+            display_name: "Gemma 4 27B",
+            loaded_instances: isLoaded ? ["google/gemma-4-27b"] : []
+          }
+        ]
+      })
+    });
+  });
+
+  await page.route("http://127.0.0.1:1234/api/v1/models/load", route =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        status: "loaded",
+        instance_id: "google/gemma-4-27b"
+      })
+    })
+  );
+
+  await page.route("http://127.0.0.1:1234/v1/responses", async route => {
+    const payload = route.request().postDataJSON();
+
+    expect(payload.reasoning).toMatchObject({
+      effort: "on"
+    });
+    expect(payload.temperature).toBe(0.6);
+    expect(payload.input).toContain("Requested Behaviour:");
+    expect(payload.input).toContain("- profile: expressive");
+    expect(payload.input).toContain("- phrase role: arrive");
+    expect(payload.input).toContain("- bass behaviour: hold");
+    expect(payload.input).toContain("- top-note behaviour: hold_or_neighbor");
+    expect(payload.input).toContain("- colour level: triad_bias");
+
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        id: "resp_ai_behaviour_1",
+        object: "response",
+        output_text: JSON.stringify({
+          suggestions: [
+            {
+              chord: "C",
+              bass: "C3",
+              topNote: "E5",
+              resolutionType: "arrive",
+              confidence: 0.84,
+              reason: "Arrives clearly while keeping the voicing compact."
+            }
+          ]
+        })
+      })
+    });
+  });
+
+  await gotoApp(page);
+  await setProgressionText(page, "C, F, G");
+  await page.getByRole("button", { name: /Suggestion Engine/ }).click();
+
+  await expect(page.locator("#aiSuggestionBehaviorPanel")).toBeHidden();
+  await page.getByRole("button", { name: "AI Behaviour" }).click();
+  await expect(page.locator("#aiSuggestionBehaviorPanel")).toBeVisible();
+
+  await page.locator("#aiSuggestionProfile").selectOption("expressive");
+  await page.locator("#aiSuggestionPhraseRole").selectOption("arrive");
+  await page.locator("#aiSuggestionBassBehaviour").selectOption("hold");
+  await page.locator("#aiSuggestionTopNoteBehaviour").selectOption("stay_near");
+  await page.locator("#aiSuggestionColour").selectOption("plain");
+
+  await page.locator("#suggestAiBtn").click();
+
+  await expect(page.locator("#suggestionAiStatus")).toContainText("Loaded 1 AI suggestion.");
+  await expect(page.locator('[data-suggestion-section="ai"] .suggestion-card-chord')).toContainText("C");
+});
+
 test("uses slash-bass context to promote bass-led continuation suggestions", async ({ page }) => {
   await gotoApp(page);
 
@@ -416,11 +532,14 @@ test("AI button auto-connects and renders a separate AI suggestion set below the
     const payload = route.request().postDataJSON();
 
     expect(payload.reasoning).toMatchObject({
-      effort: "none"
+      effort: "off"
     });
-    expect(payload.input).toContain("Recent progression window: C | F | G");
-    expect(payload.input).toContain("Key and mode: C Ionian");
-    expect(payload.input).toContain("Current theory candidates:");
+    expect(payload.input).toContain("Observed Context:");
+    expect(payload.input).toContain("- recent progression window: C | F | G");
+    expect(payload.input).toContain("- key and mode: C Ionian");
+    expect(payload.input).toContain("- current theory candidates:");
+    expect(payload.input).toContain("Requested Behaviour:");
+    expect(payload.input).toContain("- profile: precise");
 
     await route.fulfill({
       status: 200,
@@ -444,10 +563,6 @@ test("AI button auto-connects and renders a separate AI suggestion set below the
   });
 
   await gotoApp(page);
-  await page.evaluate(() => {
-    window.appState.aiExploreReasoningEffort = "none";
-  });
-
   await setProgressionText(page, "C, F, G");
   await page.getByRole("button", { name: /Suggestion Engine/ }).click();
 
@@ -461,7 +576,7 @@ test("AI button auto-connects and renders a separate AI suggestion set below the
     .map(normalizeSuggestionLabel);
   expect(aiChords).toEqual(expect.arrayContaining(["Am", "C"]));
 
-  await page.locator('[data-suggestion-section="ai"] .suggestion-card-chord').first().click();
+  await page.locator('[data-suggestion-section="ai"] .suggestion-card-chord', { hasText: "Am" }).first().click();
   await expect(page.locator("#results .suggestion-detail-reason")).not.toHaveText("");
   await page.locator("#results .suggestion-detail-add-btn").click();
 
@@ -470,8 +585,8 @@ test("AI button auto-connects and renders a separate AI suggestion set below the
 
   await page.getByRole("button", { name: "Show Suggestion Debug" }).click();
   await expect(page.locator("#suggestionAiDebugOutput")).toContainText("Action: request-ai-suggestions");
-  await expect(page.locator("#suggestionAiDebugOutput")).toContainText("\"effort\": \"none\"");
-  await expect(page.locator("#suggestionAiDebugOutput")).toContainText("Current theory candidates:");
+  await expect(page.locator("#suggestionAiDebugOutput")).toContainText("\"effort\": \"off\"");
+  await expect(page.locator("#suggestionAiDebugOutput")).toContainText("- current theory candidates:");
 });
 
 test("AI suggestion section shows a friendly empty state when no valid AI chord labels are returned", async ({ page }) => {

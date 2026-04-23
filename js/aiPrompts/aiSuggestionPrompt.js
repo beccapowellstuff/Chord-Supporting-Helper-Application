@@ -1,73 +1,115 @@
-const AI_SUGGESTION_INSTRUCTIONS = [
-  "You are helping a chord progression assistant suggest the next single chord.",
-  "Return JSON only with no markdown, no prose outside the JSON, and no extra commentary.",
-  'Use this exact shape: {"suggestions":[{"chord":"G","bass":"G","topNote":"G5","strength":0.8,"role":"continuation|resolution|colour-shift","reason":"Short explanation"}]}',
-  "Return exactly 6 suggestions.",
-  "Each suggestion must contain one single chord label, one bass note, one top note, one strength value, one role, and one short reason.",
-  "If the bass differs from the chord root, the chord field must use slash-chord notation that matches the bass field, for example Am/E with bass E.",
-  "Do not return a progression, multiple chords, alternatives, or slash explanations outside the required fields.",
-  "Rank suggestions from strongest to weakest, with the first item being the most likely next chord.",
-  "Focus primarily on the current chord and the most recent local movement, not the full progression as a whole.",
-  "Use only the recent chord window provided in the prompt as your main context.",
-  "Treat bass and top voice as separate melodic lines.",
-  "If the prompt shows a repeated bass note or pedal tone, preserve it unless there is a strong reason to release it.",
-  "When a pedal-bass cue is present, at least the first 3 suggestions should keep that bass or explicitly justify releasing it.",
-  "Prioritise local voice-leading over vague mood language.",
-  "Track bass movement from the current bass note exactly.",
-  "Track top-line movement from the current top note exactly.",
-  "Prefer suggestions that create believable motion in bass and soprano, including held notes, stepwise motion, or clearly justified leaps.",
-  "When the current top note is moving by step, prefer the next top note to hold or continue by step before suggesting a leap.",
-  "If you mention tension, release, continuation, or resolution, base it on the current chord and the immediately recent context only.",
-  "Do not claim resolution from an earlier chord unless it is directly relevant to the current chord.",
-  "Do not describe a leap as stepwise.",
-  "Do not invent theory claims that are not supported by the current chord, bass note, top note, or recent harmonic movement.",
-  "Use mood only as a secondary tiebreaker after harmonic fit, bass motion, and top-line motion.",
-  "Prefer valid ASCII chord labels commonly used in pop, rock, and jazz notation.",
-  "Avoid duplicates and near-duplicates.",
-  "Offer a mix of strong expected choices and a small number of creative but still believable options.",
-  "Keep each reason concise, specific, and grounded in bass movement, top-line movement, or harmonic role.",
-].join(' ');
+const BASE_TASK_LINES = [
+  "You are a music theory assistant choosing the next single chord in a progression.",
+  "Suggest chords that match the requested musical behaviour, not just generally plausible harmony.",
+  "Prioritise controllable musical behaviour over vague mood language.",
+  "Be exact about chord label, bass note, top note, and phrase function."
+];
+
+const OUTPUT_CONTRACT_LINES = [
+  "Return JSON only. Do not include markdown fences or commentary.",
+  "Return exactly 6 ranked suggestions when possible, from strongest to weakest.",
+  'Use this exact shape: {"suggestions":[{"chord":"Am/E","bass":"E3","topNote":"C5","resolutionType":"begin resolving","confidence":0.78,"reason":"Short explanation"}]}',
+  "Each suggestion must contain chord, bass, topNote, resolutionType, confidence, and reason.",
+  "Use common ASCII chord spellings.",
+  "If the bass differs from the chord root, the chord field must use slash-chord notation that matches the bass field.",
+  "Use note names with octave numbers for bass and topNote when you can infer them reliably."
+];
+
+const PROFILE_INSTRUCTION_MAP = Object.freeze({
+  precise: [
+    "Prefer literal voice-leading fit over adventurous colour.",
+    "Prefer simpler chord qualities unless extra colour clearly improves the fit.",
+    "Avoid wide melodic jumps unless the requested behaviour strongly supports them."
+  ],
+  expressive: [
+    "Allow tasteful extra colour when it still respects bass movement, top-note behaviour, and phrase role.",
+    "You may use more colour than precise mode, but do not ignore the requested behaviour.",
+    "Keep the results bounded and musically coherent rather than random."
+  ]
+});
 
 function stringifyArray(values = []) {
   return Array.isArray(values) && values.length ? values.join(", ") : "(none)";
 }
 
-export function buildAiSuggestionPromptRequest({ context = {}, reasoningEffort = "medium" } = {}) {
-  const theoryCandidates = Array.isArray(context.theoryCandidates) ? context.theoryCandidates : [];
+function buildObservedContextLines(context = {}) {
+  return [
+    "Observed Context:",
+    `- progression: ${context.progressionText || "(empty)"}`,
+    `- recent progression window: ${context.recentProgressionWindow || "(none)"}`,
+    `- recent progression with bass/top notes: ${context.recentProgressionWindowWithNotes || "(none)"}`,
+    `- current chord: ${context.currentChord || "(none)"}`,
+    `- current bass note: ${context.currentBassNote || "(none)"}`,
+    `- current top note: ${context.currentTopNote || "(none)"}`,
+    `- recent bass motion: ${context.recentBassMotion || "(none)"}`,
+    `- recent top-line motion: ${context.recentTopLineMotion || "(none)"}`,
+    `- pedal bass cue: ${context.pedalBassCue || "(none)"}`,
+    `- key and mode: ${context.selectedKey || "(none)"}`,
+    `- feeling: ${context.feeling || "(none)"}`,
+    `- last chord: ${context.lastChord || "(none)"}`,
+    `- harmonic read: ${context.harmonicRead || "(none)"}`,
+    `- direction: ${context.direction || "(none)"}`,
+    `- cadence read: ${context.cadenceRead || "(none)"}`,
+    `- centre read: ${context.centreRead || "(none)"}`
+  ];
+}
 
-  const summaryLines = [
-    context.recentProgressionWindow ? `Recent progression window: ${context.recentProgressionWindow}` : "",
-    context.recentProgressionWindowWithNotes ? `Recent progression window with bass/top notes: ${context.recentProgressionWindowWithNotes}` : "",
-    context.recentBassMotion ? `Bass motion cue: ${context.recentBassMotion}` : "",
-    context.pedalBassCue ? `Pedal bass cue: ${context.pedalBassCue}` : "",
-    context.currentBassNote ? `Current bass note: ${context.currentBassNote}` : "",
-    context.pedalBassHint ? context.pedalBassHint : "",
-    context.recentTopLineMotion ? `Top-line cue: ${context.recentTopLineMotion}` : "",
-    context.currentTopNote ? `Current top note: ${context.currentTopNote}` : "",
-    context.topLinePreference ? `Top-line preference: ${context.topLinePreference}` : "",
-    `Key and mode: ${context.selectedKey || "(none)"}`,
-    `Feeling: ${context.feeling || "(none)"}`,
-    context.lastChord ? `Last chord: ${context.lastChord}` : "",
-    context.harmonicRead ? `Harmonic read: ${context.harmonicRead}` : "",
-    context.direction ? `Direction: ${context.direction}` : "",
-    context.cadenceRead ? `Cadence read: ${context.cadenceRead}` : "",
-    context.centreRead ? `Centre read: ${context.centreRead}` : "",
-    context.establishedPalette ? `Established palette: ${context.establishedPalette}` : "",
-    context.preferredTargets?.length ? `Preferred targets: ${stringifyArray(context.preferredTargets)}` : "",
-    context.tensionCandidates?.length ? `Tension candidates: ${stringifyArray(context.tensionCandidates)}` : "",
-    context.summaryNotes?.length ? `Progression read notes: ${stringifyArray(context.summaryNotes)}` : "",
-    theoryCandidates.length ? `Current theory candidates: ${theoryCandidates.join(", ")}` : ""
-  ].filter(Boolean);
+function buildControlContractLines(behavior = {}, profileConfig = {}) {
+  return [
+    "Requested Behaviour:",
+    `- profile: ${behavior.profile || "(none)"}`,
+    `- thinking mode intent: ${profileConfig.thinkingMode || "off"}`,
+    `- phrase role: ${behavior.phraseIntent || "(none)"}`,
+    `- bass behaviour: ${behavior.bassMotionIntent || "(none)"}`,
+    `- top-note behaviour: ${behavior.topLineIntent || "(none)"}`,
+    `- colour level: ${behavior.colourBudget || "(none)"}`,
+    `- resolution bias: ${behavior.resolutionBias || "(none)"}`,
+    `- cadence allowance: ${behavior.cadenceAllowance || "(none)"}`,
+    `- complexity budget: ${behavior.complexityBudget || "(none)"}`,
+    `- allow borrowed chords: ${behavior.allowBorrowedChords ? "yes" : "no"}`,
+    `- allow applied dominants: ${behavior.allowAppliedDominants ? "yes" : "no"}`,
+    `- repetition allowance: ${behavior.allowRepetition || "(none)"}`,
+    `- candidate count: ${behavior.candidateCount || 6}`
+  ];
+}
+
+function buildTheoryGuidanceLines(context = {}) {
+  return [
+    "Theory Guidance:",
+    `- preferred targets: ${stringifyArray(context.preferredTargets)}`,
+    `- established palette: ${context.establishedPalette || "(none)"}`,
+    `- tension candidates: ${stringifyArray(context.tensionCandidates)}`,
+    `- current theory candidates: ${stringifyArray(context.theoryCandidates)}`,
+    `- progression read notes: ${stringifyArray(context.summaryNotes)}`
+  ];
+}
+
+export function buildAiSuggestionPromptRequest({ context = {}, behavior = {}, profileConfig = {} } = {}) {
+  const normalizedProfile = String(behavior?.profile || profileConfig?.profile || "precise").trim().toLowerCase() || "precise";
+  const profileLines = PROFILE_INSTRUCTION_MAP[normalizedProfile] || PROFILE_INSTRUCTION_MAP.precise;
+  const inputLines = [
+    ...buildObservedContextLines(context),
+    "",
+    ...buildControlContractLines(behavior, profileConfig),
+    "",
+    ...buildTheoryGuidanceLines(context)
+  ];
 
   return {
-    instructions: AI_SUGGESTION_INSTRUCTIONS,
-    input: summaryLines.join("\n"),
-    reasoningEffort: String(reasoningEffort || "medium").trim().toLowerCase() || "medium",
-    temperature: 0.3,
-    maxOutputTokens: 1200,
+    instructions: [
+      ...BASE_TASK_LINES,
+      ...OUTPUT_CONTRACT_LINES,
+      ...profileLines
+    ].join(" "),
+    input: inputLines.join("\n"),
+    reasoningEffort: String(profileConfig?.reasoningEffort || "off").trim().toLowerCase() || "off",
+    temperature: Number.isFinite(Number(profileConfig?.temperature)) ? Number(profileConfig.temperature) : 0.3,
+    maxOutputTokens: Number.isFinite(Number(profileConfig?.maxOutputTokens)) ? Number(profileConfig.maxOutputTokens) : 1200,
     debugMeta: {
       task: "suggestionEngine",
-      summaryLines
+      summaryLines: inputLines,
+      normalizedParameters: behavior,
+      profileConfig
     }
   };
 }
@@ -103,18 +145,28 @@ function normalizeParsedEntry(entry) {
       chord: String(rawChord || "").trim(),
       bass: "",
       topNote: "",
+      resolutionType: "",
+      confidence: null,
       strength: null,
       role: "",
       reason: String(reasonParts.join(" - ") || "").trim()
     };
   }
 
+  const confidence = Number.isFinite(Number(entry?.confidence))
+    ? Number(entry.confidence)
+    : (Number.isFinite(Number(entry?.strength)) ? Number(entry.strength) : null);
+
+  const resolutionType = String(entry?.resolutionType || entry?.resolution_type || entry?.role || entry?.type || "").trim();
+
   return {
     chord: String(entry?.chord || entry?.name || entry?.label || "").trim(),
     bass: String(entry?.bass || entry?.bassNote || entry?.bass_note || "").trim(),
     topNote: String(entry?.topNote || entry?.top_note || entry?.soprano || "").trim(),
-    strength: Number.isFinite(Number(entry?.strength)) ? Number(entry.strength) : null,
-    role: String(entry?.role || entry?.type || "").trim(),
+    resolutionType,
+    confidence,
+    strength: confidence,
+    role: resolutionType,
     reason: String(entry?.reason || entry?.why || entry?.note || "").trim()
   };
 }
@@ -146,11 +198,17 @@ function parseLineSuggestions(text) {
     .split(/\r?\n/)
     .map(line => line.trim())
     .filter(Boolean)
-    .map(line => line.replace(/^[-*•\d.)\s]+/, "").trim())
+    .map(line => line.replace(/^[-*\d.)\s]+/, "").trim())
     .map(line => {
       const [rawChord, ...reasonParts] = line.split(/\s*[:\-]\s*/);
       return {
         chord: String(rawChord || "").trim(),
+        bass: "",
+        topNote: "",
+        resolutionType: "",
+        confidence: null,
+        strength: null,
+        role: "",
         reason: String(reasonParts.join(" - ") || "").trim()
       };
     })

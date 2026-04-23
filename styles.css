@@ -2207,6 +2207,80 @@ h2 {
   color: var(--accent-dark);
 }
 
+.suggest-ai-behaviour-btn {
+  width: auto;
+  min-width: 0;
+  margin-bottom: 0;
+  padding: 10px 14px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgba(244, 216, 230, 0.36);
+  color: var(--accent-dark);
+  border: 1px solid rgba(200, 95, 143, 0.22);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.suggest-ai-behaviour-btn:hover {
+  background: rgba(244, 216, 230, 0.66);
+}
+
+.ai-suggestion-behavior-panel {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(200, 95, 143, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(250, 239, 244, 0.9));
+}
+
+.ai-suggestion-behavior-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.ai-suggestion-behavior-title {
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ai-suggestion-behavior-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ai-suggestion-behavior-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.ai-suggestion-behavior-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-suggestion-behavior-label {
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ai-suggestion-behavior-field select {
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
 .suggestion-ai-status {
   margin-top: -4px;
   color: #6d5562;
@@ -4103,8 +4177,17 @@ textarea {
     width: 100%;
   }
 
+  .suggest-ai-btn,
+  .suggest-ai-behaviour-btn {
+    width: 100%;
+  }
+
   .suggest-toggle {
     white-space: normal;
+  }
+
+  .ai-suggestion-behavior-grid {
+    grid-template-columns: 1fr;
   }
 
   .app-settings-modal-actions {

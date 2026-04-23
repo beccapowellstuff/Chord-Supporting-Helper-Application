@@ -68,6 +68,79 @@ function hasReasoningOnlyOutput(payload) {
   return hasReasoningOutput && !hasMessageOutput;
 }
 
+function normalizeReasoningSetting(value, fallback = "medium") {
+  const normalized = String(value || fallback).trim().toLowerCase() || fallback;
+  if (["off", "none", "false", "0"].includes(normalized)) {
+    return normalized === "off" ? "off" : "none";
+  }
+
+  if (["on", "true", "1"].includes(normalized)) {
+    return "on";
+  }
+
+  if (["minimal", "low", "medium", "high", "xhigh"].includes(normalized)) {
+    return normalized;
+  }
+
+  return fallback;
+}
+
+function getReasoningMode(setting) {
+  const normalized = normalizeReasoningSetting(setting, "medium");
+  return normalized === "off" || normalized === "none"
+    ? "off"
+    : "on";
+}
+
+function parseSupportedReasoningSettings(error = null) {
+  const responseBody = error?.debug?.responseBody;
+  const rawMessage = String(
+    responseBody?.error?.message
+    || responseBody?.message
+    || error?.message
+    || ""
+  );
+
+  const supportedSegment = rawMessage.match(/Supported settings:\s*([^.]*)/i)?.[1]
+    || rawMessage.match(/Expected\s*([^,]+?)(?:,\s*received|\s*$)/i)?.[1]
+    || "";
+
+  const supportedValues = [...supportedSegment.matchAll(/'([A-Za-z0-9_]+)'/g)]
+    .map(match => String(match[1] || "").trim().toLowerCase())
+    .filter(value => ["on", "off", "none", "minimal", "low", "medium", "high", "xhigh"].includes(value));
+  return [...new Set(supportedValues)];
+}
+
+function getCompatibleReasoningSetting(preferredSetting, supportedSettings = []) {
+  const normalizedPreferred = normalizeReasoningSetting(preferredSetting, "medium");
+  const supported = [...new Set((Array.isArray(supportedSettings) ? supportedSettings : [])
+    .map(value => String(value || "").trim().toLowerCase())
+    .filter(Boolean))];
+
+  if (!supported.length) {
+    return "";
+  }
+
+  if (supported.includes(normalizedPreferred)) {
+    return normalizedPreferred;
+  }
+
+  if (getReasoningMode(normalizedPreferred) === "off") {
+    return ["off", "none", "minimal", "low"]
+      .find(value => supported.includes(value)) || "";
+  }
+
+  return ["on", "medium", "high", "low", "minimal", "xhigh"]
+    .find(value => supported.includes(value)) || "";
+}
+
+function getDisabledReasoningSetting(setting) {
+  const normalized = normalizeReasoningSetting(setting, "medium");
+  return normalized === "on" || normalized === "off"
+    ? "off"
+    : "none";
+}
+
 function buildDebugSnapshot(url, options = {}, response = null, payload = null, error = null) {
   let requestBody = null;
   if (typeof options.body === "string") {
@@ -146,7 +219,7 @@ function buildRequestBody({ model, request, reasoningEffort }) {
   const normalizedModel = String(model || "").trim();
   const normalizedPrompt = String(request?.input || "").trim();
   const normalizedSystemPrompt = String(request?.instructions || "").trim();
-  const normalizedReasoningEffort = String(reasoningEffort || request?.reasoningEffort || "medium").trim().toLowerCase() || "medium";
+  const normalizedReasoningEffort = normalizeReasoningSetting(reasoningEffort || request?.reasoningEffort, "medium");
   const normalizedTemperature = Number.isFinite(Number(request?.temperature))
     ? Number(request.temperature)
     : 0.7;
@@ -184,6 +257,17 @@ function buildRequestBody({ model, request, reasoningEffort }) {
   return requestBody;
 }
 
+async function sendReasoningRequest(requestUrl, requestBody, errorLabel) {
+  return fetchJson(requestUrl, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(requestBody)
+  }, errorLabel);
+}
+
 export async function sendOpenAiCompatibleResponse({
   baseUrl,
   model,
@@ -191,57 +275,83 @@ export async function sendOpenAiCompatibleResponse({
   errorLabel = "AI server"
 }) {
   const normalizedBaseUrl = String(baseUrl || "").trim().replace(/\/+$/, "");
-  const initialReasoningEffort = String(request?.reasoningEffort || "medium").trim().toLowerCase() || "medium";
+  const initialReasoningEffort = normalizeReasoningSetting(request?.reasoningEffort, "medium");
   const requestUrl = `${normalizedBaseUrl}/v1/responses`;
 
-  const initialRequestBody = buildRequestBody({
+  let activeReasoningEffort = initialReasoningEffort;
+  let requestBody = buildRequestBody({
     model,
     request,
-    reasoningEffort: initialReasoningEffort
+    reasoningEffort: activeReasoningEffort
   });
 
-  const { payload, debug } = await fetchJson(requestUrl, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(initialRequestBody)
-  }, errorLabel);
+  let payload;
+  let debug;
+  let compatibilityRetry = null;
+
+  try {
+    ({ payload, debug } = await sendReasoningRequest(requestUrl, requestBody, errorLabel));
+  } catch (error) {
+    const supportedSettings = parseSupportedReasoningSettings(error);
+    const fallbackReasoningEffort = getCompatibleReasoningSetting(activeReasoningEffort, supportedSettings);
+
+    if (
+      supportedSettings.length
+      && fallbackReasoningEffort
+      && fallbackReasoningEffort !== activeReasoningEffort
+    ) {
+      activeReasoningEffort = fallbackReasoningEffort;
+      requestBody = buildRequestBody({
+        model,
+        request,
+        reasoningEffort: activeReasoningEffort
+      });
+      ({ payload, debug } = await sendReasoningRequest(requestUrl, requestBody, errorLabel));
+      compatibilityRetry = {
+        reason: "invalid-reasoning-enum",
+        initialReasoningEffort,
+        fallbackReasoningEffort,
+        supportedSettings,
+        initialError: error?.debug?.responseBody || error?.message || null
+      };
+    } else {
+      throw error;
+    }
+  }
 
   const initialText = getResponseOutputText(payload);
 
   if (initialText) {
     return {
       text: initialText,
-      debug
+      debug: compatibilityRetry
+        ? {
+          ...debug,
+          retry: compatibilityRetry
+        }
+        : debug
     };
   }
 
-  if (initialReasoningEffort !== "none" && hasReasoningOnlyOutput(payload)) {
+  if (getReasoningMode(activeReasoningEffort) !== "off" && hasReasoningOnlyOutput(payload)) {
+    const fallbackReasoningEffort = getDisabledReasoningSetting(activeReasoningEffort);
     const fallbackRequestBody = buildRequestBody({
       model,
       request,
-      reasoningEffort: "none"
+      reasoningEffort: fallbackReasoningEffort
     });
 
-    const { payload: fallbackPayload, debug: fallbackDebug } = await fetchJson(requestUrl, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(fallbackRequestBody)
-    }, errorLabel);
+    const { payload: fallbackPayload, debug: fallbackDebug } = await sendReasoningRequest(requestUrl, fallbackRequestBody, errorLabel);
 
     return {
       text: getResponseOutputText(fallbackPayload),
       debug: {
         ...fallbackDebug,
         retry: {
+          ...(compatibilityRetry || {}),
           reason: "initial-response-contained-reasoning-only",
-          initialReasoningEffort,
-          fallbackReasoningEffort: "none",
+          initialReasoningEffort: activeReasoningEffort,
+          fallbackReasoningEffort,
           initialResponseBody: payload,
           initialReasoningText: getReasoningOutputText(payload)
         }
@@ -251,6 +361,11 @@ export async function sendOpenAiCompatibleResponse({
 
   return {
     text: initialText,
-    debug
+    debug: compatibilityRetry
+      ? {
+        ...debug,
+        retry: compatibilityRetry
+      }
+      : debug
   };
 }

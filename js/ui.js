@@ -617,11 +617,16 @@ function createSuggestionDetail(item, onChordClick, onChordAdd) {
     const aiMeta = document.createElement("div");
     aiMeta.className = "suggestion-detail-ai-meta";
     const bits = [];
+    const confidenceValue = typeof item.confidence === "number" && Number.isFinite(item.confidence)
+      ? item.confidence
+      : item.strength;
     if (item.bass) bits.push(`Bass: ${formatChordLabel(item.bass)}`);
     if (item.topNote) bits.push(`Top note: ${item.topNote}`);
-    if (item.role) bits.push(`Role: ${item.role}`);
-    if (typeof item.strength === "number" && Number.isFinite(item.strength)) {
-      bits.push(`Strength: ${(item.strength * 100).toFixed(0)}%`);
+    if (item.resolutionType || item.role) {
+      bits.push(`Resolution: ${item.resolutionType || item.role}`);
+    }
+    if (typeof confidenceValue === "number" && Number.isFinite(confidenceValue)) {
+      bits.push(`Confidence: ${(confidenceValue * 100).toFixed(0)}%`);
     }
     aiMeta.textContent = bits.join(" | ") || "AI details unavailable.";
     meta.appendChild(aiMeta);
@@ -847,11 +852,16 @@ function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setAct
     const detailLine = document.createElement("span");
     detailLine.className = "suggestion-card-ai-details";
     const bits = [];
+    const confidenceValue = typeof item.confidence === "number" && Number.isFinite(item.confidence)
+      ? item.confidence
+      : item.strength;
     if (item.bass) bits.push(`Bass ${formatChordLabel(item.bass)}`);
     if (item.topNote) bits.push(`Top ${item.topNote}`);
-    if (item.role) bits.push(item.role);
-    if (typeof item.strength === "number" && Number.isFinite(item.strength)) {
-      bits.push(`Strength ${(item.strength * 100).toFixed(0)}%`);
+    if (item.resolutionType || item.role) {
+      bits.push(`Resolution ${item.resolutionType || item.role}`);
+    }
+    if (typeof confidenceValue === "number" && Number.isFinite(confidenceValue)) {
+      bits.push(`Confidence ${(confidenceValue * 100).toFixed(0)}%`);
     }
     detailLine.textContent = bits.join(" | ") || "AI details unavailable";
     chordBtn.appendChild(detailLine);
