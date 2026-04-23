@@ -415,27 +415,100 @@ const SECTION_HELP_CONTENT = {
   },
   "suggestion-engine": {
     title: "Suggestion Engine",
-    intro: "Suggestion Engine offers possible next chords based on your current key, progression, and chosen feeling.",
+    intro: "Suggestion Engine gives you theory-led next-chord ideas, and can also ask the AI for a second set of behaviour-guided suggestions.",
     sections: [
       {
         title: "What It Does",
         paragraphs: [
-          "It tries to generate musically relevant ideas that you can audition and drop straight into the progression."
+          "The main suggestions come from the app's theory logic. They read your current progression, key, bass movement, top-note context, and general direction to offer practical next steps.",
+          "ASK AI adds a separate AI Suggestions section below the theory results. Those suggestions still use the same progression context, but the AI Behaviour controls let you steer how adventurous, direct, soft, tense, colourful, or style-shaped the answers should be."
         ]
       },
       {
         title: "How To Use It",
         items: [
           "Choose a Feeling to guide the type of suggestions you want.",
-          "Use Refresh to ask for a new pass, or turn on auto-refresh if you want updates as you add chords.",
-          "Click a suggestion to hear it, then use the shared Inversion and Voicing bar to explore alternate shapes.",
-          "Use the plus button to add a suggestion directly into the progression."
+          "Use Refresh to update the theory suggestions, or turn on auto-refresh if you want them to update as you add chords.",
+          "Use ASK AI when you want an extra pass that follows the current progression plus the AI Behaviour settings.",
+          "Open AI Behaviour if you want to guide phrase role, bass motion, top-note motion, colour, style, or feel. These controls steer the AI, but they do not override the music completely.",
+          "Click any suggestion to hear it, inspect why it was offered, and then add it straight into the progression if it works."
+        ]
+      },
+      {
+        title: "Reading The Results",
+        paragraphs: [
+          "Theory suggestions and AI suggestions are shown separately on purpose. The theory set is the stable baseline. The AI set is there to give you another angle while still trying to respect the same musical context.",
+          "If the AI returns duplicates, invalid chords, or unusable answers, the app filters those out before showing the results."
         ]
       },
       {
         title: "Current State",
         paragraphs: [
-          "This section is still MVP, so it is best treated as a creative idea generator rather than a final musical authority."
+          "This section is still best treated as a guided idea generator rather than a final musical authority. It works best when you audition the suggestions, compare them against the progression, and use the AI controls to nudge the answers toward the kind of motion you want."
+        ]
+      }
+    ]
+  },
+  "ai-suggestion-behavior": {
+    title: "AI Behaviour",
+    intro: "AI Behaviour tells the AI what kind of next chord behaviour you want, instead of just asking for generally plausible harmony.",
+    sections: [
+      {
+        title: "What It Is For",
+        paragraphs: [
+          "These controls do not replace the theory engine. They only shape the AI request when you press ASK AI.",
+          "Use them when you want the AI to lean toward a particular phrase role, bass direction, top-note shape, colour level, style language, or emotional feel."
+        ]
+      },
+      {
+        title: "How To Use It",
+        items: [
+          "Start simple: set Profile, then only change the one or two controls that matter most for the next chord you want.",
+          "Use Phrase role when you care about whether the next chord should continue, begin resolving, delay, or arrive.",
+          "Use Bass behaviour and Top-note behaviour when you want the AI to respect voice-leading direction more closely.",
+          "Use Colour to control how plain or rich the harmony should be.",
+          "Use Style to nudge the harmonic language, and Feel to shape the emotional pull without hard-coding a specific answer."
+        ]
+      },
+      {
+        title: "Flexible And Presets",
+        paragraphs: [
+          "Flexible does not mean random. It tells the app to derive a bounded default from the current progression analysis.",
+          "Style and Feel presets send a fuller guidance block to the AI. The short text under each dropdown is the quick summary, and hovering the field shows the fuller preset detail."
+        ]
+      },
+      {
+        title: "Good Workflow",
+        paragraphs: [
+          "A good default workflow is: leave most controls alone, set one clear intent, press ASK AI, then listen. If the results are close but not quite right, change one control at a time so you can hear what each change actually does."
+        ]
+      }
+    ]
+  },
+  "ai-model-selection": {
+    title: "AI Model",
+    intro: "Different models respond differently even when the prompt and controls stay the same, so model choice affects how useful the AI chord suggestions feel.",
+    sections: [
+      {
+        title: "How Models Differ",
+        paragraphs: [
+          "Some models are more literal and consistent, while others are more adventurous, verbose, or unstable.",
+          "In practice this changes how well they follow bass motion, top-note movement, phrase role, style, feel, and the JSON structure the app expects back."
+        ]
+      },
+      {
+        title: "Suggested Model Right Now",
+        paragraphs: [
+          "The current suggested model is google/gemma-4-26b-a4b.",
+          "That said, experimenting is the right approach. A different model may suit your music better depending on whether you want cleaner harmony, more colour, stronger structure, or more unusual movement."
+        ]
+      },
+      {
+        title: "Good Workflow",
+        items: [
+          "Load a model, save it in Settings, and try the same progression with the same AI Behaviour controls before switching to another model.",
+          "Compare whether the model follows the requested bass and top-note direction, and whether the returned chords are actually playable and useful.",
+          "If a model is too random, too vague, or keeps breaking the format, try another one rather than overcompensating with prompt changes."
         ]
       }
     ]

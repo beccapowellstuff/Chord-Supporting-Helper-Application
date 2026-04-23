@@ -813,7 +813,7 @@ function getSuggestionPresentation(item, progressionState) {
   };
 }
 
-function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setActiveCard, getActiveCard, options = {}) {
+function createSuggestionCard(item, onChordClick, onChordAdd, setActiveCard, getActiveCard, options = {}) {
   const { featured = false } = options;
   const card = document.createElement("div");
   card.className = "suggestion-card chord-button-wrapper";
@@ -874,9 +874,6 @@ function createSuggestionCard(item, detailHost, onChordClick, onChordAdd, setAct
     }
     setActiveCard(chordBtn);
     chordBtn.classList.add("active");
-    detailHost.innerHTML = "";
-    detailHost.appendChild(createSuggestionDetail(item, onChordClick, onChordAdd));
-    detailHost.scrollIntoView({ block: "nearest", behavior: "smooth" });
   };
 
   chordBtn.addEventListener("click", event => {
@@ -1010,9 +1007,6 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
   const grid = document.createElement("div");
   grid.className = "suggestions-grid";
 
-  const detailHost = document.createElement("div");
-  detailHost.className = "suggestion-detail-host";
-
   let activeCard = null;
 
   const decoratedSuggestions = suggestions.map(item => ({
@@ -1041,12 +1035,7 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     title.className = "suggestion-group-title";
     title.textContent = sectionMeta.title;
 
-    const description = document.createElement("div");
-    description.className = "suggestion-group-description";
-    description.textContent = sectionMeta.description;
-
     header.appendChild(title);
-    header.appendChild(description);
     section.appendChild(header);
 
     const sectionGrid = grid.cloneNode(false);
@@ -1060,7 +1049,6 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     sectionSuggestions.forEach(item => {
       sectionGrid.appendChild(createSuggestionCard(
         item,
-        detailHost,
         onChordClick,
         onChordAdd,
         card => {
@@ -1117,12 +1105,7 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
       title.className = "suggestion-group-title";
       title.textContent = AI_SUGGESTION_SECTION.title;
 
-      const description = document.createElement("div");
-      description.className = "suggestion-group-description";
-      description.textContent = AI_SUGGESTION_SECTION.description;
-
       header.appendChild(title);
-      header.appendChild(description);
       aiSection.appendChild(header);
 
       const empty = document.createElement("div");
@@ -1134,7 +1117,6 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     }
   }
 
-  wrapper.appendChild(detailHost);
   appendSelectionBar(wrapper, onChordClick, "Play a chord to choose inversion and voicing");
 
   const selectedChord = typeof onChordClick?.getSelectedChord === "function"
@@ -1148,8 +1130,6 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     if (selectedSuggestion && selectedButton) {
       selectedButton.classList.add("active");
       activeCard = selectedButton;
-      detailHost.innerHTML = "";
-      detailHost.appendChild(createSuggestionDetail(selectedSuggestion, onChordClick, onChordAdd));
     }
   }
 

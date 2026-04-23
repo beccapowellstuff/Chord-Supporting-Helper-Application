@@ -1729,6 +1729,13 @@ h2 {
   gap: 6px;
 }
 
+.app-settings-field-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .app-settings-field-label {
   color: var(--accent-dark);
   font-size: 12px;
@@ -2146,9 +2153,15 @@ h2 {
 
 .suggestion-engine-controls {
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.suggestion-engine-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .suggestion-engine-feeling {
@@ -2180,19 +2193,54 @@ h2 {
   flex: 0 0 auto;
 }
 
+.suggestion-engine-feeling-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  flex: 0 1 320px;
+}
+
+.suggestion-engine-feeling-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.suggestion-engine-feeling-select-wrap {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.suggestion-engine-feeling-compact select {
+  width: 100%;
+  min-width: 0;
+  max-width: 220px;
+  margin-bottom: 0;
+}
+
+.suggestion-engine-feeling-row .suggestion-engine-feeling-label {
+  white-space: nowrap;
+}
+
 .suggest-refresh-btn {
   width: auto;
   min-width: 0;
   margin-bottom: 0;
   padding: 10px 14px;
   flex: 0 0 auto;
+  align-self: center;
 }
 
 .suggest-ai-cluster {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: 0 1 auto;
+  flex-wrap: wrap;
+  margin-left: auto;
   padding: 8px;
   border-radius: 999px;
   border: 1px solid rgba(37, 32, 38, 0.12);
@@ -2206,7 +2254,7 @@ h2 {
 
 .suggest-ai-btn {
   width: auto;
-  min-width: 92px;
+  min-width: 110px;
   margin-bottom: 0;
   padding: 10px 18px;
   flex: 0 0 auto;
@@ -2227,7 +2275,7 @@ h2 {
 
 .suggest-ai-behaviour-btn {
   width: auto;
-  min-width: 0;
+  min-width: 146px;
   margin-bottom: 0;
   padding: 10px 16px;
   flex: 0 0 auto;
@@ -2244,6 +2292,19 @@ h2 {
   background: rgba(255, 248, 251, 0.96);
 }
 
+.suggestion-engine-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px 14px;
+  flex-wrap: wrap;
+  padding-left: 2px;
+}
+
+.suggestion-header-debug-btn {
+  margin-top: 0;
+}
+
 .ai-suggestion-behavior-panel {
   margin-top: 12px;
   padding: 14px;
@@ -2257,6 +2318,13 @@ h2 {
   flex-direction: column;
   gap: 4px;
   margin-bottom: 10px;
+}
+
+.ai-suggestion-behavior-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .ai-suggestion-behavior-title {
@@ -3475,12 +3543,12 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 0 4px;
+  margin: 0;
   font-weight: 500;
   color: var(--muted);
   cursor: pointer;
   width: auto;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .suggest-toggle input {
@@ -4207,8 +4275,35 @@ textarea {
 
   .suggest-ai-cluster {
     width: 100%;
+    margin-left: 0;
     justify-content: stretch;
     border-radius: 20px;
+  }
+
+  .suggestion-engine-feeling-compact {
+    min-width: 100%;
+    flex-basis: 100%;
+  }
+
+  .suggestion-engine-feeling-row {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .suggestion-engine-feeling-row .suggestion-engine-feeling-label {
+    width: 100%;
+  }
+
+  .suggestion-engine-feeling-select-wrap {
+    flex: 1 1 auto;
+  }
+
+  .suggestion-engine-feeling-compact select {
+    max-width: none;
+  }
+
+  .suggestion-engine-meta {
+    align-items: flex-start;
   }
 
   .suggest-ai-btn,
