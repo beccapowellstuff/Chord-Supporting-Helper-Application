@@ -1,76 +1,48 @@
 /**
  * aiExploreProgressionPrompt.js
  *
- * Builds system instructions for the AI Explore panel that include
- * current progression context so the AI can discuss and suggest chords
- * in relation to what the user is working on.
+ * Helpers for the AI Explore panel:
+ * - Build an optional progression context block for freeform prompts
+ * - Parse optional chord suggestions from model responses
  */
 
 /**
- * Build system instructions that embed the current progression context
- * for the AI Explore panel.
+ * Build a plain-text context block for the current progression.
  *
  * @param {object} options
- * @param {string} options.selectedKey - Current key and mode (e.g. "C Ionian")
- * @param {string[]} options.progressionChords - Array of chord labels in the current progression
- * @param {string[]} [options.recentWindow] - Recent N chords for local context
- * @param {string} [options.lastChord] - The most recently added chord
+ * @param {string} options.selectedKey - Current key and mode
+ * @param {string[]} options.progressionChords - Full progression
+ * @param {string[]} [options.recentWindow] - Recent chord window
+ * @param {string} [options.lastChord] - Last chord in the progression
  * @param {string} [options.currentFeeling] - Current feeling selection
- * @returns {string} System instructions string
+ * @returns {string} Plain-text context block
  */
-export function buildAiExploreProgressionInstructions({
+export function buildAiExploreProgressionContextBlock({
   selectedKey = "",
   progressionChords = [],
   recentWindow = [],
   lastChord = "",
   currentFeeling = ""
 } = {}) {
-  const keyInfo = selectedKey ? `Key and mode: ${selectedKey}` : "No key selected.";
+  const keyInfo = selectedKey ? `Key and mode: ${selectedKey}` : "Key and mode: (none)";
   const progressionText = progressionChords.length
-    ? progressionChords.join(" → ")
+    ? progressionChords.join(" | ")
     : "(empty progression)";
   const recentWindowText = recentWindow.length
-    ? recentWindow.join(" → ")
+    ? recentWindow.join(" | ")
     : "(none)";
-  const feelingInfo = currentFeeling ? `Current feeling: ${currentFeeling}` : "";
+  const feelingInfo = currentFeeling ? `Feeling: ${currentFeeling}` : "Feeling: (none)";
 
-  const contextLines = [
-    "You are a musical assistant helping a user explore chord progressions. The user will share prompts and you should respond with helpful musical guidance. When the user is working on a progression, you may suggest specific chords they can add.",
-    "",
-    "--- Current Context ---",
+  return [
+    "Included progression context:",
     keyInfo,
-    `Current progression: ${progressionText}`,
+    `Progression: ${progressionText}`,
     `Recent window: ${recentWindowText}`,
     lastChord ? `Last added chord: ${lastChord}` : "",
     feelingInfo,
     "",
-    "--- How to Respond ---",
-    "1. Read the user's message carefully and respond helpfully.",
-    "2. If the user is asking for chord suggestions or discussing progression, include your suggestions in a JSON block.",
-    "3. Use this exact JSON shape for suggestions (put it inside a ```json code block):",
-    "```json",
-    "{",
-    "  \"suggestions\": [",
-    "    {",
-    "      \"chord\": \"Am7\",",
-    "      \"bass\": \"A\",",
-    "      \"topNote\": \"A5\",",
-    "      \"strength\": 0.9,",
-    "      \"role\": \"continuation|resolution|colour-shift\",",
-    "      \"reason\": \"Short explanation based on bass movement, top-line movement, or harmonic role.\"",
-    "    }",
-    "  ]",
-    "}",
-    "```",
-    "4. Return exactly 3-6 suggestions ranked from strongest to weakest.",
-    "5. Each suggestion must contain: chord (string), bass (string), topNote (string), strength (number 0-1), role (string), reason (string).",
-    "6. If the bass differs from the chord root, use slash-chord notation (e.g., Am/E).",
-    "7. Keep free-form musical discussion natural and conversational. Only include the JSON block when offering chord suggestions.",
-    "8. Do NOT include the JSON block if the user is just chatting, asking a general question, or discussing theory without requesting suggestions.",
-    "9. When suggesting chords, base your reasoning on the current context above."
-  ].filter(Boolean);
-
-  return contextLines.join("\n");
+    "Use this only if it helps answer the user's prompt."
+  ].filter(Boolean).join("\n");
 }
 
 /**
@@ -90,22 +62,14 @@ export function parseAiExploreSuggestions(text) {
     return null;
   }
 
-  // Try fenced JSON block first
   const fencedMatch = trimmed.match(/```json\s*([\s\S]*?)```/i) || trimmed.match(/```\s*([\s\S]*?)```/i);
   if (fencedMatch?.[1]) {
     return parseSuggestionsJson(fencedMatch[1].trim());
   }
 
-  // Try raw JSON object
   return parseSuggestionsJson(trimmed);
 }
 
-/**
- * Parse a JSON string for suggestion arrays.
- *
- * @param {string} jsonStr - JSON string to parse
- * @returns {Array|null} Parsed suggestions or null
- */
 function parseSuggestionsJson(jsonStr) {
   if (!jsonStr) {
     return null;
@@ -113,8 +77,6 @@ function parseSuggestionsJson(jsonStr) {
 
   try {
     const parsed = JSON.parse(jsonStr);
-
-    // Handle nested suggestions property
     const items = Array.isArray(parsed)
       ? parsed
       : Array.isArray(parsed?.suggestions)
@@ -131,12 +93,6 @@ function parseSuggestionsJson(jsonStr) {
   }
 }
 
-/**
- * Normalize a single suggestion entry to the standard shape.
- *
- * @param {object} entry - Raw suggestion entry
- * @returns {object} Normalized suggestion
- */
 function normalizeExploreSuggestion(entry) {
   return {
     chord: String(entry?.chord || entry?.name || entry?.label || "").trim(),

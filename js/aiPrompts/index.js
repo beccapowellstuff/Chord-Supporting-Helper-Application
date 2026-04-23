@@ -8,4 +8,4 @@ export {
   normalizeAiSuggestionBehavior
 } from "./aiSuggestionBehavior.js";
 export { buildAiSuggestionRenderItems } from "./aiSuggestionCandidates.js";
-export { buildAiExploreProgressionInstructions, parseAiExploreSuggestions } from "./aiExploreProgressionPrompt.js";
+export { buildAiExploreProgressionContextBlock, parseAiExploreSuggestions } from "./aiExploreProgressionPrompt.js";

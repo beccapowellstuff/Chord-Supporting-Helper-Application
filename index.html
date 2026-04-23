@@ -222,7 +222,7 @@
           AI Explore
           <span class="tool-nav-status-icon" aria-hidden="true">!</span>
         </button>
-        <button type="button" class="tool-nav-btn" data-tool-panel="suggestionEnginePanel" aria-pressed="false">
+        <button type="button" class="tool-nav-btn tool-nav-btn-warning" data-tool-panel="suggestionEnginePanel" aria-pressed="false">
           Theory Suggestions
           <span class="tool-nav-status-icon" aria-hidden="true">✕</span>
         </button>
@@ -509,10 +509,6 @@
               <p class="chord-loader-title">AI Explore</p>
             </div>
             <div class="chord-loader-body ai-explore-body">
-              <div class="tool-status tool-status-warning" role="status" aria-live="polite">
-                <span class="tool-status-icon" aria-hidden="true">!</span>
-                <span>AI Explorer Engine is very MVP right now, and not fully working as wanted.</span>
-              </div>
               <div id="aiExploreStatus" class="tool-status" role="status" aria-live="polite">
                 <span class="tool-status-icon" aria-hidden="true">i</span>
                 <span id="aiExploreStatusMessage">Choose an LM Studio model in Settings, then connect to start exploring prompts.</span>
@@ -522,7 +518,7 @@
                 <div class="ai-explore-card-header">
                   <div>
                     <div class="ai-explore-card-title">Prompt</div>
-                    <p class="ai-explore-card-copy">Send a prompt through the OpenAI-compatible Responses API to the currently loaded LM Studio model.</p>
+                    <p class="ai-explore-card-copy">Send a freeform prompt to the currently loaded LM Studio model. Include your current progression only when you want it used as context.</p>
                   </div>
                 </div>
                 <div class="ai-explore-prompt-toolbar">
@@ -535,6 +531,10 @@
                       <option value="medium" selected>Medium</option>
                       <option value="high">High</option>
                     </select>
+                  </label>
+                  <label class="ai-explore-context-toggle" for="aiExploreIncludeProgression">
+                    <input id="aiExploreIncludeProgression" type="checkbox">
+                    <span>Include progression</span>
                   </label>
                 </div>
                 <div class="ai-explore-prompt-row">
@@ -553,7 +553,7 @@
                 <div class="ai-explore-card-header">
                   <div>
                     <div class="ai-explore-card-title">Conversation</div>
-                    <p class="ai-explore-card-copy">Chat with the AI about your progression. The AI sees your current key, chords, and recent context.</p>
+                    <p class="ai-explore-card-copy">Chat with the AI in a freeform way. If you turn on Include progression, the current musical context is added to the request.</p>
                   </div>
                   <button id="toggleAiExploreDebugBtn" class="suggest-debug-toggle-btn" type="button" aria-label="Show AI Explore Debug" aria-pressed="false">
                     <span class="visually-hidden">Show AI Explore Debug</span>

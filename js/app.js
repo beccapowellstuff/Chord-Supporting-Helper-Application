@@ -91,7 +91,7 @@ import {
   normalizeAiSuggestionBehavior,
   getAiSuggestionStylePreset,
   parseAiSuggestionResponse,
-  buildAiExploreProgressionInstructions,
+  buildAiExploreProgressionContextBlock,
   parseAiExploreSuggestions
 } from "./aiPrompts/index.js";
 
@@ -191,6 +191,7 @@ const sequenceKeyboard = document.getElementById("sequenceKeyboard");
 const sequenceKeyboardToolbarMount = document.getElementById("sequenceKeyboardToolbarMount");
 const aiSuggestionsStatusIcon = document.querySelector('[data-tool-panel="aiSuggestionsPanel"] .tool-nav-status-icon');
 const aiExploreStatusIcon = document.querySelector('[data-tool-panel="aiExplorePanel"] .tool-nav-status-icon');
+const theorySuggestionsStatusIcon = document.querySelector('[data-tool-panel="suggestionEnginePanel"] .tool-nav-status-icon');
 const aiExploreStatus = document.getElementById("aiExploreStatus");
 const aiExploreStatusMessage = document.getElementById("aiExploreStatusMessage");
 const aiExploreConnectBtn = document.getElementById("aiExploreConnectBtn");
@@ -198,6 +199,7 @@ const aiExploreBaseUrl = document.getElementById("aiExploreBaseUrl");
 const aiExploreSelectedModel = document.getElementById("aiExploreSelectedModel");
 const aiExploreLoadedState = document.getElementById("aiExploreLoadedState");
 const aiExploreReasoningEffortSelect = document.getElementById("aiExploreReasoningEffort");
+const aiExploreIncludeProgressionToggle = document.getElementById("aiExploreIncludeProgression");
 const aiExplorePromptInput = document.getElementById("aiExplorePromptInput");
 const aiExploreSubmitBtn = document.getElementById("aiExploreSubmitBtn");
 const aiExploreResponseOutput = document.getElementById("aiExploreResponseOutput");
@@ -280,6 +282,7 @@ const appState = {
   aiExploreConnecting: false,
   aiExploreSubmitting: false,
   aiExploreReasoningEffort: "medium",
+  aiExploreIncludeProgression: false,
   aiExplorePrompt: "",
   aiExploreResponse: "No response yet.",
   aiExploreDebugVisible: false,
@@ -1331,6 +1334,11 @@ function renderAiExploreUI() {
     aiExploreReasoningEffortSelect.disabled = Boolean(appState.aiExploreSubmitting);
   }
 
+  if (aiExploreIncludeProgressionToggle) {
+    aiExploreIncludeProgressionToggle.checked = Boolean(appState.aiExploreIncludeProgression);
+    aiExploreIncludeProgressionToggle.disabled = Boolean(appState.aiExploreSubmitting);
+  }
+
   if (aiExploreSubmitBtn) {
     aiExploreSubmitBtn.disabled = !isLoaded || isBusy || !hasPrompt;
     aiExploreSubmitBtn.textContent = appState.aiExploreSubmitting ? "Submitting..." : "Submit";
@@ -1609,14 +1617,18 @@ function buildAiExploreConversationHistory() {
 }
 
 /**
- * Build the instructions string for the AI Explore prompt with progression context.
+ * Build the optional progression context block for the AI Explore prompt.
  */
-function buildAiExplorePromptInstructions() {
+function buildAiExplorePromptProgressionContext() {
+  if (!appState.aiExploreIncludeProgression) {
+    return "";
+  }
+
   const progressionChords = progressionItemsToChords(appState.progressionItems);
   const recentWindow = progressionChords.slice(-8);
   const lastChord = progressionChords.length ? progressionChords.at(-1) : "";
 
-  return buildAiExploreProgressionInstructions({
+  return buildAiExploreProgressionContextBlock({
     selectedKey: appState.selectedKey || "",
     progressionChords,
     recentWindow,
@@ -2087,11 +2099,12 @@ async function handleAiExploreSubmit() {
       renderAiExploreUI();
     });
 
-    const instructions = buildAiExplorePromptInstructions();
+    const progressionContext = buildAiExplorePromptProgressionContext();
     const promptRequest = buildAiExplorePromptRequest({
       userPrompt: prompt,
       reasoningEffort,
-      instructions,
+      instructions: "",
+      progressionContext,
       conversationHistory
     });
     const response = await sendAiPrompt(appState.appSettings, promptRequest);
@@ -2112,7 +2125,7 @@ async function handleAiExploreSubmit() {
     setAiExploreDebug("send-prompt", response?.debug, {
       hint: `This is the OpenAI-compatible Responses API request used for AI Explore with reasoning effort set to ${reasoningEffort}.`
     });
-    setAiExploreStatus("success", "Prompt completed successfully.");
+    setAiExploreStatus("idle", "");
   } catch (error) {
     appState.aiExploreResponse = "No response yet.";
     setAiExploreDebug("send-prompt", error?.debug, {
@@ -5125,6 +5138,7 @@ async function init() {
     if (aiModelSelectSetting) aiModelSelectSetting.dataset.tooltip = "Choose the AI model to save in app settings";
     if (aiExploreConnectBtn) aiExploreConnectBtn.dataset.tooltip = "Load the saved AI model if it is not already loaded";
     if (aiExploreReasoningEffortSelect) aiExploreReasoningEffortSelect.dataset.tooltip = "Choose the OpenAI-compatible reasoning effort for AI Explore prompts";
+    if (aiExploreIncludeProgressionToggle) aiExploreIncludeProgressionToggle.closest(".ai-explore-context-toggle")?.setAttribute("data-tooltip", "Include the current key, progression, recent window, and feeling with your freeform prompt");
     if (aiExplorePromptInput) aiExplorePromptInput.dataset.tooltip = "Type a prompt for the connected AI model";
     if (aiExploreSubmitBtn) aiExploreSubmitBtn.dataset.tooltip = "Send the current prompt to the active AI provider";
     if (aiExploreResponseOutput) aiExploreResponseOutput.dataset.tooltip = "Scrollable model response area";
@@ -5142,6 +5156,10 @@ async function init() {
     if (aiExploreStatusIcon) {
       aiExploreStatusIcon.textContent = "!";
       aiExploreStatusIcon.dataset.tooltip = "ALPHA STAGE WIP";
+    }
+    if (theorySuggestionsStatusIcon) {
+      theorySuggestionsStatusIcon.textContent = "!";
+      theorySuggestionsStatusIcon.dataset.tooltip = "ALPHA STAGE WIP";
     }
     sectionHelpButtons.forEach(button => {
       button.dataset.tooltip = "How to use this section";
@@ -5421,6 +5439,13 @@ async function init() {
     if (aiExploreReasoningEffortSelect) {
       aiExploreReasoningEffortSelect.addEventListener("change", () => {
         appState.aiExploreReasoningEffort = String(aiExploreReasoningEffortSelect.value || "medium").trim().toLowerCase() || "medium";
+        renderAiExploreUI();
+      });
+    }
+
+    if (aiExploreIncludeProgressionToggle) {
+      aiExploreIncludeProgressionToggle.addEventListener("change", () => {
+        appState.aiExploreIncludeProgression = Boolean(aiExploreIncludeProgressionToggle.checked);
         renderAiExploreUI();
       });
     }

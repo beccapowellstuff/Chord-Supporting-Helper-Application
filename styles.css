@@ -2105,6 +2105,8 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .ai-explore-reasoning-control {
@@ -2116,6 +2118,25 @@ h2 {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.78);
   border: 1px solid rgba(230, 201, 214, 0.78);
+}
+
+.ai-explore-context-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(230, 201, 214, 0.78);
+  color: #8c6f7d;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ai-explore-context-toggle input {
+  margin: 0;
 }
 
 .ai-explore-reasoning-label {
