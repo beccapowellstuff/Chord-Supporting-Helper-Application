@@ -1615,7 +1615,7 @@ function renderSuggestionEngineControls() {
   if (suggestAiBtn) {
     const hasProgression = appState.progressionItems.length > 0;
     suggestAiBtn.disabled = !hasProgression || appState.suggestionAiRequesting;
-    suggestAiBtn.textContent = appState.suggestionAiRequesting ? "AI..." : "AI";
+    suggestAiBtn.textContent = appState.suggestionAiRequesting ? "ASKING AI..." : "ASK AI";
   }
 
   if (toggleAiSuggestionBehaviorBtn) {

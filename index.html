@@ -312,8 +312,10 @@
                 </div>
                 <select id="feeling" aria-label="Feeling"></select>
                 <button id="suggestBtn" class="suggest-refresh-btn" type="button">Refresh</button>
-                <button id="suggestAiBtn" class="suggest-ai-btn" type="button">AI</button>
-                <button id="toggleAiSuggestionBehaviorBtn" class="suggest-ai-behaviour-btn" type="button" aria-expanded="false" aria-controls="aiSuggestionBehaviorPanel">AI Behaviour</button>
+                <div class="suggest-ai-cluster" role="group" aria-label="AI suggestion controls">
+                  <button id="suggestAiBtn" class="suggest-ai-btn" type="button">ASK AI</button>
+                  <button id="toggleAiSuggestionBehaviorBtn" class="suggest-ai-behaviour-btn" type="button" aria-expanded="false" aria-controls="aiSuggestionBehaviorPanel">AI Behaviour</button>
+                </div>
                 <label class="suggest-toggle" for="autoSuggestToggle">
                   <input id="autoSuggestToggle" type="checkbox">
                   <span>Auto-refresh suggestions when adding chords</span>
