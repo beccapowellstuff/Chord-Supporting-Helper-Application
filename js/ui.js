@@ -492,6 +492,15 @@ function buildSelectionBarMarkup({
               : `<option value="">Select chord first</option>`}
           </select>
         </label>
+        <button
+          type="button"
+          class="key-mode-selection-add-btn"
+          ${selectedChord ? `data-selected-chord="${escapeHtml(selectedChord)}"` : ""}
+          aria-label="${selectedChord ? `Add ${escapeHtml(formatChordLabel(selectedChord))} to progression` : "Add to progression"}"
+          data-tooltip="Add to Progression"
+          ${selectedChord ? "" : "disabled"}>
+          +
+        </button>
         ${selectedSummaryCode
           ? `<span class="key-mode-selection-summary-code" title="${escapeHtml(`${selectedInversionOption?.label || ""} • ${selectedVoicingOption?.label || ""}`)}">${escapeHtml(selectedSummaryCode)}</span>`
           : ""}
@@ -513,12 +522,11 @@ function appendSelectionBar(container, selectionController, placeholderText) {
 }
 
 function bindSelectionBarInteractions(container, selectionController) {
-  if (typeof selectionController?.playSelection !== "function") {
-    return;
-  }
-
   container.querySelectorAll(".key-mode-chord-inversion-select, .key-mode-chord-voicing-select").forEach(select => {
     select.addEventListener("change", () => {
+      if (typeof selectionController?.playSelection !== "function") {
+        return;
+      }
       const selectionBar = select.closest(".key-mode-selection-bar");
       const chord = select.getAttribute("data-selected-chord");
       const inversionValue = selectionBar?.querySelector(".key-mode-chord-inversion-select")?.value || "0";
@@ -528,6 +536,23 @@ function bindSelectionBarInteractions(container, selectionController) {
       }
 
       selectionController.playSelection(chord, inversionValue, voicingValue);
+    });
+  });
+
+  container.querySelectorAll(".key-mode-selection-add-btn").forEach(button => {
+    button.addEventListener("click", () => {
+      if (typeof selectionController?.addSelection !== "function") {
+        return;
+      }
+      const selectionBar = button.closest(".key-mode-selection-bar");
+      const chord = button.getAttribute("data-selected-chord");
+      const inversionValue = selectionBar?.querySelector(".key-mode-chord-inversion-select")?.value || "0";
+      const voicingValue = selectionBar?.querySelector(".key-mode-chord-voicing-select")?.value || "close";
+      if (!selectionBar || !chord) {
+        return;
+      }
+
+      selectionController.addSelection(chord, inversionValue, voicingValue);
     });
   });
 }
@@ -950,6 +975,13 @@ export function populateModeSelect(styleSelect, modeGroups) {
 export function renderSuggestions(resultsElement, payload, musicData, selectedKey, onChordClick, onChordAdd, options = {}) {
   const { suggestions, parsedProgression = [], invalidChords = [], progressionState = null } = payload;
   const aiSuggestions = options.aiSuggestions || null;
+  const showTheory = options.showTheory !== false;
+  const showAi = options.showAi !== false;
+  const emptyMessage = String(
+    options.emptyMessage
+      || "Add a chord to the sequence to get next-step suggestions."
+  );
+  const selectionItems = Array.isArray(options.selectionItems) ? options.selectionItems : null;
 
   resultsElement.innerHTML = "";
 
@@ -993,12 +1025,12 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     wrapper.appendChild(feedbackContainer);
   }
 
-  if (!suggestions.length && !aiSuggestions?.attempted) {
+  if ((!showTheory || !suggestions.length) && (!showAi || !aiSuggestions?.attempted)) {
     const empty = document.createElement("div");
     empty.className = "suggestions-empty";
     empty.textContent = parsedProgression.length
-      ? "No suggestions found."
-      : "Add a chord to the sequence to get next-step suggestions.";
+      ? emptyMessage
+      : emptyMessage;
     wrapper.appendChild(empty);
     resultsElement.appendChild(wrapper);
     return;
@@ -1009,14 +1041,18 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
 
   let activeCard = null;
 
-  const decoratedSuggestions = suggestions.map(item => ({
-    ...item,
-    presentation: getSuggestionPresentation(item, progressionState)
-  }));
+  const decoratedSuggestions = showTheory
+    ? suggestions.map(item => ({
+        ...item,
+        presentation: getSuggestionPresentation(item, progressionState)
+      }))
+    : [];
 
-  const bestSuggestions = [...decoratedSuggestions]
-    .sort((a, b) => (b?.score || 0) - (a?.score || 0))
-    .slice(0, MAX_FEATURED_SUGGESTIONS);
+  const bestSuggestions = showTheory
+    ? [...decoratedSuggestions]
+        .sort((a, b) => (b?.score || 0) - (a?.score || 0))
+        .slice(0, MAX_FEATURED_SUGGESTIONS)
+    : [];
   const bestChordSet = new Set(bestSuggestions.map(item => item.chord));
 
   const appendSuggestionSection = (sectionMeta, sectionSuggestions, options = {}) => {
@@ -1063,20 +1099,22 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     wrapper.appendChild(section);
   };
 
-  if (bestSuggestions.length) {
+  if (showTheory && bestSuggestions.length) {
     appendSuggestionSection(PRIMARY_SUGGESTION_SECTION, bestSuggestions, { best: true });
   }
 
-  const secondarySuggestions = decoratedSuggestions
-    .filter(item => !bestChordSet.has(item.chord))
-    .sort((a, b) => (b?.score || 0) - (a?.score || 0));
+  const secondarySuggestions = showTheory
+    ? decoratedSuggestions
+        .filter(item => !bestChordSet.has(item.chord))
+        .sort((a, b) => (b?.score || 0) - (a?.score || 0))
+    : [];
 
-  if (secondarySuggestions.length) {
+  if (showTheory && secondarySuggestions.length) {
     appendSuggestionSection(SECONDARY_SUGGESTION_SECTION, secondarySuggestions, {
       secondary: true,
       compact: true
     });
-  } else if (!bestSuggestions.length) {
+  } else if (showTheory && !bestSuggestions.length) {
     const empty = document.createElement("div");
     empty.className = "suggestions-empty";
     empty.textContent = parsedProgression.length
@@ -1085,7 +1123,7 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     wrapper.appendChild(empty);
   }
 
-  if (aiSuggestions?.attempted) {
+  if (showAi && aiSuggestions?.attempted) {
     const aiItems = Array.isArray(aiSuggestions.items) ? aiSuggestions.items : [];
 
     if (aiItems.length) {
@@ -1123,7 +1161,8 @@ export function renderSuggestions(resultsElement, payload, musicData, selectedKe
     ? onChordClick.getSelectedChord()
     : "";
   if (selectedChord) {
-    const selectedSuggestion = decoratedSuggestions.find(item => item?.chord === selectedChord);
+    const selectableItems = selectionItems || decoratedSuggestions;
+    const selectedSuggestion = selectableItems.find(item => item?.chord === selectedChord);
     const selectedButton = [...wrapper.querySelectorAll(".suggestion-card-chord")]
       .find(button => button.getAttribute("data-chord") === selectedChord);
 

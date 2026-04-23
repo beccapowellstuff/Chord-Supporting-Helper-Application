@@ -77,7 +77,7 @@ test("shows the shared inversion and voicing bar for suggestion playback", async
   await gotoApp(page);
 
   await setProgressionText(page, "C, F, G");
-  await page.getByRole("button", { name: /Suggestion Engine/ }).click();
+  await page.getByRole("button", { name: /Theory Suggestions/ }).click();
 
   const selectionBar = page.locator("#results .key-mode-selection-bar");
   await expect(selectionBar).toBeVisible();
@@ -95,19 +95,22 @@ test("shows the shared inversion and voicing bar for suggestion playback", async
   await expect(selectionBar.locator(".key-mode-chord-voicing-select")).toBeEnabled();
 });
 
-test("shows the suggestion explanation panel when you click a suggestion", async ({ page }) => {
+test("adds the currently selected inversion and voicing from the shared selection bar", async ({ page }) => {
   await gotoApp(page);
 
   await setProgressionText(page, "C, F, G");
-  await page.getByRole("button", { name: /Suggestion Engine/ }).click();
+  await page.getByRole("button", { name: /Theory Suggestions/ }).click();
 
-  await page.locator("#results .suggestion-card-chord").first().click();
+  const firstCard = page.locator("#results .suggestion-card-chord").first();
+  const selectedChord = (await firstCard.locator(".chord-btn-main").textContent())?.trim() || "";
+  const selectionBar = page.locator("#results .key-mode-selection-bar");
 
-  const detail = page.locator("#results .suggestion-detail");
-  await expect(detail).toBeVisible();
-  await expect(detail.locator(".suggestion-detail-reason")).not.toHaveText("");
-  await expect(detail.locator(".suggestion-detail-play-btn")).toBeVisible();
-  await expect(detail.locator(".suggestion-detail-add-btn")).toBeVisible();
+  await firstCard.click();
+  await selectionBar.locator(".key-mode-chord-voicing-select").selectOption("wide");
+  await selectionBar.locator(".key-mode-selection-add-btn").click();
+
+  await expect.poll(() => page.evaluate(() => window.appState.progressionItems.at(-1)?.chord || "")).toBe(selectedChord);
+  await expect.poll(() => page.evaluate(() => window.appState.progressionItems.at(-1)?.voicing?.voicingShortLabel || "")).toBe("W");
 });
 
 test("shows progression-state debug details for a repeated ending", async ({ page }) => {

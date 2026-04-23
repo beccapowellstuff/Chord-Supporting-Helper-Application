@@ -222,9 +222,13 @@
           AI Explore
           <span class="tool-nav-status-icon" aria-hidden="true">!</span>
         </button>
-        <button type="button" class="tool-nav-btn tool-nav-btn-warning" data-tool-panel="suggestionEnginePanel" aria-pressed="false">
-          Suggestion Engine
+        <button type="button" class="tool-nav-btn" data-tool-panel="suggestionEnginePanel" aria-pressed="false">
+          Theory Suggestions
           <span class="tool-nav-status-icon" aria-hidden="true">✕</span>
+        </button>
+        <button type="button" class="tool-nav-btn tool-nav-btn-warning" data-tool-panel="aiSuggestionsPanel" aria-pressed="false">
+          AI Suggestions
+          <span class="tool-nav-status-icon" aria-hidden="true">!</span>
         </button>
       </div>
 
@@ -298,7 +302,7 @@
         <div id="suggestionEnginePanel" class="panel tool-panel" hidden>
           <div class="chord-loader suggestion-engine-module">
             <div class="tool-header-bar">
-              <p class="chord-loader-title">Suggestion Engine</p>
+              <p class="chord-loader-title">Theory Suggestions</p>
               <div class="tool-header-meta">
                 <button id="toggleSuggestionDebugBtn" class="suggest-debug-toggle-btn suggestion-header-debug-btn" type="button" aria-label="Show Suggestion Debug" aria-pressed="false">
                   <span class="visually-hidden">Show Suggestion Debug</span>
@@ -318,10 +322,6 @@
                         </label>
                       </div>
                     </div>
-                    <div class="suggest-ai-cluster" role="group" aria-label="AI suggestion controls">
-                      <button id="suggestAiBtn" class="suggest-ai-btn" type="button">ASK AI</button>
-                      <button id="toggleAiSuggestionBehaviorBtn" class="suggest-ai-behaviour-btn" type="button" aria-expanded="false" aria-controls="aiSuggestionBehaviorPanel">AI Behaviour</button>
-                    </div>
                   </div>
                   <div class="suggestion-engine-meta">
                     <label class="suggest-toggle" for="autoSuggestToggle">
@@ -330,92 +330,6 @@
                     </label>
                   </div>
                 </div>
-              <section id="aiSuggestionBehaviorPanel" class="ai-suggestion-behavior-panel" hidden>
-                <div class="ai-suggestion-behavior-header">
-                  <div class="ai-suggestion-behavior-heading">
-                    <div class="ai-suggestion-behavior-title">AI Behaviour</div>
-                    <button class="section-help-btn section-help-btn-subtle" type="button" data-help-topic="ai-suggestion-behavior" aria-label="Open AI Behaviour help">?</button>
-                  </div>
-                  <p class="ai-suggestion-behavior-copy">Keep the theory engine as the baseline and steer how the AI responds. Flexible follows the current progression analysis rather than acting randomly.</p>
-                </div>
-                <div class="ai-suggestion-behavior-grid">
-                  <label class="ai-suggestion-behavior-field" for="aiSuggestionProfile">
-                    <span class="ai-suggestion-behavior-label">Profile</span>
-                    <select id="aiSuggestionProfile" aria-label="AI suggestion profile">
-                      <option value="precise" selected>Precise</option>
-                      <option value="expressive">Expressive</option>
-                    </select>
-                  </label>
-                  <label class="ai-suggestion-behavior-field" for="aiSuggestionStyle">
-                    <span class="ai-suggestion-behavior-label">Style</span>
-                    <select id="aiSuggestionStyle" aria-label="AI suggestion style">
-                      <option value="neutral" selected>Neutral</option>
-                      <option value="pop">Pop</option>
-                      <option value="folk_acoustic">Folk / Acoustic</option>
-                      <option value="jazz_leaning">Jazz-leaning</option>
-                      <option value="classical_leaning">Classical-leaning</option>
-                      <option value="cinematic_soundtrack">Cinematic / Soundtrack</option>
-                      <option value="jrpg_game_score">JRPG / Game Score</option>
-                    </select>
-                    <span id="aiSuggestionStyleDetails" class="ai-suggestion-behavior-hint">Balanced default with no strong style bias.</span>
-                  </label>
-                  <label class="ai-suggestion-behavior-field" for="aiSuggestionFeel">
-                    <span class="ai-suggestion-behavior-label">Feel</span>
-                    <select id="aiSuggestionFeel" aria-label="AI suggestion feel">
-                      <option value="neutral" selected>Neutral</option>
-                      <option value="gentle">Gentle</option>
-                      <option value="bittersweet">Bittersweet</option>
-                      <option value="warm">Warm</option>
-                      <option value="bright">Bright</option>
-                      <option value="heroic">Heroic</option>
-                      <option value="mysterious">Mysterious</option>
-                      <option value="tense">Tense</option>
-                      <option value="dark">Dark</option>
-                      <option value="powerful">Powerful</option>
-                    </select>
-                    <span id="aiSuggestionFeelDetails" class="ai-suggestion-behavior-hint">No extra emotional push beyond the chosen behaviour.</span>
-                  </label>
-                  <label class="ai-suggestion-behavior-field" for="aiSuggestionPhraseRole">
-                    <span class="ai-suggestion-behavior-label">Phrase role</span>
-                    <select id="aiSuggestionPhraseRole" aria-label="AI suggestion phrase role">
-                      <option value="continue">Continue</option>
-                      <option value="begin_resolving">Begin resolving</option>
-                      <option value="delay">Delay</option>
-                      <option value="arrive">Arrive</option>
-                      <option value="flexible" selected>Flexible</option>
-                    </select>
-                  </label>
-                  <label class="ai-suggestion-behavior-field" for="aiSuggestionBassBehaviour">
-                    <span class="ai-suggestion-behavior-label">Bass behaviour</span>
-                    <select id="aiSuggestionBassBehaviour" aria-label="AI suggestion bass behaviour">
-                      <option value="hold">Hold</option>
-                      <option value="descend">Descend</option>
-                      <option value="ascend">Ascend</option>
-                      <option value="flexible" selected>Flexible</option>
-                    </select>
-                  </label>
-                  <label class="ai-suggestion-behavior-field" for="aiSuggestionTopNoteBehaviour">
-                    <span class="ai-suggestion-behavior-label">Top-note behaviour</span>
-                    <select id="aiSuggestionTopNoteBehaviour" aria-label="AI suggestion top-note behaviour">
-                      <option value="descend_softly">Descend softly</option>
-                      <option value="stay_near">Stay near</option>
-                      <option value="ascend_gently">Ascend gently</option>
-                      <option value="flexible" selected>Flexible</option>
-                    </select>
-                  </label>
-                  <label class="ai-suggestion-behavior-field" for="aiSuggestionColour">
-                    <span class="ai-suggestion-behavior-label">Colour</span>
-                    <select id="aiSuggestionColour" aria-label="AI suggestion colour">
-                      <option value="plain">Plain</option>
-                      <option value="moderate">Moderate</option>
-                      <option value="lush">Lush</option>
-                      <option value="flexible" selected>Flexible</option>
-                    </select>
-                  </label>
-                </div>
-              </section>
-              <div id="suggestionAiStatus" class="suggestion-ai-status" aria-live="polite" hidden></div>
-
               <ul id="results">
                 <li>No suggestions yet.</li>
               </ul>
@@ -430,16 +344,161 @@
                   </div>
                   <pre id="suggestionDebugOutput" class="suggestion-debug-output">No suggestion debug yet.</pre>
                 </section>
-                <section id="suggestionAiDebugPanel" class="suggestion-debug-panel">
-                  <div class="suggestion-debug-header">
-                    <div class="suggestion-debug-title">AI Suggestion Debug</div>
-                    <button id="copySuggestionAiDebugBtn" class="suggestion-debug-copy-btn" type="button" aria-label="Copy AI Suggestion Debug" disabled>
-                      <span class="visually-hidden">Copy AI Suggestion Debug</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="aiSuggestionsPanel" class="panel tool-panel" hidden>
+          <div class="chord-loader ai-suggestions-module">
+            <div class="tool-header-bar">
+              <p class="chord-loader-title">AI Suggestions</p>
+              <div class="tool-header-meta">
+                <button id="toggleAiSuggestionsDebugBtn" class="suggest-debug-toggle-btn suggestion-header-debug-btn" type="button" aria-label="Show AI Suggestion Debug" aria-pressed="false">
+                  <span class="visually-hidden">Show AI Suggestion Debug</span>
+                </button>
+                <button class="section-help-btn" type="button" data-help-topic="ai-suggestions" aria-label="Open AI Suggestions help">?</button>
+              </div>
+            </div>
+            <div class="chord-loader-body ai-suggestions-body">
+              <div class="ai-suggestions-toolbar">
+                <div class="ai-suggestions-toolbar-main">
+                  <button id="suggestAiBtn" class="suggest-ai-btn" type="button">ASK AI</button>
+                  <p class="ai-suggestions-context-copy">Uses your current progression, key, and Feeling as context, then applies the settings below.</p>
+                </div>
+              </div>
+
+              <section class="ai-suggestion-settings-summary-card">
+                <div class="ai-suggestion-settings-summary-row">
+                  <div class="ai-suggestion-settings-summary-title">Suggestion Settings</div>
+                  <div class="ai-suggestion-settings-summary-chips">
+                    <span id="aiSuggestionProfileChip" class="ai-suggestion-settings-chip">Profile: Precise</span>
+                    <span id="aiSuggestionStyleChip" class="ai-suggestion-settings-chip">Style: Neutral</span>
+                    <span id="aiSuggestionFeelChip" class="ai-suggestion-settings-chip">Feel: Neutral</span>
+                    <span id="aiSuggestionPhraseRoleChip" class="ai-suggestion-settings-chip">Phrase: Flexible</span>
+                    <span id="aiSuggestionBassBehaviourChip" class="ai-suggestion-settings-chip">Bass: Flexible</span>
+                    <span id="aiSuggestionTopNoteBehaviourChip" class="ai-suggestion-settings-chip">Top-note: Flexible</span>
+                    <span id="aiSuggestionColourChip" class="ai-suggestion-settings-chip">Colour: Flexible</span>
+                    <button
+                      id="toggleAiSuggestionBehaviorBtn"
+                      class="ai-suggestion-settings-adjust-btn"
+                      type="button"
+                      aria-expanded="false"
+                      aria-controls="aiSuggestionBehaviorPanel"
+                      aria-label="Adjust AI suggestion settings"
+                    >
+                      <span class="visually-hidden">Adjust AI suggestion settings</span>
                     </button>
                   </div>
-                  <pre id="suggestionAiDebugOutput" class="suggestion-debug-output">No AI suggestion debug yet.</pre>
+                </div>
+
+              <div id="aiSuggestionBehaviorPanel" class="section-help-modal-root ai-suggestion-behavior-modal-root" hidden>
+                <div class="section-help-modal-overlay" aria-hidden="true"></div>
+                <section class="section-help-modal ai-suggestion-behavior-panel ai-suggestion-behavior-modal" role="dialog" aria-modal="true" aria-labelledby="aiSuggestionBehaviorTitle">
+                  <div class="ai-suggestion-behavior-header">
+                    <div class="ai-suggestion-behavior-heading">
+                      <div id="aiSuggestionBehaviorTitle" class="ai-suggestion-behavior-title">Adjust Suggestion Settings</div>
+                      <div class="ai-suggestion-behavior-header-actions">
+                        <button class="section-help-btn section-help-btn-subtle" type="button" data-help-topic="ai-suggestion-behavior" aria-label="Open AI Behaviour help">?</button>
+                        <button id="closeAiSuggestionBehaviorBtn" class="ai-suggestion-behavior-close-btn" type="button" aria-label="Close suggestion settings">Close</button>
+                      </div>
+                    </div>
+                    <p class="ai-suggestion-behavior-copy">Keep the theory engine as the baseline and steer how the AI responds. Flexible follows the current progression analysis rather than acting randomly.</p>
+                  </div>
+                  <div class="ai-suggestion-behavior-grid">
+                    <label class="ai-suggestion-behavior-field" for="aiSuggestionProfile">
+                      <span class="ai-suggestion-behavior-label">Profile</span>
+                      <select id="aiSuggestionProfile" aria-label="AI suggestion profile">
+                        <option value="precise" selected>Precise</option>
+                        <option value="expressive">Expressive</option>
+                      </select>
+                    </label>
+                    <label class="ai-suggestion-behavior-field" for="aiSuggestionStyle">
+                      <span class="ai-suggestion-behavior-label">Style</span>
+                      <select id="aiSuggestionStyle" aria-label="AI suggestion style">
+                        <option value="neutral" selected>Neutral</option>
+                        <option value="pop">Pop</option>
+                        <option value="folk_acoustic">Folk / Acoustic</option>
+                        <option value="jazz_leaning">Jazz-leaning</option>
+                        <option value="classical_leaning">Classical-leaning</option>
+                        <option value="cinematic_soundtrack">Cinematic / Soundtrack</option>
+                        <option value="jrpg_game_score">JRPG / Game Score</option>
+                      </select>
+                      <span id="aiSuggestionStyleDetails" class="ai-suggestion-behavior-hint">Balanced default with no strong style bias.</span>
+                    </label>
+                    <label class="ai-suggestion-behavior-field" for="aiSuggestionFeel">
+                      <span class="ai-suggestion-behavior-label">Feel</span>
+                      <select id="aiSuggestionFeel" aria-label="AI suggestion feel">
+                        <option value="neutral" selected>Neutral</option>
+                        <option value="gentle">Gentle</option>
+                        <option value="bittersweet">Bittersweet</option>
+                        <option value="warm">Warm</option>
+                        <option value="bright">Bright</option>
+                        <option value="heroic">Heroic</option>
+                        <option value="mysterious">Mysterious</option>
+                        <option value="tense">Tense</option>
+                        <option value="dark">Dark</option>
+                        <option value="powerful">Powerful</option>
+                      </select>
+                      <span id="aiSuggestionFeelDetails" class="ai-suggestion-behavior-hint">No extra emotional push beyond the chosen behaviour.</span>
+                    </label>
+                    <label class="ai-suggestion-behavior-field" for="aiSuggestionPhraseRole">
+                      <span class="ai-suggestion-behavior-label">Phrase role</span>
+                      <select id="aiSuggestionPhraseRole" aria-label="AI suggestion phrase role">
+                        <option value="continue">Continue</option>
+                        <option value="begin_resolving">Begin resolving</option>
+                        <option value="delay">Delay</option>
+                        <option value="arrive">Arrive</option>
+                        <option value="flexible" selected>Flexible</option>
+                      </select>
+                    </label>
+                    <label class="ai-suggestion-behavior-field" for="aiSuggestionBassBehaviour">
+                      <span class="ai-suggestion-behavior-label">Bass behaviour</span>
+                      <select id="aiSuggestionBassBehaviour" aria-label="AI suggestion bass behaviour">
+                        <option value="hold">Hold</option>
+                        <option value="descend">Descend</option>
+                        <option value="ascend">Ascend</option>
+                        <option value="flexible" selected>Flexible</option>
+                      </select>
+                    </label>
+                    <label class="ai-suggestion-behavior-field" for="aiSuggestionTopNoteBehaviour">
+                      <span class="ai-suggestion-behavior-label">Top-note behaviour</span>
+                      <select id="aiSuggestionTopNoteBehaviour" aria-label="AI suggestion top-note behaviour">
+                        <option value="descend_softly">Descend softly</option>
+                        <option value="stay_near">Stay near</option>
+                        <option value="ascend_gently">Ascend gently</option>
+                        <option value="flexible" selected>Flexible</option>
+                      </select>
+                    </label>
+                    <label class="ai-suggestion-behavior-field" for="aiSuggestionColour">
+                      <span class="ai-suggestion-behavior-label">Colour</span>
+                      <select id="aiSuggestionColour" aria-label="AI suggestion colour">
+                        <option value="plain">Plain</option>
+                        <option value="moderate">Moderate</option>
+                        <option value="lush">Lush</option>
+                        <option value="flexible" selected>Flexible</option>
+                      </select>
+                    </label>
+                  </div>
                 </section>
               </div>
+              </section>
+
+              <div id="suggestionAiStatus" class="suggestion-ai-status" aria-live="polite" hidden></div>
+
+              <ul id="aiSuggestionResults">
+                <li>Ask AI to get next-step suggestions.</li>
+              </ul>
+
+              <section id="suggestionAiDebugPanel" class="suggestion-debug-panel ai-suggestion-debug-panel" aria-live="polite" hidden>
+                <div class="suggestion-debug-header">
+                  <div class="suggestion-debug-title">AI Suggestion Debug</div>
+                  <button id="copySuggestionAiDebugBtn" class="suggestion-debug-copy-btn" type="button" aria-label="Copy AI Suggestion Debug" disabled>
+                    <span class="visually-hidden">Copy AI Suggestion Debug</span>
+                  </button>
+                </div>
+                <pre id="suggestionAiDebugOutput" class="suggestion-debug-output">No AI suggestion debug yet.</pre>
+              </section>
             </div>
           </div>
         </div>

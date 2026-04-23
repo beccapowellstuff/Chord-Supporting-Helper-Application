@@ -109,9 +109,17 @@ const suggestBtn = document.getElementById("suggestBtn");
 const suggestAiBtn = document.getElementById("suggestAiBtn");
 const toggleAiSuggestionBehaviorBtn = document.getElementById("toggleAiSuggestionBehaviorBtn");
 const aiSuggestionBehaviorPanel = document.getElementById("aiSuggestionBehaviorPanel");
+const closeAiSuggestionBehaviorBtn = document.getElementById("closeAiSuggestionBehaviorBtn");
 const aiSuggestionProfileSelect = document.getElementById("aiSuggestionProfile");
 const aiSuggestionStyleSelect = document.getElementById("aiSuggestionStyle");
 const aiSuggestionFeelSelect = document.getElementById("aiSuggestionFeel");
+const aiSuggestionProfileChip = document.getElementById("aiSuggestionProfileChip");
+const aiSuggestionStyleChip = document.getElementById("aiSuggestionStyleChip");
+const aiSuggestionFeelChip = document.getElementById("aiSuggestionFeelChip");
+const aiSuggestionPhraseRoleChip = document.getElementById("aiSuggestionPhraseRoleChip");
+const aiSuggestionBassBehaviourChip = document.getElementById("aiSuggestionBassBehaviourChip");
+const aiSuggestionTopNoteBehaviourChip = document.getElementById("aiSuggestionTopNoteBehaviourChip");
+const aiSuggestionColourChip = document.getElementById("aiSuggestionColourChip");
 const aiSuggestionStyleDetails = document.getElementById("aiSuggestionStyleDetails");
 const aiSuggestionFeelDetails = document.getElementById("aiSuggestionFeelDetails");
 const aiSuggestionPhraseRoleSelect = document.getElementById("aiSuggestionPhraseRole");
@@ -163,6 +171,7 @@ const audioStatus = document.getElementById("audioStatus");
 const audioStatusMessage = document.getElementById("audioStatusMessage");
 const sequenceTimeSignatureSelect = document.getElementById("sequenceTimeSignature");
 const results = document.getElementById("results");
+const aiSuggestionResults = document.getElementById("aiSuggestionResults");
 const suggestionDebugPanel = document.getElementById("suggestionDebugPanel");
 const suggestionTheoryDebugPanel = document.getElementById("suggestionTheoryDebugPanel");
 const suggestionDebugOutput = document.getElementById("suggestionDebugOutput");
@@ -170,6 +179,7 @@ const suggestionAiDebugOutput = document.getElementById("suggestionAiDebugOutput
 const suggestionAiDebugPanel = document.getElementById("suggestionAiDebugPanel");
 const suggestionAiStatus = document.getElementById("suggestionAiStatus");
 const toggleSuggestionDebugBtn = document.getElementById("toggleSuggestionDebugBtn");
+const toggleAiSuggestionsDebugBtn = document.getElementById("toggleAiSuggestionsDebugBtn");
 const copySuggestionTheoryDebugBtn = document.getElementById("copySuggestionTheoryDebugBtn");
 const copySuggestionAiDebugBtn = document.getElementById("copySuggestionAiDebugBtn");
 const rootContainer = document.getElementById("rootContainer");
@@ -179,7 +189,7 @@ const bassRootSelector = document.getElementById("bassRootSelector");
 const chordRootSelector = document.getElementById("chordRootSelector");
 const sequenceKeyboard = document.getElementById("sequenceKeyboard");
 const sequenceKeyboardToolbarMount = document.getElementById("sequenceKeyboardToolbarMount");
-const suggestionEngineStatusIcon = document.querySelector('[data-tool-panel="suggestionEnginePanel"] .tool-nav-status-icon');
+const aiSuggestionsStatusIcon = document.querySelector('[data-tool-panel="aiSuggestionsPanel"] .tool-nav-status-icon');
 const aiExploreStatusIcon = document.querySelector('[data-tool-panel="aiExplorePanel"] .tool-nav-status-icon');
 const aiExploreStatus = document.getElementById("aiExploreStatus");
 const aiExploreStatusMessage = document.getElementById("aiExploreStatusMessage");
@@ -215,6 +225,9 @@ const appState = {
   suggestionEngineSelectedChord: "",
   suggestionEngineSelectedInversion: "0",
   suggestionEngineSelectedVoicing: "close",
+  aiSuggestionsSelectedChord: "",
+  aiSuggestionsSelectedInversion: "0",
+  aiSuggestionsSelectedVoicing: "close",
   keyChordSet: null,
   sequenceTempoBpm: DEFAULT_TEMPO_BPM,
   metronomeArmed: false,
@@ -245,6 +258,7 @@ const appState = {
   suggestionAiMessage: "",
   suggestionAiWarning: "",
   suggestionAiDebugText: "No AI suggestion debug yet.",
+  suggestionAiDebugVisible: false,
   aiSuggestionBehavior: {
     ...DEFAULT_AI_SUGGESTION_BEHAVIOR
   },
@@ -414,14 +428,14 @@ const SECTION_HELP_CONTENT = {
     ]
   },
   "suggestion-engine": {
-    title: "Suggestion Engine",
-    intro: "Suggestion Engine gives you theory-led next-chord ideas, and can also ask the AI for a second set of behaviour-guided suggestions.",
+    title: "Theory Suggestions",
+    intro: "Theory Suggestions gives you the app's theory-led next-chord ideas based on the current progression, key, and Feeling.",
     sections: [
       {
         title: "What It Does",
         paragraphs: [
-          "The main suggestions come from the app's theory logic. They read your current progression, key, bass movement, top-note context, and general direction to offer practical next steps.",
-          "ASK AI adds a separate AI Suggestions section below the theory results. Those suggestions still use the same progression context, but the AI Behaviour controls let you steer how adventurous, direct, soft, tense, colourful, or style-shaped the answers should be."
+          "These suggestions come from the app's theory logic. They read your current progression, key, bass movement, top-note context, and general direction to offer practical next steps.",
+          "This panel is the stable theory baseline. It stays separate from AI Suggestions so you can compare the app's grounded harmonic read against the AI's behaviour-guided ideas."
         ]
       },
       {
@@ -429,22 +443,49 @@ const SECTION_HELP_CONTENT = {
         items: [
           "Choose a Feeling to guide the type of suggestions you want.",
           "Use Refresh to update the theory suggestions, or turn on auto-refresh if you want them to update as you add chords.",
-          "Use ASK AI when you want an extra pass that follows the current progression plus the AI Behaviour settings.",
-          "Open AI Behaviour if you want to guide phrase role, bass motion, top-note motion, colour, style, or feel. These controls steer the AI, but they do not override the music completely.",
-          "Click any suggestion to hear it, inspect why it was offered, and then add it straight into the progression if it works."
+          "Use this panel when you want to see the app's own harmonic read without any AI layer mixed into the result list.",
+          "Click any suggestion to hear it and add it straight into the progression if it works."
         ]
       },
       {
-        title: "Reading The Results",
+        title: "Debugging",
         paragraphs: [
-          "Theory suggestions and AI suggestions are shown separately on purpose. The theory set is the stable baseline. The AI set is there to give you another angle while still trying to respect the same musical context.",
-          "If the AI returns duplicates, invalid chords, or unusable answers, the app filters those out before showing the results."
+          "The debug view here is focused on the theory engine's progression analysis and ranking logic.",
+          "If you want to inspect the AI request, AI response, and filtered AI chord candidates, open the separate AI Suggestions panel instead."
         ]
       },
       {
         title: "Current State",
         paragraphs: [
           "This section is still best treated as a guided idea generator rather than a final musical authority. It works best when you audition the suggestions, compare them against the progression, and use the AI controls to nudge the answers toward the kind of motion you want."
+        ]
+      }
+    ]
+  },
+  "ai-suggestions": {
+    title: "AI Suggestions",
+    intro: "AI Suggestions gives you a separate AI-driven next-chord pass built from the current progression, key, Feeling, and the AI Behaviour controls.",
+    sections: [
+      {
+        title: "What It Does",
+        paragraphs: [
+          "This panel asks the connected AI model for next-chord ideas using the same live progression context that the theory engine sees.",
+          "It stays separate from Theory Suggestions on purpose so you can compare the app's grounded harmonic read against the AI's more behaviour-shaped answers."
+        ]
+      },
+      {
+        title: "How To Use It",
+        items: [
+          "Set up your progression first, then press ASK AI when you want an AI pass for the next chord.",
+          "Open AI Behaviour if you want to guide phrase role, bass motion, top-note motion, colour, style, or feel.",
+          "Use this panel when you want to experiment with direction and harmonic colour without changing the theory panel's core output."
+        ]
+      },
+      {
+        title: "Debugging",
+        paragraphs: [
+          "The debug view here is for the full AI suggestion path: prompt summary, normalized behaviour parameters, raw response, parsed suggestions, and any dropped items.",
+          "If the AI behaves oddly, this is the place to inspect what was sent, what came back, and what the app filtered out."
         ]
       }
     ]
@@ -573,6 +614,17 @@ function syncSuggestionEngineSelection(suggestions = []) {
 
   if (!suggestions.some(item => item?.chord === chord)) {
     resetToolSelection("suggestionEngine");
+  }
+}
+
+function syncAiSuggestionsSelection(items = []) {
+  const { chord } = getToolSelection("aiSuggestions");
+  if (!chord) {
+    return;
+  }
+
+  if (!items.some(item => item?.chord === chord)) {
+    resetToolSelection("aiSuggestions");
   }
 }
 
@@ -982,6 +1034,7 @@ function clearSuggestionAiState() {
   appState.suggestionAiMessage = "";
   appState.suggestionAiWarning = "";
   appState.suggestionAiDebugText = "No AI suggestion debug yet.";
+  resetToolSelection("aiSuggestions");
   setSuggestionAiStatus("idle", "");
 }
 
@@ -1690,29 +1743,45 @@ async function ensureActiveAiModelLoaded(statusCallback = null) {
   return refreshedStatus;
 }
 
-function renderSuggestionEngineControls() {
+function renderAiSuggestionControls() {
   if (suggestAiBtn) {
     const hasProgression = appState.progressionItems.length > 0;
     suggestAiBtn.disabled = !hasProgression || appState.suggestionAiRequesting;
     suggestAiBtn.textContent = appState.suggestionAiRequesting ? "ASKING AI..." : "ASK AI";
   }
 
+  const profileValue = String(appState.aiSuggestionBehavior?.profile || DEFAULT_AI_SUGGESTION_BEHAVIOR.profile || "precise");
+  const phraseRoleValue = String(appState.aiSuggestionBehavior?.phraseRole || DEFAULT_AI_SUGGESTION_BEHAVIOR.phraseRole || "flexible");
+  const bassBehaviourValue = String(appState.aiSuggestionBehavior?.bassBehaviour || DEFAULT_AI_SUGGESTION_BEHAVIOR.bassBehaviour || "flexible");
+  const topNoteBehaviourValue = String(appState.aiSuggestionBehavior?.topNoteBehaviour || DEFAULT_AI_SUGGESTION_BEHAVIOR.topNoteBehaviour || "flexible");
+  const colourValue = String(appState.aiSuggestionBehavior?.colour || DEFAULT_AI_SUGGESTION_BEHAVIOR.colour || "flexible");
+  const formatBehaviorChipValue = value => String(value || "")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, letter => letter.toUpperCase());
+
   if (toggleAiSuggestionBehaviorBtn) {
     const isOpen = Boolean(appState.aiSuggestionBehavior?.drawerOpen);
     toggleAiSuggestionBehaviorBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
-    toggleAiSuggestionBehaviorBtn.textContent = isOpen ? "Hide AI Behaviour" : "AI Behaviour";
+    toggleAiSuggestionBehaviorBtn.dataset.tooltip = "Adjust AI suggestion settings";
   }
 
   if (aiSuggestionBehaviorPanel) {
     aiSuggestionBehaviorPanel.hidden = !appState.aiSuggestionBehavior?.drawerOpen;
   }
 
+  if (aiSuggestionProfileChip) {
+    aiSuggestionProfileChip.textContent = `Profile: ${formatBehaviorChipValue(profileValue)}`;
+  }
+
   if (aiSuggestionProfileSelect) {
-    aiSuggestionProfileSelect.value = appState.aiSuggestionBehavior?.profile || DEFAULT_AI_SUGGESTION_BEHAVIOR.profile;
+    aiSuggestionProfileSelect.value = profileValue;
     aiSuggestionProfileSelect.disabled = Boolean(appState.suggestionAiRequesting);
   }
 
   const stylePreset = getAiSuggestionStylePreset(appState.aiSuggestionBehavior?.style || DEFAULT_AI_SUGGESTION_BEHAVIOR.style);
+  if (aiSuggestionStyleChip) {
+    aiSuggestionStyleChip.textContent = `Style: ${stylePreset.label}`;
+  }
   if (aiSuggestionStyleSelect) {
     aiSuggestionStyleSelect.value = stylePreset.key;
     aiSuggestionStyleSelect.disabled = Boolean(appState.suggestionAiRequesting);
@@ -1737,6 +1806,9 @@ function renderSuggestionEngineControls() {
   }
 
   const feelPreset = getAiSuggestionFeelPreset(appState.aiSuggestionBehavior?.feel || DEFAULT_AI_SUGGESTION_BEHAVIOR.feel);
+  if (aiSuggestionFeelChip) {
+    aiSuggestionFeelChip.textContent = `Feel: ${feelPreset.label}`;
+  }
   if (aiSuggestionFeelSelect) {
     aiSuggestionFeelSelect.value = feelPreset.key;
     aiSuggestionFeelSelect.disabled = Boolean(appState.suggestionAiRequesting);
@@ -1757,23 +1829,35 @@ function renderSuggestionEngineControls() {
   }
 
   if (aiSuggestionPhraseRoleSelect) {
-    aiSuggestionPhraseRoleSelect.value = appState.aiSuggestionBehavior?.phraseRole || DEFAULT_AI_SUGGESTION_BEHAVIOR.phraseRole;
+    aiSuggestionPhraseRoleSelect.value = phraseRoleValue;
     aiSuggestionPhraseRoleSelect.disabled = Boolean(appState.suggestionAiRequesting);
+  }
+  if (aiSuggestionPhraseRoleChip) {
+    aiSuggestionPhraseRoleChip.textContent = `Phrase: ${formatBehaviorChipValue(phraseRoleValue)}`;
   }
 
   if (aiSuggestionBassBehaviourSelect) {
-    aiSuggestionBassBehaviourSelect.value = appState.aiSuggestionBehavior?.bassBehaviour || DEFAULT_AI_SUGGESTION_BEHAVIOR.bassBehaviour;
+    aiSuggestionBassBehaviourSelect.value = bassBehaviourValue;
     aiSuggestionBassBehaviourSelect.disabled = Boolean(appState.suggestionAiRequesting);
+  }
+  if (aiSuggestionBassBehaviourChip) {
+    aiSuggestionBassBehaviourChip.textContent = `Bass: ${formatBehaviorChipValue(bassBehaviourValue)}`;
   }
 
   if (aiSuggestionTopNoteBehaviourSelect) {
-    aiSuggestionTopNoteBehaviourSelect.value = appState.aiSuggestionBehavior?.topNoteBehaviour || DEFAULT_AI_SUGGESTION_BEHAVIOR.topNoteBehaviour;
+    aiSuggestionTopNoteBehaviourSelect.value = topNoteBehaviourValue;
     aiSuggestionTopNoteBehaviourSelect.disabled = Boolean(appState.suggestionAiRequesting);
+  }
+  if (aiSuggestionTopNoteBehaviourChip) {
+    aiSuggestionTopNoteBehaviourChip.textContent = `Top-note: ${formatBehaviorChipValue(topNoteBehaviourValue)}`;
   }
 
   if (aiSuggestionColourSelect) {
-    aiSuggestionColourSelect.value = appState.aiSuggestionBehavior?.colour || DEFAULT_AI_SUGGESTION_BEHAVIOR.colour;
+    aiSuggestionColourSelect.value = colourValue;
     aiSuggestionColourSelect.disabled = Boolean(appState.suggestionAiRequesting);
+  }
+  if (aiSuggestionColourChip) {
+    aiSuggestionColourChip.textContent = `Colour: ${formatBehaviorChipValue(colourValue)}`;
   }
 }
 
@@ -1800,7 +1884,7 @@ async function handleSuggestionAiRequest() {
       error: "No progression was available for AI suggestions.",
       hint: "Build at least one chord in the sequence before running AI suggestions."
     });
-    renderSuggestionResults(suggestionPayload);
+    renderAiSuggestionResults(suggestionPayload);
     return;
   }
 
@@ -1810,8 +1894,8 @@ async function handleSuggestionAiRequest() {
   appState.suggestionAiMessage = "";
   appState.suggestionAiWarning = "";
   setSuggestionAiStatus("loading", "Preparing AI suggestion request...");
-  renderSuggestionEngineControls();
-  renderSuggestionResults(suggestionPayload);
+  renderAiSuggestionControls();
+  renderAiSuggestionResults(suggestionPayload);
 
   const baseAnalysis = suggestionPayload?.progressionState || {};
   const flexibleContext = {
@@ -1915,8 +1999,8 @@ async function handleSuggestionAiRequest() {
     });
   } finally {
     appState.suggestionAiRequesting = false;
-    renderSuggestionEngineControls();
-    renderSuggestionResults(
+    renderAiSuggestionControls();
+    renderAiSuggestionResults(
       contextToken === getSuggestionAiContextToken()
         ? suggestionPayload
         : buildCurrentSuggestionPayload()
@@ -2270,7 +2354,7 @@ function setActiveToolPanel(panelId, options = {}) {
       panel.classList.remove("tool-panel-exiting");
     });
 
-    if (panelId === "suggestionEnginePanel" && appData) {
+    if ((panelId === "suggestionEnginePanel" || panelId === "aiSuggestionsPanel") && appData) {
       runSuggestions();
     }
     if (panelId === "aiExplorePanel") {
@@ -2294,7 +2378,7 @@ function setActiveToolPanel(panelId, options = {}) {
     toolPanelTransitionTimeout = null;
   }, TOOL_PANEL_TRANSITION_MS);
 
-  if (panelId === "suggestionEnginePanel" && appData) {
+  if ((panelId === "suggestionEnginePanel" || panelId === "aiSuggestionsPanel") && appData) {
     runSuggestions();
   }
   if (panelId === "aiExplorePanel") {
@@ -2627,6 +2711,11 @@ function getKeyExplorerSelectionProgressionOverrides(chord) {
   return getToolSelectionProgressionOverrides("keyExplorer", chord, "key-explorer");
 }
 
+function addToolSelectionToProgression(toolKey, chord, inversionValue = "0", voicingValue = "close", source = toolKey) {
+  setToolSelection(toolKey, chord, inversionValue, voicingValue);
+  appendChordToProgression(chord, getToolSelectionProgressionOverrides(toolKey, chord, source));
+}
+
 function buildClonedProgressionItem(sourceItem, overrides = {}) {
   return appendProgressionItem(
     [],
@@ -2685,7 +2774,7 @@ function moveProgressionItem(draggedId, targetId, placement = "before") {
     renderProgressionBuilderUI();
   }
 
-  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel" || activeToolPanelId === "aiSuggestionsPanel") && appData) {
     runSuggestions();
   }
 }
@@ -2867,7 +2956,7 @@ function duplicateSelectedProgressionChord() {
     renderProgressionBuilderUI();
   }
 
-  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel" || activeToolPanelId === "aiSuggestionsPanel") && appData) {
     runSuggestions();
   }
 }
@@ -2898,7 +2987,7 @@ function insertSelectedProgressionChord(placement = "after") {
   setProgressionItems(nextItems, { selectedId: insertedItem.id, recordUndo: true });
   refreshSequenceKeyboard();
 
-  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel" || activeToolPanelId === "aiSuggestionsPanel") && appData) {
     runSuggestions();
   }
 }
@@ -2951,7 +3040,7 @@ function splitSelectedProgressionChord() {
 
   refreshSequenceKeyboard();
 
-  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel" || activeToolPanelId === "aiSuggestionsPanel") && appData) {
     runSuggestions();
   }
 }
@@ -2979,7 +3068,7 @@ function deleteSelectedProgressionChord() {
   }
   setProgressionItems(nextItems, { selectedId: fallbackSelection, recordUndo: true });
 
-  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel" || activeToolPanelId === "aiSuggestionsPanel") && appData) {
     runSuggestions();
   }
 }
@@ -3178,7 +3267,7 @@ function applyLoadedProgressionData(data) {
     refreshKeyUI();
   }
 
-  if (activeToolPanelId === "suggestionEnginePanel" && appData) {
+  if ((activeToolPanelId === "suggestionEnginePanel" || activeToolPanelId === "aiSuggestionsPanel") && appData) {
     runSuggestions();
   }
 }
@@ -3878,6 +3967,9 @@ function refreshChordPlaygroundUI() {
       selectChord: chord => {
         setToolSelection("chordExplorer", chord, "0", "close");
       },
+      addSelection: (chord, inversionValue = "0", voicingValue = "close") => {
+        addToolSelectionToProgression("chordExplorer", chord, inversionValue, voicingValue, "chord-explorer");
+      },
       playSelection: async (chord, inversionValue = "0", voicingValue = "close") => {
         try {
           await playToolSelection("chordExplorer", refreshChordPlaygroundUI, chord, inversionValue, voicingValue);
@@ -3966,7 +4058,7 @@ function restoreProgressionUndoSnapshot(snapshot) {
     selectedId: snapshot.selectedId || null
   });
 
-  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel") && appData) {
+  if ((autoSuggestToggle?.checked || activeToolPanelId === "suggestionEnginePanel" || activeToolPanelId === "aiSuggestionsPanel") && appData) {
     runSuggestions();
   }
 }
@@ -4049,6 +4141,9 @@ function refreshKeyUI() {
         appState.keyExplorerSelectedChord = chord;
         appState.keyExplorerSelectedInversion = "0";
         appState.keyExplorerSelectedVoicing = "close";
+      },
+      addSelection: (chord, inversionValue = "0", voicingValue = "close") => {
+        addToolSelectionToProgression("keyExplorer", chord, inversionValue, voicingValue, "key-explorer");
       },
       playSelection: async (chord, inversionValue = "0", voicingValue = "close") => {
         try {
@@ -4154,14 +4249,6 @@ function renderSuggestionDebugVisibility() {
     suggestionDebugPanel.hidden = !appState.suggestionDebugVisible;
   }
 
-  if (suggestionTheoryDebugPanel) {
-    suggestionTheoryDebugPanel.hidden = !appState.suggestionDebugVisible;
-  }
-
-  if (suggestionAiDebugPanel) {
-    suggestionAiDebugPanel.hidden = !appState.suggestionDebugVisible;
-  }
-
   if (toggleSuggestionDebugBtn) {
     const label = appState.suggestionDebugVisible ? "Hide Suggestion Debug" : "Show Suggestion Debug";
     toggleSuggestionDebugBtn.setAttribute("aria-pressed", String(appState.suggestionDebugVisible));
@@ -4169,6 +4256,21 @@ function renderSuggestionDebugVisibility() {
     toggleSuggestionDebugBtn.dataset.tooltip = appState.suggestionDebugVisible
       ? "Hide the suggestion debug panel"
       : "Show the suggestion debug panel";
+  }
+}
+
+function renderSuggestionAiDebugVisibility() {
+  if (suggestionAiDebugPanel) {
+    suggestionAiDebugPanel.hidden = !appState.suggestionAiDebugVisible;
+  }
+
+  if (toggleAiSuggestionsDebugBtn) {
+    const label = appState.suggestionAiDebugVisible ? "Hide AI Suggestion Debug" : "Show AI Suggestion Debug";
+    toggleAiSuggestionsDebugBtn.setAttribute("aria-pressed", String(appState.suggestionAiDebugVisible));
+    toggleAiSuggestionsDebugBtn.setAttribute("aria-label", label);
+    toggleAiSuggestionsDebugBtn.dataset.tooltip = appState.suggestionAiDebugVisible
+      ? "Hide the AI suggestion debug panel"
+      : "Show the AI suggestion debug panel";
   }
 }
 
@@ -4664,22 +4766,9 @@ function buildSuggestionAiRenderState() {
   };
 }
 
-function renderSuggestionResults(suggestionPayload) {
-  if (suggestionAiDebugOutput) {
-    const nextDebugText = appState.suggestionAiDebugText || "No AI suggestion debug yet.";
-    if (suggestionAiDebugOutput.textContent !== nextDebugText) {
-      suggestionAiDebugOutput.textContent = nextDebugText;
-    }
-    if (copySuggestionAiDebugBtn) {
-      copySuggestionAiDebugBtn.disabled = !nextDebugText || nextDebugText === "No AI suggestion debug yet.";
-      setSuggestionAiDebugCopyButtonState(false);
-    }
-  }
-
+function renderTheorySuggestionResults(suggestionPayload) {
   renderSuggestionDebug(suggestionPayload);
   renderSuggestionDebugVisibility();
-  renderSuggestionAiStatus();
-  renderSuggestionEngineControls();
   syncSuggestionEngineSelection(suggestionPayload.suggestions);
 
   const onSuggestedChordClick = Object.assign(async chordName => {
@@ -4697,6 +4786,9 @@ function renderSuggestionResults(suggestionPayload) {
     getVoicingOptions,
     selectChord: chord => {
       setToolSelection("suggestionEngine", chord, "0", "close");
+    },
+    addSelection: (chord, inversionValue = "0", voicingValue = "close") => {
+      addToolSelectionToProgression("suggestionEngine", chord, inversionValue, voicingValue, "suggestion-engine");
     },
     playItemSelection: async (item, inversionValue = "0", voicingValue = "close") => {
       try {
@@ -4749,7 +4841,111 @@ function renderSuggestionResults(suggestionPayload) {
     onSuggestedChordClick,
     onSuggestedChordAdd,
     {
-      aiSuggestions: buildSuggestionAiRenderState()
+      showAi: false
+    }
+  );
+}
+
+function renderAiSuggestionResults(suggestionPayload) {
+  if (!aiSuggestionResults) {
+    return;
+  }
+
+  if (suggestionAiDebugOutput) {
+    const nextDebugText = appState.suggestionAiDebugText || "No AI suggestion debug yet.";
+    if (suggestionAiDebugOutput.textContent !== nextDebugText) {
+      suggestionAiDebugOutput.textContent = nextDebugText;
+    }
+    if (copySuggestionAiDebugBtn) {
+      copySuggestionAiDebugBtn.disabled = !nextDebugText || nextDebugText === "No AI suggestion debug yet.";
+      setSuggestionAiDebugCopyButtonState(false);
+    }
+  }
+
+  renderSuggestionAiDebugVisibility();
+  renderSuggestionAiStatus();
+  renderAiSuggestionControls();
+  syncAiSuggestionsSelection(appState.suggestionAiResults);
+
+  const onSuggestedChordClick = Object.assign(async chordName => {
+    try {
+      await ensureAudioReady();
+      await playChordWithSequenceKeyboard(chordName, 1.0);
+    } catch (error) {
+      console.error("? Could not play AI suggestion chord:", error);
+    }
+  }, {
+    getSelectedChord: () => appState.aiSuggestionsSelectedChord,
+    getSelectedInversionValue: () => appState.aiSuggestionsSelectedInversion,
+    getSelectedVoicingValue: () => appState.aiSuggestionsSelectedVoicing,
+    getInversionOptions,
+    getVoicingOptions,
+    selectChord: chord => {
+      setToolSelection("aiSuggestions", chord, "0", "close");
+    },
+    addSelection: (chord, inversionValue = "0", voicingValue = "close") => {
+      addToolSelectionToProgression("aiSuggestions", chord, inversionValue, voicingValue, "ai-suggestion");
+    },
+    playItemSelection: async (item, inversionValue = "0", voicingValue = "close") => {
+      try {
+        setToolSelection("aiSuggestions", item?.chord || "", inversionValue, voicingValue);
+        renderAiSuggestionResults(buildCurrentSuggestionPayload());
+        const aiPlayback = buildAiSuggestedPlayback(item);
+        if (aiPlayback?.notes?.length) {
+          await ensureAudioReady();
+          await playVoicingWithSequenceKeyboard(aiPlayback.notes, item.chord, 1.0, {
+            inversionLabel: aiPlayback.inversionLabel,
+            inversionShortLabel: aiPlayback.inversionShortLabel,
+            voicingLabel: aiPlayback.voicingLabel,
+            voicingShortLabel: aiPlayback.voicingShortLabel
+          });
+          return;
+        }
+
+        await playToolSelection("aiSuggestions", () => renderAiSuggestionResults(buildCurrentSuggestionPayload()), item?.chord || "", inversionValue, voicingValue);
+      } catch (error) {
+        console.error("? Could not play AI suggestion voicing:", error);
+      }
+    },
+    playSelection: async (chord, inversionValue = "0", voicingValue = "close") => {
+      try {
+        await playToolSelection("aiSuggestions", () => renderAiSuggestionResults(buildCurrentSuggestionPayload()), chord, inversionValue, voicingValue);
+      } catch (error) {
+        console.error("? Could not play selected AI suggestion voicing:", error);
+      }
+    }
+  });
+
+  const onSuggestedChordAdd = suggestionOrChord => {
+    const suggestionItem = typeof suggestionOrChord === "object" && suggestionOrChord !== null
+      ? suggestionOrChord
+      : null;
+    const chordName = suggestionItem?.chord || String(suggestionOrChord || "").trim();
+    appendChordToProgression(
+      chordName,
+      suggestionItem
+        ? getAiSuggestionProgressionOverrides(suggestionItem)
+        : getToolSelectionProgressionOverrides("aiSuggestions", chordName, "ai-suggestion")
+    );
+  };
+
+  renderSuggestions(
+    aiSuggestionResults,
+    {
+      ...suggestionPayload,
+      suggestions: []
+    },
+    appData.musicData,
+    appState.selectedKey,
+    onSuggestedChordClick,
+    onSuggestedChordAdd,
+    {
+      showTheory: false,
+      aiSuggestions: buildSuggestionAiRenderState(),
+      selectionItems: appState.suggestionAiResults,
+      emptyMessage: Array.isArray(suggestionPayload?.parsedProgression) && suggestionPayload.parsedProgression.length
+        ? "Ask AI to get next-step suggestions."
+        : "Add a chord to the sequence before asking AI for suggestions."
     }
   );
 }
@@ -4761,7 +4957,8 @@ function runSuggestions(options = {}) {
   }
 
   const suggestionPayload = buildCurrentSuggestionPayload();
-  renderSuggestionResults(suggestionPayload);
+  renderTheorySuggestionResults(suggestionPayload);
+  renderAiSuggestionResults(suggestionPayload);
   return suggestionPayload;
 }
 
@@ -4903,7 +5100,7 @@ async function init() {
     refreshSequenceKeyboard();
     refreshChordPlaygroundUI();
     updateToolContext();
-    renderSuggestionEngineControls();
+    renderAiSuggestionControls();
     renderSuggestionAiStatus();
 
     if (suggestBtn) suggestBtn.dataset.tooltip = "Refresh the current suggestions";
@@ -4932,14 +5129,15 @@ async function init() {
     if (aiExploreSubmitBtn) aiExploreSubmitBtn.dataset.tooltip = "Send the current prompt to the active AI provider";
     if (aiExploreResponseOutput) aiExploreResponseOutput.dataset.tooltip = "Scrollable model response area";
     if (toggleAiExploreDebugBtn) toggleAiExploreDebugBtn.dataset.tooltip = "Show the AI Explore debug panel";
+    if (toggleAiSuggestionsDebugBtn) toggleAiSuggestionsDebugBtn.dataset.tooltip = "Show the AI suggestion debug panel";
     feelingSelect.dataset.tooltip = "Choose a mood to guide the suggestions";
     if (autoSuggestToggle) autoSuggestToggle.closest(".suggest-toggle").dataset.tooltip = "Automatically refresh suggestions when you add a chord";
     if (toggleSuggestionDebugBtn) toggleSuggestionDebugBtn.dataset.tooltip = "Show the suggestion debug panel";
     if (copySuggestionTheoryDebugBtn) copySuggestionTheoryDebugBtn.dataset.tooltip = "Copy Suggestion Debug";
     if (copySuggestionAiDebugBtn) copySuggestionAiDebugBtn.dataset.tooltip = "Copy AI Suggestion Debug";
-    if (suggestionEngineStatusIcon) {
-      suggestionEngineStatusIcon.textContent = "!";
-      suggestionEngineStatusIcon.dataset.tooltip = "ALPHA STAGE WIP";
+    if (aiSuggestionsStatusIcon) {
+      aiSuggestionsStatusIcon.textContent = "!";
+      aiSuggestionsStatusIcon.dataset.tooltip = "ALPHA STAGE WIP";
     }
     if (aiExploreStatusIcon) {
       aiExploreStatusIcon.textContent = "!";
@@ -5007,56 +5205,63 @@ async function init() {
         updateAiSuggestionBehavior({
           drawerOpen: !appState.aiSuggestionBehavior?.drawerOpen
         });
-        renderSuggestionEngineControls();
+        renderAiSuggestionControls();
+      });
+    }
+
+    if (closeAiSuggestionBehaviorBtn) {
+      closeAiSuggestionBehaviorBtn.addEventListener("click", () => {
+        updateAiSuggestionBehavior({ drawerOpen: false });
+        renderAiSuggestionControls();
       });
     }
 
     if (aiSuggestionProfileSelect) {
       aiSuggestionProfileSelect.addEventListener("change", () => {
         updateAiSuggestionBehavior({ profile: String(aiSuggestionProfileSelect.value || "precise").trim().toLowerCase() || "precise" });
-        runSuggestions();
+        renderAiSuggestionResults(buildCurrentSuggestionPayload());
       });
     }
 
     if (aiSuggestionStyleSelect) {
       aiSuggestionStyleSelect.addEventListener("change", () => {
         updateAiSuggestionBehavior({ style: String(aiSuggestionStyleSelect.value || "neutral").trim().toLowerCase() || "neutral" });
-        runSuggestions();
+        renderAiSuggestionResults(buildCurrentSuggestionPayload());
       });
     }
 
     if (aiSuggestionFeelSelect) {
       aiSuggestionFeelSelect.addEventListener("change", () => {
         updateAiSuggestionBehavior({ feel: String(aiSuggestionFeelSelect.value || "neutral").trim().toLowerCase() || "neutral" });
-        runSuggestions();
+        renderAiSuggestionResults(buildCurrentSuggestionPayload());
       });
     }
 
     if (aiSuggestionPhraseRoleSelect) {
       aiSuggestionPhraseRoleSelect.addEventListener("change", () => {
         updateAiSuggestionBehavior({ phraseRole: String(aiSuggestionPhraseRoleSelect.value || "flexible").trim().toLowerCase() || "flexible" });
-        runSuggestions();
+        renderAiSuggestionResults(buildCurrentSuggestionPayload());
       });
     }
 
     if (aiSuggestionBassBehaviourSelect) {
       aiSuggestionBassBehaviourSelect.addEventListener("change", () => {
         updateAiSuggestionBehavior({ bassBehaviour: String(aiSuggestionBassBehaviourSelect.value || "flexible").trim().toLowerCase() || "flexible" });
-        runSuggestions();
+        renderAiSuggestionResults(buildCurrentSuggestionPayload());
       });
     }
 
     if (aiSuggestionTopNoteBehaviourSelect) {
       aiSuggestionTopNoteBehaviourSelect.addEventListener("change", () => {
         updateAiSuggestionBehavior({ topNoteBehaviour: String(aiSuggestionTopNoteBehaviourSelect.value || "flexible").trim().toLowerCase() || "flexible" });
-        runSuggestions();
+        renderAiSuggestionResults(buildCurrentSuggestionPayload());
       });
     }
 
     if (aiSuggestionColourSelect) {
       aiSuggestionColourSelect.addEventListener("change", () => {
         updateAiSuggestionBehavior({ colour: String(aiSuggestionColourSelect.value || "flexible").trim().toLowerCase() || "flexible" });
-        runSuggestions();
+        renderAiSuggestionResults(buildCurrentSuggestionPayload());
       });
     }
 
@@ -5064,6 +5269,13 @@ async function init() {
       toggleSuggestionDebugBtn.addEventListener("click", () => {
         appState.suggestionDebugVisible = !appState.suggestionDebugVisible;
         renderSuggestionDebugVisibility();
+      });
+    }
+
+    if (toggleAiSuggestionsDebugBtn) {
+      toggleAiSuggestionsDebugBtn.addEventListener("click", () => {
+        appState.suggestionAiDebugVisible = !appState.suggestionAiDebugVisible;
+        renderSuggestionAiDebugVisibility();
       });
     }
 
@@ -5326,6 +5538,15 @@ async function init() {
           closeAppSettingsModal();
         }
       }
+
+      if (appState.aiSuggestionBehavior?.drawerOpen) {
+        const clickedInsideAiSuggestionDialog = Boolean(target?.closest?.(".ai-suggestion-behavior-modal"));
+        const clickedAiSuggestionTrigger = Boolean(target?.closest?.("#toggleAiSuggestionBehaviorBtn"));
+        if (!clickedInsideAiSuggestionDialog && !clickedAiSuggestionTrigger) {
+          updateAiSuggestionBehavior({ drawerOpen: false });
+          renderAiSuggestionControls();
+        }
+      }
     });
 
     document.addEventListener("keydown", event => {
@@ -5344,6 +5565,10 @@ async function init() {
         }
         if (appState.appSettingsModalOpen) {
           closeAppSettingsModal();
+        }
+        if (appState.aiSuggestionBehavior?.drawerOpen) {
+          updateAiSuggestionBehavior({ drawerOpen: false });
+          renderAiSuggestionControls();
         }
       }
     });

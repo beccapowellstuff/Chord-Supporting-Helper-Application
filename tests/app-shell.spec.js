@@ -13,11 +13,13 @@ test("loads the main app shell with builder and tool navigation", async ({ page 
   await expect(page.getByRole("button", { name: "Save progression" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Key Explorer" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Chord Explorer" })).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: "Theory Suggestions" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "AI Suggestions" })).toBeVisible();
   await expect(page.getByRole("button", { name: "AI Explore" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Suggestion Engine/ })).toBeVisible();
 
   await expect(page.locator("#keyExplorerPanel")).toBeVisible();
   await expect(page.locator("#chordExplorerPanel")).toBeHidden();
+  await expect(page.locator("#aiSuggestionsPanel")).toBeHidden();
   await expect(page.locator("#aiExplorePanel")).toBeHidden();
   await expect(page.locator("#suggestionEnginePanel")).toBeHidden();
 });
@@ -30,9 +32,17 @@ test("switches between tool panels without removing the builder", async ({ page 
   await expect(page.locator("#keyExplorerPanel")).toBeHidden();
   await expect(page.locator(".sequence-panel-title")).toBeVisible();
 
+  await openTool(page, "Theory Suggestions");
+  await expect(page.locator("#suggestionEnginePanel")).toBeVisible();
+  await expect(page.locator("#chordExplorerPanel")).toBeHidden();
+
+  await openTool(page, "AI Suggestions");
+  await expect(page.locator("#aiSuggestionsPanel")).toBeVisible();
+  await expect(page.locator("#suggestionEnginePanel")).toBeHidden();
+
   await openTool(page, "AI Explore");
   await expect(page.locator("#aiExplorePanel")).toBeVisible();
-  await expect(page.locator("#chordExplorerPanel")).toBeHidden();
+  await expect(page.locator("#aiSuggestionsPanel")).toBeHidden();
 
   await openTool(page, "Key Explorer");
   await expect(page.locator("#keyExplorerPanel")).toBeVisible();

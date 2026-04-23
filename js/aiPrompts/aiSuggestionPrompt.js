@@ -213,6 +213,54 @@ function parseJsonSuggestions(text) {
   }
 }
 
+function parseNumericField(segment, pattern) {
+  const match = pattern.exec(segment);
+  if (!match?.[1]) {
+    return null;
+  }
+
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function parseStructuredSuggestionBlocks(text) {
+  const candidate = extractJsonCandidate(text);
+  if (!candidate) {
+    return [];
+  }
+
+  const suggestionBlockMatch = candidate.match(/"suggestions"\s*:\s*\[([\s\S]*?)\]\s*\}?$/i);
+  const source = suggestionBlockMatch?.[1] || candidate;
+  const chordFieldPattern = /"(?:chord|name|label|im_chord)"\s*:/gi;
+  const startIndexes = [];
+
+  let startMatch = chordFieldPattern.exec(source);
+  while (startMatch) {
+    startIndexes.push(startMatch.index);
+    startMatch = chordFieldPattern.exec(source);
+  }
+
+  if (!startIndexes.length) {
+    return [];
+  }
+
+  return startIndexes.map((start, index) => {
+    const end = index + 1 < startIndexes.length ? startIndexes[index + 1] : source.length;
+    const segment = source.slice(start, end);
+    const confidence = parseNumericField(segment, /"(?:confidence|strength)"\s*:\s*(-?\d+(?:\.\d+)?)/i);
+    const resolutionType = /"(?:resolutionType|resolution_type|role|type)"\s*:\s*"([^"]*)"/i.exec(segment)?.[1] || "";
+
+    return normalizeParsedEntry({
+      chord: /"(?:chord|name|label|im_chord)"\s*:\s*"([^"]+)"/i.exec(segment)?.[1] || "",
+      bass: /"(?:bass|bassNote|bass_note)"\s*:\s*"([^"]*)"/i.exec(segment)?.[1] || "",
+      topNote: /"(?:topNote|top_note|soprano)"\s*:\s*"([^"]*)"/i.exec(segment)?.[1] || "",
+      resolutionType,
+      confidence,
+      reason: /"(?:reason|why|note)"\s*:\s*"([^"]*)"/i.exec(segment)?.[1] || ""
+    });
+  }).filter(item => item.chord);
+}
+
 function parseLineSuggestions(text) {
   return String(text || "")
     .split(/\r?\n/)
@@ -239,6 +287,11 @@ export function parseAiSuggestionResponse(text) {
   const parsedFromJson = parseJsonSuggestions(text);
   if (parsedFromJson.length) {
     return parsedFromJson;
+  }
+
+  const parsedFromStructuredBlocks = parseStructuredSuggestionBlocks(text);
+  if (parsedFromStructuredBlocks.length) {
+    return parsedFromStructuredBlocks;
   }
 
   return parseLineSuggestions(text);

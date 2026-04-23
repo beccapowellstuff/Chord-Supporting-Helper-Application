@@ -80,6 +80,50 @@ test("AI prompt modules build normalized behaviour, structured prompts, and vali
       ]
     }`);
 
+    const salvagedSuggestions = prompts.parseAiSuggestionResponse(`{
+      "suggestions": [
+        {
+          "chord": "Dm",
+          "bass": "D2",
+          "topNote": "A6",
+          "resolutionType": "continue",
+          "confidence": 0.95,
+          "reason": "Follows the requested down-step bass motion and maintains diatonic stability."
+        },
+        {
+          "chord": "F",
+          "bass": "F2",
+          "topNote": "A6",
+          "resolutionType": "continue",
+          "confidence": 0.9,
+          "reason": "Provides a smooth downward bass step and stays within the established diatonic palette."
+        },
+        {
+          "chord": "G",
+          "bass": "G1",
+          "topNote": "B6",
+          "resolutionType": "expand",
+          "confidence": 0.85,
+          "reason": "Moves the bass down while allowing the top note to rise softly."
+        },
+        "im_chord": "Dm/F",
+          "bass": "F2",
+          "topNote": "A6",
+          "resolutionType": "continue",
+          "confidence": 0.82,
+          "reason": "Uses a first inversion to create smooth bass descent while keeping the top note stable."
+        },
+        {
+          "chord": "Em",
+          "bass": "E2",
+          "topNote": "G6",
+          "resolutionType": "continue",
+          "confidence": 0.75,
+          "reason": "Returns to a previously used chord with a downward bass step and soft top-line descent."
+        }
+      ]
+    }`);
+
     const filtered = prompts.buildAiSuggestionRenderItems([
       {
         chord: "Am",
@@ -121,6 +165,7 @@ test("AI prompt modules build normalized behaviour, structured prompts, and vali
       normalized,
       aiSuggestionRequest,
       parsedSuggestions,
+      salvagedSuggestions,
       filtered
     };
   });
@@ -178,6 +223,59 @@ test("AI prompt modules build normalized behaviour, structured prompts, and vali
       strength: 0.91,
       role: "arrive",
       reason: "Strong tonic return after dominant tension."
+    }
+  ]);
+
+  expect(result.salvagedSuggestions).toEqual([
+    {
+      chord: "Dm",
+      bass: "D2",
+      topNote: "A6",
+      resolutionType: "continue",
+      confidence: 0.95,
+      strength: 0.95,
+      role: "continue",
+      reason: "Follows the requested down-step bass motion and maintains diatonic stability."
+    },
+    {
+      chord: "F",
+      bass: "F2",
+      topNote: "A6",
+      resolutionType: "continue",
+      confidence: 0.9,
+      strength: 0.9,
+      role: "continue",
+      reason: "Provides a smooth downward bass step and stays within the established diatonic palette."
+    },
+    {
+      chord: "G",
+      bass: "G1",
+      topNote: "B6",
+      resolutionType: "expand",
+      confidence: 0.85,
+      strength: 0.85,
+      role: "expand",
+      reason: "Moves the bass down while allowing the top note to rise softly."
+    },
+    {
+      chord: "Dm/F",
+      bass: "F2",
+      topNote: "A6",
+      resolutionType: "continue",
+      confidence: 0.82,
+      strength: 0.82,
+      role: "continue",
+      reason: "Uses a first inversion to create smooth bass descent while keeping the top note stable."
+    },
+    {
+      chord: "Em",
+      bass: "E2",
+      topNote: "G6",
+      resolutionType: "continue",
+      confidence: 0.75,
+      strength: 0.75,
+      role: "continue",
+      reason: "Returns to a previously used chord with a downward bass step and soft top-line descent."
     }
   ]);
 
