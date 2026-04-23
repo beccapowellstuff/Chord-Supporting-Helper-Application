@@ -253,6 +253,10 @@ test("AI behaviour controls drive the request profile and behaviour contract", a
     expect(payload.temperature).toBe(0.6);
     expect(payload.input).toContain("Requested Behaviour:");
     expect(payload.input).toContain("- profile: expressive");
+    expect(payload.input).toContain("- style preset: JRPG / Game Score");
+    expect(payload.input).toContain("- style details: Expressive tonal colour with pedal tones and dramatic shifts.");
+    expect(payload.input).toContain("- feel preset: Heroic");
+    expect(payload.input).toContain("- feel details: Stronger uplift, purpose, and forward harmonic motion.");
     expect(payload.input).toContain("- phrase role: arrive");
     expect(payload.input).toContain("- bass behaviour: hold");
     expect(payload.input).toContain("- top-note behaviour: hold_or_neighbor");
@@ -292,10 +296,14 @@ test("AI behaviour controls drive the request profile and behaviour contract", a
   await expect(page.locator("#aiSuggestionBehaviorPanel")).toBeVisible();
 
   await page.locator("#aiSuggestionProfile").selectOption("expressive");
+  await page.locator("#aiSuggestionStyle").selectOption("jrpg_game_score");
+  await page.locator("#aiSuggestionFeel").selectOption("heroic");
   await page.locator("#aiSuggestionPhraseRole").selectOption("arrive");
   await page.locator("#aiSuggestionBassBehaviour").selectOption("hold");
   await page.locator("#aiSuggestionTopNoteBehaviour").selectOption("stay_near");
   await page.locator("#aiSuggestionColour").selectOption("plain");
+  await expect(page.locator("#aiSuggestionStyleDetails")).toContainText("Expressive tonal colour with pedal tones and dramatic shifts.");
+  await expect(page.locator("#aiSuggestionFeelDetails")).toContainText("Stronger uplift, purpose, and forward harmonic motion.");
 
   await page.locator("#suggestAiBtn").click();
 

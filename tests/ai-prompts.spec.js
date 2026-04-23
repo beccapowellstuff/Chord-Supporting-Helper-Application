@@ -9,6 +9,8 @@ test("AI prompt modules build normalized behaviour, structured prompts, and vali
 
     const normalized = prompts.normalizeAiSuggestionBehavior({
       profile: "expressive",
+      style: "jrpg_game_score",
+      feel: "heroic",
       phraseRole: "flexible",
       bassBehaviour: "flexible",
       topNoteBehaviour: "flexible",
@@ -128,7 +130,11 @@ test("AI prompt modules build normalized behaviour, structured prompts, and vali
   expect(result.normalized.resolved.bassBehaviour).toBe("ascend");
   expect(result.normalized.resolved.topNoteBehaviour).toBe("ascend_gently");
   expect(result.normalized.resolved.colour).toBe("moderate");
+  expect(result.normalized.resolved.styleLabel).toBe("JRPG / Game Score");
+  expect(result.normalized.resolved.feelLabel).toBe("Heroic");
   expect(result.normalized.normalized.allowBorrowedChords).toBe(true);
+  expect(result.normalized.normalized.styleGuidance.modalMixtureTolerance).toBe("high");
+  expect(result.normalized.normalized.feelGuidance.cadenceShift).toBe("clearer");
 
   expect(result.aiSuggestionRequest).toMatchObject({
     reasoningEffort: "on",
@@ -139,6 +145,12 @@ test("AI prompt modules build normalized behaviour, structured prompts, and vali
   expect(result.aiSuggestionRequest.input).toContain("Observed Context:");
   expect(result.aiSuggestionRequest.input).toContain("- progression: C | F | G");
   expect(result.aiSuggestionRequest.input).toContain("Requested Behaviour:");
+  expect(result.aiSuggestionRequest.input).toContain("- style preset: JRPG / Game Score");
+  expect(result.aiSuggestionRequest.input).toContain("- style details: Expressive tonal colour with pedal tones and dramatic shifts.");
+  expect(result.aiSuggestionRequest.input).toContain("- style modal mixture tolerance: high");
+  expect(result.aiSuggestionRequest.input).toContain("- feel preset: Heroic");
+  expect(result.aiSuggestionRequest.input).toContain("- feel details: Stronger uplift, purpose, and forward harmonic motion.");
+  expect(result.aiSuggestionRequest.input).toContain("- feel cadence shift: clearer");
   expect(result.aiSuggestionRequest.input).toContain("- phrase role: arrive");
   expect(result.aiSuggestionRequest.input).toContain("- bass behaviour: up_step_bias");
   expect(result.aiSuggestionRequest.input).toContain("- top-note behaviour: up_soft");

@@ -55,10 +55,30 @@ function buildObservedContextLines(context = {}) {
 }
 
 function buildControlContractLines(behavior = {}, profileConfig = {}) {
+  const styleGuidance = behavior.styleGuidance || {};
+  const feelGuidance = behavior.feelGuidance || {};
   return [
     "Requested Behaviour:",
     `- profile: ${behavior.profile || "(none)"}`,
     `- thinking mode intent: ${profileConfig.thinkingMode || "off"}`,
+    `- style preset: ${behavior.stylePreset || "(none)"}`,
+    `- style details: ${behavior.styleDetails || "(none)"}`,
+    `- style harmonic complexity: ${styleGuidance.harmonicComplexity || "(none)"}`,
+    `- style extension tolerance: ${styleGuidance.extensionTolerance || "(none)"}`,
+    `- style pedal tolerance: ${styleGuidance.pedalTolerance || "(none)"}`,
+    `- style ambiguity tolerance: ${styleGuidance.ambiguityTolerance || "(none)"}`,
+    `- style cadence bias: ${styleGuidance.cadenceBias || "(none)"}`,
+    `- style chromatic tolerance: ${styleGuidance.chromaticTolerance || "(none)"}`,
+    `- style modal mixture tolerance: ${styleGuidance.modalMixtureTolerance || "(none)"}`,
+    `- style emotional colour bias: ${styleGuidance.emotionalColourBias || "(none)"}`,
+    `- style directional drive: ${styleGuidance.directionalDrive || "(none)"}`,
+    `- feel preset: ${behavior.feelPreset || "(none)"}`,
+    `- feel details: ${behavior.feelDetails || "(none)"}`,
+    `- feel emotional colour bias: ${feelGuidance.emotionalColourBias || "(none)"}`,
+    `- feel directional drive: ${feelGuidance.directionalDrive || "(none)"}`,
+    `- feel ambiguity shift: ${feelGuidance.ambiguityShift || "(none)"}`,
+    `- feel cadence shift: ${feelGuidance.cadenceShift || "(none)"}`,
+    `- feel brightness bias: ${feelGuidance.brightnessBias || "(none)"}`,
     `- phrase role: ${behavior.phraseIntent || "(none)"}`,
     `- bass behaviour: ${behavior.bassMotionIntent || "(none)"}`,
     `- top-note behaviour: ${behavior.topLineIntent || "(none)"}`,

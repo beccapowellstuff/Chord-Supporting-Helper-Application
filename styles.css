@@ -2286,6 +2286,15 @@ h2 {
   gap: 4px;
 }
 
+.ai-suggestion-behavior-hint {
+  display: block;
+  min-height: 31px;
+  color: #7a5b67;
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: help;
+}
+
 .ai-suggestion-behavior-label {
   color: var(--accent-dark);
   font-size: 11px;

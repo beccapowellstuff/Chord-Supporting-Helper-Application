@@ -87,7 +87,9 @@ import {
   buildAiSuggestionPromptRequest,
   buildAiSuggestionRenderItems,
   DEFAULT_AI_SUGGESTION_BEHAVIOR,
+  getAiSuggestionFeelPreset,
   normalizeAiSuggestionBehavior,
+  getAiSuggestionStylePreset,
   parseAiSuggestionResponse,
   buildAiExploreProgressionInstructions,
   parseAiExploreSuggestions
@@ -108,6 +110,10 @@ const suggestAiBtn = document.getElementById("suggestAiBtn");
 const toggleAiSuggestionBehaviorBtn = document.getElementById("toggleAiSuggestionBehaviorBtn");
 const aiSuggestionBehaviorPanel = document.getElementById("aiSuggestionBehaviorPanel");
 const aiSuggestionProfileSelect = document.getElementById("aiSuggestionProfile");
+const aiSuggestionStyleSelect = document.getElementById("aiSuggestionStyle");
+const aiSuggestionFeelSelect = document.getElementById("aiSuggestionFeel");
+const aiSuggestionStyleDetails = document.getElementById("aiSuggestionStyleDetails");
+const aiSuggestionFeelDetails = document.getElementById("aiSuggestionFeelDetails");
 const aiSuggestionPhraseRoleSelect = document.getElementById("aiSuggestionPhraseRole");
 const aiSuggestionBassBehaviourSelect = document.getElementById("aiSuggestionBassBehaviour");
 const aiSuggestionTopNoteBehaviourSelect = document.getElementById("aiSuggestionTopNoteBehaviour");
@@ -1631,6 +1637,50 @@ function renderSuggestionEngineControls() {
   if (aiSuggestionProfileSelect) {
     aiSuggestionProfileSelect.value = appState.aiSuggestionBehavior?.profile || DEFAULT_AI_SUGGESTION_BEHAVIOR.profile;
     aiSuggestionProfileSelect.disabled = Boolean(appState.suggestionAiRequesting);
+  }
+
+  const stylePreset = getAiSuggestionStylePreset(appState.aiSuggestionBehavior?.style || DEFAULT_AI_SUGGESTION_BEHAVIOR.style);
+  if (aiSuggestionStyleSelect) {
+    aiSuggestionStyleSelect.value = stylePreset.key;
+    aiSuggestionStyleSelect.disabled = Boolean(appState.suggestionAiRequesting);
+    aiSuggestionStyleSelect.title = [
+      stylePreset.label,
+      stylePreset.details,
+      `Harmonic complexity: ${stylePreset.harmonicComplexity}`,
+      `Extension tolerance: ${stylePreset.extensionTolerance}`,
+      `Pedal tolerance: ${stylePreset.pedalTolerance}`,
+      `Ambiguity tolerance: ${stylePreset.ambiguityTolerance}`,
+      `Cadence bias: ${stylePreset.cadenceBias}`,
+      `Chromatic tolerance: ${stylePreset.chromaticTolerance}`,
+      `Modal mixture tolerance: ${stylePreset.modalMixtureTolerance}`,
+      `Emotional colour bias: ${stylePreset.emotionalColourBias}`,
+      `Directional drive: ${stylePreset.directionalDrive}`
+    ].join("\n");
+  }
+
+  if (aiSuggestionStyleDetails) {
+    aiSuggestionStyleDetails.textContent = stylePreset.details;
+    aiSuggestionStyleDetails.title = aiSuggestionStyleSelect?.title || "";
+  }
+
+  const feelPreset = getAiSuggestionFeelPreset(appState.aiSuggestionBehavior?.feel || DEFAULT_AI_SUGGESTION_BEHAVIOR.feel);
+  if (aiSuggestionFeelSelect) {
+    aiSuggestionFeelSelect.value = feelPreset.key;
+    aiSuggestionFeelSelect.disabled = Boolean(appState.suggestionAiRequesting);
+    aiSuggestionFeelSelect.title = [
+      feelPreset.label,
+      feelPreset.details,
+      `Emotional colour bias: ${feelPreset.emotionalColourBias}`,
+      `Directional drive: ${feelPreset.directionalDrive}`,
+      `Ambiguity shift: ${feelPreset.ambiguityShift}`,
+      `Cadence shift: ${feelPreset.cadenceShift}`,
+      `Brightness bias: ${feelPreset.brightnessBias}`
+    ].join("\n");
+  }
+
+  if (aiSuggestionFeelDetails) {
+    aiSuggestionFeelDetails.textContent = feelPreset.details;
+    aiSuggestionFeelDetails.title = aiSuggestionFeelSelect?.title || "";
   }
 
   if (aiSuggestionPhraseRoleSelect) {
@@ -4891,6 +4941,20 @@ async function init() {
     if (aiSuggestionProfileSelect) {
       aiSuggestionProfileSelect.addEventListener("change", () => {
         updateAiSuggestionBehavior({ profile: String(aiSuggestionProfileSelect.value || "precise").trim().toLowerCase() || "precise" });
+        runSuggestions();
+      });
+    }
+
+    if (aiSuggestionStyleSelect) {
+      aiSuggestionStyleSelect.addEventListener("change", () => {
+        updateAiSuggestionBehavior({ style: String(aiSuggestionStyleSelect.value || "neutral").trim().toLowerCase() || "neutral" });
+        runSuggestions();
+      });
+    }
+
+    if (aiSuggestionFeelSelect) {
+      aiSuggestionFeelSelect.addEventListener("change", () => {
+        updateAiSuggestionBehavior({ feel: String(aiSuggestionFeelSelect.value || "neutral").trim().toLowerCase() || "neutral" });
         runSuggestions();
       });
     }
