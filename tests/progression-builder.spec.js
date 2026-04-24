@@ -727,7 +727,7 @@ test("repedals just after the chord boundary when two sustained chords are conse
   expect(sustainEvents).toEqual([
     expect.objectContaining({ channel: 0, tick: 0, value: 127 }),
     expect.objectContaining({ channel: 0, tick: 492, value: 0 }),
-    expect.objectContaining({ channel: 0, tick: 493, value: 127 }),
+    expect.objectContaining({ channel: 0, tick: 502, value: 127 }),
     expect.objectContaining({ channel: 0, tick: 972, value: 0 })
   ]);
 });

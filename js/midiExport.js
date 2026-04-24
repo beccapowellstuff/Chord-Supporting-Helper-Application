@@ -18,6 +18,7 @@ const SUSTAIN_PEDAL_CONTROLLER = 64;
 const SUSTAIN_PEDAL_ON = 127;
 const SUSTAIN_PEDAL_OFF = 0;
 const PEDAL_RELEASE_OFFSET_TICKS = 12;
+const PEDAL_REPEDAL_GAP_TICKS = 10;
 const BASS_TRACK_MIN_MIDI = 24;
 const BASS_TRACK_MAX_MIDI = 47;
 
@@ -290,7 +291,7 @@ function createChordTrack(items) {
 
       if (isNextSustainActive) {
         events.push({
-          tick: pedalReleaseTick + 1,
+          tick: pedalReleaseTick + PEDAL_REPEDAL_GAP_TICKS,
           order: 81,
           bytes: buildControlChangeEvent(CHORD_CHANNEL, SUSTAIN_PEDAL_CONTROLLER, SUSTAIN_PEDAL_ON)
         });
