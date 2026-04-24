@@ -27,8 +27,11 @@ test("keeps a 7-chord diatonic key set in shared app state", async ({ page }) =>
 test("renders the selected key details and exactly seven diatonic chord cards", async ({ page }) => {
   await gotoApp(page);
   const selectionBar = page.locator("#keyInfo .key-mode-selection-bar");
+  const tonicChordButton = page.locator(".key-summary-chord-btn");
 
   await expect(page.locator(".key-summary-name")).toHaveText("C Ionian");
+  await expect(tonicChordButton).toHaveText("C");
+  await expect(tonicChordButton).toHaveAttribute("data-chord", "C");
   await expect(page.locator(".key-mode-chord-card")).toHaveCount(7);
   await expect(page.locator(".key-mode-chord-card").first()).toContainText("I");
   await expect(page.locator(".key-mode-chord-card").first()).toContainText("tonic");

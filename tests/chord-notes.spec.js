@@ -86,6 +86,16 @@ test("returns three chord notes for dim triad", async ({ page }) => {
   expect(result).toEqual(["C", "D#", "F#"]);
 });
 
+test("canonicalises minor add13 spellings to a minor sixth chord", async ({ page }) => {
+  const result = await page.evaluate(() => window.__chordNotesTestApi.parseChordName("Dm(add13)"));
+
+  expect(result).not.toBeNull();
+  expect(result.root).toBe("D");
+  expect(result.suffix).toBe("m6");
+  expect(result.intervals).toEqual([0, 3, 7, 9]);
+  expect(result.canonicalName).toBe("Dm6");
+});
+
 // ── noteToMidi tests ─────────────────────────────────────────────────────
 
 test("converts C4 to MIDI 60", async ({ page }) => {

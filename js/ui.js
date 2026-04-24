@@ -45,7 +45,7 @@ function formatNoteLabel(note) {
 
 const CHORD_SUFFIX_BASES = [
   "mMaj7",
-  "madd13",
+  "m6",
   "madd11",
   "madd9",
   "Maj13",
@@ -120,10 +120,6 @@ function formatChordSuffixLabel(suffix) {
 
   if (rawSuffix === "madd11") {
     return "m(add11)";
-  }
-
-  if (rawSuffix === "madd13") {
-    return "m(add13)";
   }
 
   if (rawSuffix === "mMaj7add13") {
@@ -263,11 +259,11 @@ function getChordTypeLabel(suffix) {
     "Maj13#5#11": "Altered major",
     "m": "Minor triad",
     "m7": "Minor seventh",
+    "m6": "Minor sixth",
     "m7b5": "Half-diminished seventh",
     "m9": "Minor ninth",
     "m11": "Minor eleventh",
     "m13": "Minor thirteenth",
-    "madd13": "Minor added thirteenth",
     "madd11": "Minor added eleventh",
     "madd9": "Minor added ninth",
     "mMaj7": "Minor major seventh",
@@ -1280,7 +1276,7 @@ export function renderKeyInfo(element, musicData, selectedKey, onChordClick, onC
           ` : ""}
         </div>
         <div class="key-summary-help">
-          Tonic chord shows a common chord quality built on the mode's root. Characteristic note shows the scale tone that most helps define the mode's flavour.
+          Tonic chord shows the diatonic tonic triad for the selected mode. Characteristic note shows the scale tone that most helps define the mode's flavour.
         </div>
       </div>
       <div class="key-mode-details">
@@ -1458,7 +1454,7 @@ const CHORD_VARIATION_GROUPS = [
       "add13",
       "madd9",
       "madd11",
-      "madd13",
+      "m6",
       "9",
       "9sus4",
       "13",

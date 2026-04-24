@@ -99,7 +99,7 @@ const CHORD_DEFINITIONS = [
   { suffix: "m13", aliases: ["m13"], intervals: [0, 3, 7, 10, 14, 17, 21] },
   { suffix: "m11", aliases: ["m11"], intervals: [0, 3, 7, 10, 14, 17] },
   { suffix: "m9", aliases: ["m9"], intervals: [0, 3, 7, 10, 14] },
-  { suffix: "madd13", aliases: ["madd13", "m(add13)"], intervals: [0, 3, 7, 21] },
+  { suffix: "m6", aliases: ["m6", "madd13", "m(add13)"], intervals: [0, 3, 7, 9] },
   { suffix: "madd11", aliases: ["madd11", "m(add11)"], intervals: [0, 3, 7, 17] },
   { suffix: "madd9", aliases: ["madd9", "m(add9)"], intervals: [0, 3, 7, 14] },
   { suffix: "m7", aliases: ["m7"], intervals: [0, 3, 7, 10] },

@@ -415,7 +415,7 @@ function buildKeyData(root, modeDefinition, modeDefinitionsById) {
     transitions: buildTransitions(chords, triadQualities[0]),
     relativeKey: buildRelativeKey(root, modeDefinition, scaleNotes, modeDefinitionsById),
     parallelKey: buildParallelKey(root, modeDefinition, modeDefinitionsById),
-    tonicChord: `${root}${modeDefinition.tonicChordSuffix || ""}`,
+    tonicChord: chords[0] || `${root}${modeDefinition.tonicChordSuffix || ""}`,
     characteristicNote
   };
 }

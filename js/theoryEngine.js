@@ -35,7 +35,7 @@ const STABLE_ARRIVAL_SUFFIXES = new Set([
   "sus4",
   "madd9",
   "madd11",
-  "madd13"
+  "m6"
 ]);
 const MAX_BUCKET_SUGGESTIONS = 5;
 const SUGGESTION_BUCKETS = [
