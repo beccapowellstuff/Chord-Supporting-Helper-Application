@@ -113,6 +113,20 @@ test("adds the currently selected inversion and voicing from the shared selectio
   await expect.poll(() => page.evaluate(() => window.appState.progressionItems.at(-1)?.voicing?.voicingShortLabel || "")).toBe("W");
 });
 
+test("auto sustain toggle adds new chords with sustain enabled", async ({ page }) => {
+  await gotoApp(page);
+
+  await setProgressionText(page, "C, F, G");
+  await page.locator("#sequenceAutoSustainToggle").check();
+  await page.getByRole("button", { name: /Theory Suggestions/ }).click();
+
+  const firstCard = page.locator("#results .suggestion-card-chord").first();
+  await firstCard.click();
+  await page.locator("#results .key-mode-selection-add-btn").click();
+
+  await expect.poll(() => page.evaluate(() => Boolean(window.appState.progressionItems.at(-1)?.sustain))).toBe(true);
+});
+
 test("shows progression-state debug details for a repeated ending", async ({ page }) => {
   await gotoApp(page);
 

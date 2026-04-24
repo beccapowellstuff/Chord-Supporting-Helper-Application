@@ -443,6 +443,30 @@ body {
   margin-top: 0;
 }
 
+.progression-sequence-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  margin: 0;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(230, 201, 214, 0.74);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.progression-sequence-toggle input {
+  margin: 0;
+}
+
+.progression-sequence-toggle-label {
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 .progression-sequence-setting {
   display: flex;
   flex-direction: column;

@@ -162,6 +162,7 @@ const aiModelSelectSetting = document.getElementById("aiModelSelectSetting");
 const saveAppSettingsBtn = document.getElementById("saveAppSettingsBtn");
 const cancelAppSettingsBtn = document.getElementById("cancelAppSettingsBtn");
 const sequenceTempoBpmInput = document.getElementById("sequenceTempoBpm");
+const sequenceAutoSustainToggle = document.getElementById("sequenceAutoSustainToggle");
 const metronomeToggleBtn = document.getElementById("metronomeToggleBtn");
 const metronomePopover = document.getElementById("metronomePopover");
 const metronomeVolumeInput = document.getElementById("metronomeVolume");
@@ -232,6 +233,7 @@ const appState = {
   aiSuggestionsSelectedVoicing: "close",
   keyChordSet: null,
   sequenceTempoBpm: DEFAULT_TEMPO_BPM,
+  sequenceAutoSustain: false,
   metronomeArmed: false,
   metronomeVolume: 40,
   metronomePopoverOpen: false,
@@ -1364,9 +1366,17 @@ function renderAiExploreConversationList() {
   }
 
   const conversation = Array.isArray(appState.aiExploreConversation) ? appState.aiExploreConversation : [];
+  const previousScrollTop = aiExploreConversationList.scrollTop;
+  const previousScrollHeight = aiExploreConversationList.scrollHeight;
+  const previousClientHeight = aiExploreConversationList.clientHeight;
+  const previousCount = Number(aiExploreConversationList.dataset.renderedConversationCount || "0");
+  const wasNearBottom = previousScrollHeight <= 0
+    || (previousScrollHeight - (previousScrollTop + previousClientHeight)) <= 24;
+  const hasNewMessages = conversation.length !== previousCount;
 
   if (!conversation.length) {
     aiExploreConversationList.innerHTML = '<div class="ai-explore-conversation-empty">No messages yet. Type a prompt below to start the conversation.</div>';
+    aiExploreConversationList.dataset.renderedConversationCount = "0";
     return;
   }
 
@@ -1383,7 +1393,7 @@ function renderAiExploreConversationList() {
 
     const bubbleEl = document.createElement("div");
     bubbleEl.className = "ai-explore-message-bubble";
-    bubbleEl.textContent = message.content || "";
+    bubbleEl.textContent = formatAiExploreConversationContent(message.content || "");
     messageEl.appendChild(bubbleEl);
 
     // Render suggestion cards if present
@@ -1473,9 +1483,15 @@ function renderAiExploreConversationList() {
     aiExploreConversationList.appendChild(messageEl);
   });
 
-  // Scroll to bottom
+  aiExploreConversationList.dataset.renderedConversationCount = String(conversation.length);
+
   requestAnimationFrame(() => {
-    aiExploreConversationList.scrollTop = aiExploreConversationList.scrollHeight;
+    if (hasNewMessages && wasNearBottom) {
+      aiExploreConversationList.scrollTop = aiExploreConversationList.scrollHeight;
+      return;
+    }
+
+    aiExploreConversationList.scrollTop = previousScrollTop;
   });
 }
 
@@ -1614,6 +1630,42 @@ async function handleAiExploreAddSuggestion(message, suggestionIndex, buttonEl) 
 function buildAiExploreConversationHistory() {
   const conversation = Array.isArray(appState.aiExploreConversation) ? appState.aiExploreConversation : [];
   return conversation.slice(-MAX_CONVERSATION_TURNS);
+}
+
+function formatAiExploreConversationContent(content) {
+  let text = String(content || "");
+  if (!text) {
+    return "";
+  }
+
+  const latexInlinePattern = /\$([^$\n]+)\$/g;
+  text = text.replace(latexInlinePattern, (_, inner) => normalizeAiExploreInlineMath(inner));
+
+  return text
+    .replace(/\\+to\b/g, "->")
+    .replace(/\\+rightarrow\b/g, "->")
+    .replace(/\\+leftarrow\b/g, "<-")
+    .replace(/\\sharp\b/g, "#")
+    .replace(/\\flat\b/g, "b")
+    .replace(/\\#/g, "#")
+    .replace(/\\_/g, "_")
+    .replace(/\\&/g, "&")
+    .replace(/\\%/g, "%")
+    .replace(/\\([(){}\[\]])/g, "$1")
+    .replace(/[ \t]+\n/g, "\n")
+    .trim();
+}
+
+function normalizeAiExploreInlineMath(content) {
+  return String(content || "")
+    .replace(/\\+to\b/g, "->")
+    .replace(/\\+rightarrow\b/g, "->")
+    .replace(/\\+leftarrow\b/g, "<-")
+    .replace(/\\sharp\b/g, "#")
+    .replace(/\\flat\b/g, "b")
+    .replace(/\\#/g, "#")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
@@ -2457,6 +2509,10 @@ function renderProgressionBuilderUI() {
     sequenceTempoBpmInput.value = String(appState.sequenceTempoBpm);
   }
 
+  if (sequenceAutoSustainToggle) {
+    sequenceAutoSustainToggle.checked = Boolean(appState.sequenceAutoSustain);
+  }
+
   renderMetronomeUI();
   renderNewProgressionConfirm();
 
@@ -2700,12 +2756,18 @@ function refreshProgressionItemsForSelectedKey() {
 
 function appendChordToProgression(chordName, overrides = {}) {
   const friendlyChordName = getFriendlyChordName(chordName);
+  const nextOverrides = {
+    ...overrides
+  };
+  if (nextOverrides.sustain == null && appState.sequenceAutoSustain) {
+    nextOverrides.sustain = true;
+  }
   const nextItems = appendProgressionItem(
     appState.progressionItems,
     friendlyChordName,
     getCurrentKeyData(),
     getCurrentSequenceSettings(),
-    overrides
+    nextOverrides
   );
   const selectedId = nextItems.at(-1)?.id || null;
 
@@ -5131,6 +5193,7 @@ async function init() {
     if (metronomeToggleBtn) metronomeToggleBtn.dataset.tooltip = "Open metronome settings";
     if (metronomeStartStopBtn) metronomeStartStopBtn.dataset.tooltip = "Arm or stop the metronome for playback";
     if (sequenceTempoBpmInput) sequenceTempoBpmInput.dataset.tooltip = "Set the playback tempo for the chord sequence";
+    if (sequenceAutoSustainToggle) sequenceAutoSustainToggle.closest(".progression-sequence-toggle")?.setAttribute("data-tooltip", "When on, newly added chords start with sustain enabled automatically");
     if (sequenceTimeSignatureSelect) sequenceTimeSignatureSelect.dataset.tooltip = "Set the default beats per bar for new chord blocks";
     if (aiProviderSettingSelect) aiProviderSettingSelect.dataset.tooltip = "Choose the active AI provider for this browser";
     if (aiBaseUrlSettingInput) aiBaseUrlSettingInput.dataset.tooltip = "HTTP address for the active provider";
@@ -5175,6 +5238,13 @@ async function init() {
     if (sequenceTempoBpmInput) {
       sequenceTempoBpmInput.addEventListener("change", () => {
         appState.sequenceTempoBpm = normalizeTempoBpm(sequenceTempoBpmInput.value);
+        renderProgressionBuilderUI();
+      });
+    }
+
+    if (sequenceAutoSustainToggle) {
+      sequenceAutoSustainToggle.addEventListener("change", () => {
+        appState.sequenceAutoSustain = Boolean(sequenceAutoSustainToggle.checked);
         renderProgressionBuilderUI();
       });
     }

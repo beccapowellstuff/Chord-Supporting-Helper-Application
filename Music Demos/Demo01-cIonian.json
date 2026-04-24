@@ -1,7 +1,7 @@
 {
   "type": "vibe-chording-progression",
   "version": 4,
-  "savedAt": "2026-04-23T23:18:18.972Z",
+  "savedAt": "2026-04-24T03:08:51.198Z",
   "key": {
     "name": "C Ionian",
     "root": "C",
@@ -1147,7 +1147,7 @@
       "position": 36,
       "chord": "Csus2/E",
       "durationBeats": 4,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -1183,7 +1183,7 @@
       "position": 37,
       "chord": "D/E",
       "durationBeats": 4,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -1219,7 +1219,7 @@
       "position": 38,
       "chord": "Am7",
       "durationBeats": 4,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "keyboard",
         "inversionLabel": "",
@@ -1259,7 +1259,7 @@
       "position": 39,
       "chord": "Bm",
       "durationBeats": 4,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "suggestion-engine",
         "inversionLabel": "Root",
@@ -1291,7 +1291,7 @@
       "position": 40,
       "chord": "CMaj7",
       "durationBeats": 4,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "suggestion-engine",
         "inversionLabel": "Root",
@@ -1331,7 +1331,7 @@
       "position": 41,
       "chord": "B7",
       "durationBeats": 4,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "suggestion-engine",
         "inversionLabel": "Root",
@@ -1371,7 +1371,7 @@
       "position": 42,
       "chord": "C",
       "durationBeats": 4,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "suggestion-engine-ai",
         "inversionLabel": "AI shape",
@@ -1407,7 +1407,7 @@
       "position": 43,
       "chord": "D/E",
       "durationBeats": 4,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "suggestion-engine-ai",
         "inversionLabel": "AI shape",
@@ -1443,7 +1443,7 @@
       "position": 44,
       "chord": "FMaj7",
       "durationBeats": 4,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "suggestion-engine-ai",
         "inversionLabel": "AI shape",
@@ -1483,7 +1483,7 @@
       "position": 45,
       "chord": "Em",
       "durationBeats": 4,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "suggestion-engine-ai",
         "inversionLabel": "AI shape",
@@ -1519,7 +1519,7 @@
       "position": 46,
       "chord": "Am",
       "durationBeats": 4,
-      "sustain": false,
+      "sustain": true,
       "voicing": {
         "source": "suggestion-engine-ai",
         "inversionLabel": "AI shape",
@@ -1546,6 +1546,226 @@
           },
           {
             "midi": 93,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 47,
+      "chord": "Gsus4",
+      "durationBeats": 2,
+      "sustain": true,
+      "voicing": {
+        "source": "keyboard",
+        "inversionLabel": "",
+        "inversionShortLabel": "",
+        "voicingLabel": "",
+        "voicingShortLabel": "",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 43,
+            "velocity": 84
+          },
+          {
+            "midi": 55,
+            "velocity": 84
+          },
+          {
+            "midi": 67,
+            "velocity": 84
+          },
+          {
+            "midi": 72,
+            "velocity": 84
+          },
+          {
+            "midi": 74,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 48,
+      "chord": "G",
+      "durationBeats": 2,
+      "sustain": true,
+      "voicing": {
+        "source": "chord-explorer",
+        "inversionLabel": "Root",
+        "inversionShortLabel": "R",
+        "voicingLabel": "Close",
+        "voicingShortLabel": "C",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 43,
+            "velocity": 84
+          },
+          {
+            "midi": 67,
+            "velocity": 84
+          },
+          {
+            "midi": 71,
+            "velocity": 84
+          },
+          {
+            "midi": 74,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 49,
+      "chord": "Fm",
+      "durationBeats": 4,
+      "sustain": true,
+      "voicing": {
+        "source": "chord-explorer",
+        "inversionLabel": "Root",
+        "inversionShortLabel": "R",
+        "voicingLabel": "Close",
+        "voicingShortLabel": "C",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 41,
+            "velocity": 84
+          },
+          {
+            "midi": 65,
+            "velocity": 84
+          },
+          {
+            "midi": 68,
+            "velocity": 84
+          },
+          {
+            "midi": 72,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 50,
+      "chord": "C#Maj7",
+      "durationBeats": 4,
+      "sustain": true,
+      "voicing": {
+        "source": "chord-explorer",
+        "inversionLabel": "Root",
+        "inversionShortLabel": "R",
+        "voicingLabel": "Close",
+        "voicingShortLabel": "C",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 37,
+            "velocity": 84
+          },
+          {
+            "midi": 49,
+            "velocity": 84
+          },
+          {
+            "midi": 61,
+            "velocity": 84
+          },
+          {
+            "midi": 65,
+            "velocity": 84
+          },
+          {
+            "midi": 68,
+            "velocity": 84
+          },
+          {
+            "midi": 72,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 51,
+      "chord": "Bbm7",
+      "durationBeats": 4,
+      "sustain": true,
+      "voicing": {
+        "source": "chord-explorer",
+        "inversionLabel": "Root",
+        "inversionShortLabel": "R",
+        "voicingLabel": "Close",
+        "voicingShortLabel": "C",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 46,
+            "velocity": 84
+          },
+          {
+            "midi": 58,
+            "velocity": 84
+          },
+          {
+            "midi": 70,
+            "velocity": 84
+          },
+          {
+            "midi": 73,
+            "velocity": 84
+          },
+          {
+            "midi": 77,
+            "velocity": 84
+          },
+          {
+            "midi": 80,
+            "velocity": 84
+          }
+        ]
+      }
+    },
+    {
+      "position": 52,
+      "chord": "E7/G#",
+      "durationBeats": 4,
+      "sustain": true,
+      "voicing": {
+        "source": "suggestion-engine-ai",
+        "inversionLabel": "AI shape",
+        "inversionShortLabel": "ai",
+        "voicingLabel": "Suggested bass/top note",
+        "voicingShortLabel": "ai",
+        "velocityMode": "basic",
+        "notes": [
+          {
+            "midi": 44,
+            "velocity": 84
+          },
+          {
+            "midi": 64,
+            "velocity": 84
+          },
+          {
+            "midi": 68,
+            "velocity": 84
+          },
+          {
+            "midi": 71,
+            "velocity": 84
+          },
+          {
+            "midi": 74,
+            "velocity": 84
+          },
+          {
+            "midi": 83,
             "velocity": 84
           }
         ]

@@ -245,3 +245,91 @@ test("AI Explore only includes progression context when the checkbox is ticked",
 
   await expect.poll(() => requestCount).toBe(2);
 });
+
+test("AI Explore conversation cleans common LaTeX-style chord formatting", async ({ page }) => {
+  await page.addInitScript(storageKey => {
+    window.localStorage.setItem(storageKey, JSON.stringify({
+      version: 1,
+      preferences: {
+        defaultTempoBpm: 120,
+        ai: {
+          provider: "lmStudio",
+          providers: {
+            lmStudio: {
+              baseUrl: "http://127.0.0.1:1234",
+              selectedModel: "google/gemma-4-27b"
+            }
+          }
+        }
+      }
+    }));
+  }, SETTINGS_STORAGE_KEY);
+
+  let modelsRequestCount = 0;
+  await page.route("http://127.0.0.1:1234/api/v1/models", route => {
+    modelsRequestCount += 1;
+    const isLoaded = modelsRequestCount >= 2;
+
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        models: [
+          {
+            type: "llm",
+            key: "google/gemma-4-27b",
+            display_name: "Gemma 4 27B",
+            loaded_instances: isLoaded ? ["google/gemma-4-27b"] : []
+          }
+        ]
+      })
+    });
+  });
+
+  await page.route("http://127.0.0.1:1234/api/v1/models/load", route =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        type: "llm",
+        instance_id: "google/gemma-4-27b",
+        status: "loaded",
+        load_time_seconds: 1.2
+      })
+    })
+  );
+
+  await page.route("http://127.0.0.1:1234/v1/responses", async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: {
+        "access-control-allow-origin": "*"
+      },
+      body: JSON.stringify({
+        id: "resp_test_latex_cleanup",
+        object: "response",
+        created_at: 1710000000,
+        model: "google/gemma-4-27b",
+        output_text: "dominants ($A7 \\\\to Dm$), diminished chords ($G\\\\#dim$), and modal interchange ($Eb7$, $F\\\\#m7b5$)."
+      })
+    });
+  });
+
+  await gotoApp(page);
+  await openTool(page, "AI Explore");
+
+  await expect(page.locator("#aiExplorePromptInput")).toBeEnabled();
+  await page.locator("#aiExplorePromptInput").fill("Talk about altered harmony.");
+  await page.locator("#aiExploreSubmitBtn").click();
+
+  await expect(page.locator(".ai-explore-conversation-list")).toContainText("dominants (A7 -> Dm), diminished chords (G#dim), and modal interchange (Eb7, F#m7b5).");
+  await expect(page.locator(".ai-explore-conversation-list")).not.toContainText("$A7");
+  await expect(page.locator(".ai-explore-conversation-list")).not.toContainText("\\to");
+});
